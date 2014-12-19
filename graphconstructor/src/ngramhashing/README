@@ -1,0 +1,15 @@
+Testing n-gram hash functions
+Daniel Lemire
+
+type:
+
+make
+
+then
+
+./unit
+
+then
+
+./speedtesting
+
