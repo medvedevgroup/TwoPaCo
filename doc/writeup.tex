@@ -1,0 +1,158 @@
+\documentclass[a4paper, 12pt]{scrartcl} 
+\usepackage{ulem}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{lmodern}
+\usepackage{cleveref}
+\usepackage[warn]{mathtext} 
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel} 
+\usepackage{indentfirst} 
+\usepackage{misccorr} 
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{cite}
+\usepackage{wrapfig}
+\usepackage{setspace}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\captionsetup{compatibility=false}
+\crefname{subsection}{subsection}{subsections}
+\bibliographystyle{unsrt}
+
+\title{The Mammalian Sibelia Project}
+\author{Ilia Minkin}
+\date{}
+\begin{document}
+\maketitle
+\algnotext{EndFor}
+\algnotext{EndIf}
+\algnotext{EndWhile}
+\renewcommand{\algorithmicrequire}{\textbf{Input: }}
+\renewcommand{\algorithmicensure}{\textbf{Output: }}
+
+\section{Problem Formulation}
+\textbf{Input:} $S$: Set of $m$ strings of equal length $n$ and two positive integers $k$ and $c$.
+
+\textbf{Output:} $G$: De Bruijn graph of $S$ constructed for substrings of length $k$ with all bulges of size $\leq c$ collapsed into paths.
+Each edge of $G$ also has a list of intervals of $S$ associated with it.
+
+\textbf{Question:} Come up with an algorithm with a low time/space complexity, in both $m$ and $n$. 
+
+A note: while current version of Sibelia consequently constructs and collapses several graphs for different values of $k$ and $c$, for sake of simplicity at this stage we assume we are given a single $k$ and a $c$.
+\section{Analysis}
+The problem essentially consists of two parts: construction of the compressed de Bruijn graph out of $S$ and its modification.
+While the graph construction can be well defined, its simplification is trickier.
+\subsection{Graph Construction Description}
+The problem of graph construction is as follows:
+
+\textbf{Input:} $S$: Set of $m$ strings of equal length $n$ and a positive integers $k$.
+
+\textbf{Output:} $G = (V, E)$: A compressed de Bruijn graph of $S$ constructed for substrings of length $k$.
+
+Once the vertex set $V$ of the compressed graph is identified, construction of edge set $E$ is straightforward.
+Suppose that there is a function $V_{id}(s)$ that returns number of vertex in $G$ labeled with the $k$-mer $s$ or $-1$ if there is no such vertex.
+Given $V_{id}$ we construct edge set using the following algorithm:
+\begin{algorithm}[H]
+\caption{Vertex Set of the Compressed Graph} 
+\algorithmicrequire{A collection of string $S = \{s_1, \ldots, s_m\}$, an integer $k$ and function $V_{id}$} \\ 
+\algorithmicensure{Edge set $E$ of $G$}
+\begin{algorithmic}[1]
+\State $G \gets \emptyset$
+\For{$s \in S$}
+	\State $u \gets V_{id}(s[1:k])$
+	\For{$i \gets 2$ \textbf{to} $|s|$}
+		\State $v \gets V_{id}(s[i:i + k - 1])$
+		\If{$v \neq -1$}
+			\State $G \gets G \cup (u, v)$
+			\State $u \gets v$
+		\EndIf
+	\EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+One of the possible ways to construct $V_{id}$ efficiently is to scan the input strings two times:
+\begin{enumerate}
+\item At the first pass, store all $(k + 1)$-mers in a set $T$ using e.g. a Bloom filter
+\item At the second pass, construct the dictionary of vertices by testing at each position if there are different edges leaving or entering the current $k$-mer 
+\end{enumerate}
+So the algorithm is the following:
+\begin{algorithm}[H]
+\caption{Edge Set of the Compressed Graph} 
+\algorithmicrequire{A collection of string $S = \{s_1, \ldots, s_m\}$, an integer $k$} \\ 
+\algorithmicensure{Function $V_{id}$}
+\begin{algorithmic}[1]
+\State $T \gets \emptyset$
+\For{$s \in S$}
+	\For{$i \gets 1$ \textbf{to} $|s| - k$}
+		\State $T \gets T \cup \{s[i:i + k]\}$
+	\EndFor
+\EndFor
+\State $V_{id} \gets $ an empty dictionary
+\For{$s \in S$}
+	\For{$i \gets 1$ \textbf{to} $|s| - k + 1$}
+		\State $kmer \gets s[i: i + k - 1]$
+		\If{$kmer \in V_{id}$}
+			\State \textbf{continue}
+		\EndIf
+		\State $enter \gets 0$ \Comment Number of entering edges
+		\State $leave \gets 0$ \Comment Number of leaving edges
+		\For{$c \in \{A, C, G, T\}$}
+			\If{$kmer + c \in T$}
+				\State $leave \gets leave + 1$
+			\EndIf
+			\If{$c + kmer \in T$}
+				\State $enter \gets enter + 1$
+			\EndIf
+		\EndFor
+		\If{$enter > 1$ \text{\textbf{or}} $leave > 1$}
+			\State $V_{id}(kmer) \gets |V_{id}|$
+		\EndIf
+	\EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+A note: the algorithms above consider only positive strands of the input strings, extending them to handle both strands is straightforward.
+\subsection{Graph Construction Complexity}
+Assuming that we implement the set $T$ as a Bloom filter, we have following for the first stage.
+We have $q$ hash functions and a bit array $A$ of size $w$.
+Storing all $(k + 1)$-mers requires time $O(nmq)$ and space $O(w + q)$: at each step we update values of $q$ hash functions and modify $A$.
+A note: we assume that updating value of each hash function takes constant time (i.e. rolling hash).
+
+The naive implementation of the second stage uses a hash table for $V_{id}$.
+Each testing for an edge takes $O(q)$ time since we have to update value of all hash functions to query $T$ and we perform 8 testings for each position.
+Insertion to the hash table takes time $O(k)$ and we perform exactly $|V|$ such insertions.
+
+Combining all together we have $O(nmq + k|V|)$ time and $O(|V| + w + q)$ space for both stages. 
+It is worth to note that the space complexity depends on the size of output $|V|$ plus size of the bit array $A$ for the Bloom filter.
+Size of the bit array only depends on desired false positive rate and can be tuned.
+It is important to say that false positives only hurt in the way of adding non-bifurcation vertices to the graph and do not generate any loss of information.
+Hence, the trade off between the false positive rate and the filter size could be quite efficient.
+
+Assuming that $G$ is sparse, it takes smaller space than the input itself and is better than using a suffix array (linear space respective to the input) or indexing the whole input in a hash table to store ordinary de Bruijn graph and compress it (a totally naive approach).
+
+An unpleasant fact is that the complexity depends on $k$, unlike the suffix array implementation.
+But I believe that we can do much better.
+\pagebreak
+\subsection{Graph Simplification}
+A note: during the graph simplification we consider only paths corresponding to some substrings of the input genome.
+There is an issue that makes complexity analysis of the simplification tricky: it obviously depends on the structure of the graph, i.e. number of bulges.
+One may make an interesting observation: while collapsing a bulge obviously removes it from the graph, it may create other bulges.
+So the question is whether this process converges, i.e. do we remove more bulges from the graph than we create.
+
+In practice it seems to converge, but it is possible to draw an example where it will oscillate forever: i.e. removing a bulge $b_1$ creates a bulge $b_2$ and removal of $b_2$ recreates $b_1$ and so on.
+It is a very special case that requires presence of at least two copies of substring $s$ such that $s = \, \text{reverse complement of} \, s$.
+
+Another issue is that there is more than one way of simplification of the graph and they yield different graphs.
+A possible solution to both of this issues is to propose a concrete strategy of simplification and show that under this strategy:
+\begin{itemize}
+\item The simplification converges within reasonable time so we can estimate its complexity
+\item The resulting graph structure is "nice" in some way of defining niceness
+
+\end{itemize}
+\bibliography{reference}
+\end{document}
