@@ -138,6 +138,7 @@ Assuming that $G$ is sparse, it takes smaller space than the input itself and is
 An unpleasant fact is that the complexity depends on $k$, unlike the suffix array implementation.
 But I believe that we can do much better.
 \pagebreak
+
 \subsection{Graph Simplification}
 A note: during the graph simplification we consider only paths corresponding to some substrings of the input genome.
 There is an issue that makes complexity analysis of the simplification tricky: it obviously depends on the structure of the graph, i.e. number of bulges.
@@ -152,7 +153,17 @@ A possible solution to both of this issues is to propose a concrete strategy of 
 \begin{itemize}
 \item The simplification converges within reasonable time so we can estimate its complexity
 \item The resulting graph structure is "nice" in some way of defining niceness
-
 \end{itemize}
-\bibliography{reference}
+
+\section{Possible Directions}
+\subsection{A-Bruijn Graphs}
+Essentially a compressed de Bruijn graph is an A-Bruijn graph defined on the vertex set of bifurcations, see \cite{lin2014manifold} for references.
+An idea: maybe we can refine the bifurcations even more or bifurcations for different values of $k$ to make the graph "nicer".
+To do: formulate the "nicenecess" and the according bifurcations refinement criteria.
+
+\begin{spacing}{0.9}
+\bibliographystyle{plain}
+\bibliography{writeup}
+\end{spacing}
+
 \end{document}
