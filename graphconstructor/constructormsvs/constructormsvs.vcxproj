@@ -79,6 +79,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\constructor.cpp" />
+    <ClCompile Include="..\src\streamfastaparser.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\streamfastaparser.h" />
+    <ClInclude Include="..\src\vertexenumerator.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="test.fasta" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
