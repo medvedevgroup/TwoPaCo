@@ -1,3 +1,4 @@
+#include <ctime>
 #include <vector>
 #include <cstdint>
 #include <fstream>
@@ -7,15 +8,13 @@
 
 int main(int argc, char * argv[])
 {
+	
 	try
 	{
-		Sibelia::StreamFastaParser parser("test.fasta");
-		while (parser.ReadRecord())
-		{
-			std::cout << '>' << parser.GetCurrentHeader() << std::endl;
-			for (char ch; parser.GetChar(ch); std::cout << ch);
-			std::cout << std::endl;
-		}
+		std::vector<std::string> fileName;
+		fileName.push_back("test.fasta");
+		Sibelia::VertexEnumerator vid(fileName, 21);
+		
 	}
 	catch (const std::runtime_error & msg)
 	{

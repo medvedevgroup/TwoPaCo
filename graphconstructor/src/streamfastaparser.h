@@ -15,7 +15,6 @@ namespace Sibelia
 		public:
 			Exception(const std::string & msg);
 		};
-
 		
 		bool ReadRecord();
 		bool GetChar(char & ch);

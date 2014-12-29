@@ -1,5 +1,6 @@
 #include <sstream>
 #include <algorithm>
+
 #include "streamfastaparser.h"
 
 namespace Sibelia
