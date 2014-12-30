@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "vertexenumerator.h"
+#include "ngramhashing/cyclichash.h"
 #include "ngramhashing/rabinkarphash.h"
 
 namespace Sibelia
@@ -16,11 +17,12 @@ namespace Sibelia
 			{
 				char ch;
 				std::deque<char> roller;
-				typedef KarpRabinHash HashFunction;
+
+				typedef CyclicHash HashFunction;
 				std::vector<std::unique_ptr<HashFunction> > hashPtr(q);
 				for (std::unique_ptr<HashFunction> & ptr : hashPtr)
 				{
-					ptr.reset(new HashFunction(k, 8));
+					ptr.reset(new HashFunction(k, 31));
 				}
 				
 				for (size_t j = 0; j < k && parser.GetChar(ch); j++)
@@ -44,6 +46,7 @@ namespace Sibelia
 						}
 
 						std::cout << std::endl;
+
 						if (parser.GetChar(ch))
 						{
 							roller.push_back(ch);
@@ -60,7 +63,7 @@ namespace Sibelia
 						}
 					}
 				}
-			}			
+			}	
 		}
 	}
 }
