@@ -1,9 +1,10 @@
 #ifndef _STREAM_FASTA_PARSER_H_
 #define _STREAM_FASTA_PARSER_H_
 
-#include <string>
 #include <fstream>
 #include <exception>
+
+#include "dnastring.h"
 
 namespace Sibelia
 {

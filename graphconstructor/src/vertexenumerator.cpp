@@ -2,15 +2,30 @@
 #include <memory>
 
 #include "vertexenumerator.h"
-#include "ngramhashing/cyclichash.h"
-#include "ngramhashing/rabinkarphash.h"
+#include "lib/SpookyV2.h"
 
 namespace Sibelia
 {
-	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t k)
+	namespace
 	{
-		k = 4;
+		std::string ordinary = "ACGT";
+
+		char MakeUp(char ch)
+		{
+			ch = toupper(ch);
+			if (std::find(ordinary.begin(), ordinary.end(), ch) != ordinary.end())
+			{
+				return ch;
+			}
+
+			return ordinary[rand() % ordinary.size()];
+		}
+	}
+
+	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t k, size_t filterSize)
+	{/*
 		size_t q = 3;
+		std::vector<bool> bitVector(filterSize, false);
 		for (const std::string & nowFileName: fileName)
 		{
 			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
@@ -39,16 +54,14 @@ namespace Sibelia
 				{
 					while (true)
 					{
-						std::cout << std::string(roller.begin(), roller.end());
 						for (std::unique_ptr<HashFunction> & ptr : hashPtr)
 						{
-							std::cout << ' ' << ptr->hashvalue;
+							bitVector[ptr->hashvalue % bitVector.size()] = true;
 						}
-
-						std::cout << std::endl;
 
 						if (parser.GetChar(ch))
 						{
+							ch = MakeUp(ch);
 							roller.push_back(ch);
 							for (std::unique_ptr<HashFunction> & ptr : hashPtr)
 							{
@@ -64,6 +77,6 @@ namespace Sibelia
 					}
 				}
 			}	
-		}
+		}*/
 	}
 }

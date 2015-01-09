@@ -24,12 +24,18 @@
     <ClCompile Include="..\src\vertexenumerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\dnastring.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\vertexenumerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\streamfastaparser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dnastring.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

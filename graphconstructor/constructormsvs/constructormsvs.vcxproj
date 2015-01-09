@@ -144,10 +144,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\constructor.cpp" />
+    <ClCompile Include="..\src\dnastring.cpp" />
     <ClCompile Include="..\src\streamfastaparser.cpp" />
     <ClCompile Include="..\src\vertexenumerator.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\dnastring.h" />
     <ClInclude Include="..\src\streamfastaparser.h" />
     <ClInclude Include="..\src\vertexenumerator.h" />
   </ItemGroup>
