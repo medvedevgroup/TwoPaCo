@@ -1,29 +1,14 @@
 #include <deque>
 #include <memory>
+#include <iostream>
 
-#include "vertexenumerator.h"
 #include "lib/SpookyV2.h"
+#include "vertexenumerator.h"
 
 namespace Sibelia
-{
-	namespace
-	{
-		std::string ordinary = "ACGT";
-
-		char MakeUp(char ch)
-		{
-			ch = toupper(ch);
-			if (std::find(ordinary.begin(), ordinary.end(), ch) != ordinary.end())
-			{
-				return ch;
-			}
-
-			return ordinary[rand() % ordinary.size()];
-		}
-	}
-
+{	
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t k, size_t filterSize)
-	{/*
+	{
 		size_t q = 3;
 		std::vector<bool> bitVector(filterSize, false);
 		for (const std::string & nowFileName: fileName)
@@ -31,44 +16,35 @@ namespace Sibelia
 			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
 			{
 				char ch;
-				std::deque<char> roller;
-
-				typedef CyclicHash HashFunction;
-				std::vector<std::unique_ptr<HashFunction> > hashPtr(q);
-				for (std::unique_ptr<HashFunction> & ptr : hashPtr)
+				DnaString kmer;
+				std::vector<SpookyHash> hash(q);
+				for (SpookyHash & h : hash)
 				{
-					ptr.reset(new HashFunction(k, 31));
+					h.Init(rand(), rand());
 				}
 				
 				for (size_t j = 0; j < k && parser.GetChar(ch); j++)
 				{
-					for (std::unique_ptr<HashFunction> & ptr : hashPtr)
-					{
-						ptr->eat(ch);
-					}
-					
-					roller.push_back(ch);
+					kmer.AppendBack(ch);
 				}
 
-				if (roller.size() >= k)
+				if (kmer.GetSize() >= k)
 				{
 					while (true)
 					{
-						for (std::unique_ptr<HashFunction> & ptr : hashPtr)
+						std::cout << kmer.ToString();
+						for (SpookyHash & h : hash)
 						{
-							bitVector[ptr->hashvalue % bitVector.size()] = true;
+							uint64_t body = kmer.GetBody();
+							uint64_t hvalue = h.Hash64(&body, sizeof(body), 0);
+							bitVector[hvalue % bitVector.size()] = true;
+							
 						}
 
 						if (parser.GetChar(ch))
 						{
-							ch = MakeUp(ch);
-							roller.push_back(ch);
-							for (std::unique_ptr<HashFunction> & ptr : hashPtr)
-							{
-								ptr->update(roller.front(), roller.back());
-							}
-
-							roller.pop_front();
+							kmer.AppendBack(ch);
+							kmer.PopFront();
 						}
 						else
 						{
@@ -77,6 +53,6 @@ namespace Sibelia
 					}
 				}
 			}	
-		}*/
+		}
 	}
 }
