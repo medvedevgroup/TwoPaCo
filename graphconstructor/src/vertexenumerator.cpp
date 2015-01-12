@@ -17,10 +17,11 @@ namespace Sibelia
 			{
 				char ch;
 				DnaString kmer;
-				std::vector<SpookyHash> hash(q);
-				for (SpookyHash & h : hash)
+				std::vector<std::pair<uint64_t, SpookyHash> > hash(q);				
+				
+				for (std::pair<uint64_t, SpookyHash> & h : hash)
 				{
-					h.Init(rand(), rand());
+					h.first = rand();
 				}
 				
 				for (size_t j = 0; j < k && parser.GetChar(ch); j++)
@@ -32,11 +33,10 @@ namespace Sibelia
 				{
 					while (true)
 					{
-						std::cout << kmer.ToString();
-						for (SpookyHash & h : hash)
+						for (std::pair<uint64_t, SpookyHash> & h : hash)
 						{
 							uint64_t body = kmer.GetBody();
-							uint64_t hvalue = h.Hash64(&body, sizeof(body), 0);
+							uint64_t hvalue = h.second.Hash64(&body, sizeof(body), h.first);
 							bitVector[hvalue % bitVector.size()] = true;
 							
 						}
