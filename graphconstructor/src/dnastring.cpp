@@ -34,6 +34,12 @@ namespace Sibelia
 		body_ >>= 2;
 	}
 
+	void DnaString::AppendFront(char ch)
+	{
+		body_ <<= 2;
+		body_ |= MakeUp(ch);
+	}
+
 	void DnaString::AppendBack(char ch)
 	{
 		body_ |= MakeUp(ch) << (2 * size_++);

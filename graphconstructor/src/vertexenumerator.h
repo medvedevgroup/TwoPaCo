@@ -10,7 +10,7 @@ namespace Sibelia
 	class VertexEnumerator
 	{
 	public:
-		VertexEnumerator(const std::vector<std::string> & fileName, size_t k, size_t filterSize);
+		VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize);
 	private:
 	};
 }
