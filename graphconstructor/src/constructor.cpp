@@ -1,20 +1,21 @@
 #include <ctime>
 #include <vector>
+#include <cassert>
 #include <cstdint>
 #include <cassert>
 #include <fstream>
 #include <iostream>
 
+#include "test.h"
 #include "vertexenumerator.h"
 
 int main(int argc, char * argv[])
 {
+	assert(Sibelia::Runtests());
 
 	try
-	{
-		std::vector<std::string> fileName;
-		fileName.push_back(argv[1]);
-		Sibelia::VertexEnumerator vid(fileName, 21, (1 << 28) + 1);
+	{		
+		
 	}
 	catch (const std::runtime_error & msg)
 	{

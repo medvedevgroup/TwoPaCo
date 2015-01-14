@@ -20,9 +20,9 @@ namespace Sibelia
 		std::string ToString() const;
 		static const std::string LITERAL;
 	private:
-		size_t size_;
+		uint64_t size_;
 		uint64_t body_;
-		static size_t MakeUp(char ch);
+		static uint64_t MakeUp(char ch);
 	};
 }
 

@@ -1,5 +1,6 @@
 #include <deque>
 #include <memory>
+#include <cassert>
 #include <iostream>
 #include <algorithm>
 
@@ -8,6 +9,8 @@
 
 namespace Sibelia
 {	
+	const size_t VertexEnumerator::INVALID_VERTEX = -1;
+
 	namespace
 	{
 		void PutInBloomFilter(std::vector<bool> & bitVector, const std::vector<std::pair<uint64_t, SpookyHash> > & hash, const DnaString & item)
@@ -77,7 +80,7 @@ namespace Sibelia
 			}	
 		}
 
-		std::vector<uint64_t> bifurcation;
+		
 		for (const std::string & nowFileName : fileName)
 		{
 			bool start = true;
@@ -96,7 +99,7 @@ namespace Sibelia
 					{
 						if (start)
 						{
-							bifurcation.push_back(vertex.GetBody());
+							bifurcation_.push_back(vertex.GetBody());
 						}
 						else
 						{
@@ -114,7 +117,7 @@ namespace Sibelia
 
 							if (inCount > 1 || outCount > 1)
 							{
-								bifurcation.push_back(vertex.GetBody());
+								bifurcation_.push_back(vertex.GetBody());
 							}
 						}
 
@@ -126,7 +129,7 @@ namespace Sibelia
 						}
 						else
 						{
-							bifurcation.push_back(vertex.GetBody());
+							bifurcation_.push_back(vertex.GetBody());
 							break;
 						}						
 					}					
@@ -134,7 +137,23 @@ namespace Sibelia
 			}
 		}
 
-		std::sort(bifurcation.begin(), bifurcation.end());
-		bifurcation.erase(std::unique(bifurcation.begin(), bifurcation.end()), bifurcation.end());
+		std::sort(bifurcation_.begin(), bifurcation_.end());
+		bifurcation_.erase(std::unique(bifurcation_.begin(), bifurcation_.end()), bifurcation_.end());
+	}
+
+	size_t VertexEnumerator::GetVerticesCount() const
+	{
+		return bifurcation_.size();
+	}
+
+	size_t VertexEnumerator::GetId(const DnaString & vertex) const
+	{
+		std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), vertex.GetBody());
+		if (it == bifurcation_.end() || *it != vertex.GetBody())
+		{
+			return INVALID_VERTEX;
+		}
+
+		return it - bifurcation_.begin();
 	}
 }

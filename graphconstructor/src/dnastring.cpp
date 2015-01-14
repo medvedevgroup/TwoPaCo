@@ -9,7 +9,7 @@ namespace Sibelia
 	{
 	}
 
-	size_t DnaString::MakeUp(char ch)
+	uint64_t DnaString::MakeUp(char ch)
 	{
 		ch = toupper(ch);
 		size_t idx = std::find(LITERAL.begin(), LITERAL.end(), ch) - LITERAL.begin();
@@ -23,7 +23,7 @@ namespace Sibelia
 
 	void DnaString::PopBack()
 	{
-		uint64_t mask = 0x3 << (--size_ * 2);
+		uint64_t mask = uint64_t(0x3) << (--size_ * 2);
 		body_ &= ~(mask);
 	}
 
@@ -36,6 +36,7 @@ namespace Sibelia
 
 	void DnaString::AppendFront(char ch)
 	{
+		++size_;
 		body_ <<= 2;
 		body_ |= MakeUp(ch);
 	}
@@ -45,7 +46,7 @@ namespace Sibelia
 		body_ |= MakeUp(ch) << (2 * size_++);
 	}
 
-	size_t DnaString::GetSize() const
+	size_t DnaString::GetSize() const 
 	{
 		return size_;
 	}
@@ -57,7 +58,7 @@ namespace Sibelia
 
 	char DnaString::GetChar(size_t idx) const
 	{
-		size_t charIdx = body_ >> (2 * idx);
+		uint64_t charIdx = body_ >> (2 * idx);
 		return LITERAL[charIdx & 0x3];
 	}
 
