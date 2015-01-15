@@ -48,7 +48,7 @@ namespace Sibelia
 			h.first = rand();
 		}
 
-		size_t edgeLength = vertexLength;
+		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
 		for (const std::string & nowFileName: fileName)
 		{
@@ -108,7 +108,7 @@ namespace Sibelia
 							for (char ch : DnaString::LITERAL)
 							{
 								DnaString inEdge = vertex;
-								DnaString outEdge = vertex;
+								DnaString outEdge = vertex;								
 								inEdge.AppendFront(ch);
 								outEdge.AppendBack(ch);
 								inCount += IsInBloomFilter(bitVector, hash, inEdge) ? 1 : 0;
