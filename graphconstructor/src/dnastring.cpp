@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "dnastring.h"
 #include "lib/SpookyV2.h"
 

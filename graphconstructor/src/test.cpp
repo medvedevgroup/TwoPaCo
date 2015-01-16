@@ -36,7 +36,7 @@ namespace Sibelia
 				{
 					log << "Popping back";
 					str1.PopBack();
-					str2.pop_back();
+					str2.erase(str2.end() - 1);
 				}
 				else
 				{

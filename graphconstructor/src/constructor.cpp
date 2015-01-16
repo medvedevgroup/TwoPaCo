@@ -5,6 +5,7 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 #include "test.h"
 #include "vertexenumerator.h"

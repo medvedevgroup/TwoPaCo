@@ -2,7 +2,7 @@
 #define _STREAM_FASTA_PARSER_H_
 
 #include <fstream>
-#include <exception>
+#include <stdexcept>
 
 #include "dnastring.h"
 
