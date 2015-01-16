@@ -15,7 +15,9 @@ int main(int argc, char * argv[])
 
 	try
 	{		
-		
+		std::vector<std::string> fileName(argv + 1, argv + argc);
+		Sibelia::VertexEnumerator vid(fileName, 25, (1 << 28) + 1);
+		std::cout << vid.GetVerticesCount() << std::endl;
 	}
 	catch (const std::runtime_error & msg)
 	{
