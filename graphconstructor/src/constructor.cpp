@@ -13,7 +13,7 @@
 int main(int argc, char * argv[])
 {
 	assert(Sibelia::Runtests());
-
+	return 0;
 	try
 	{		
 		std::vector<std::string> fileName(argv + 1, argv + argc);

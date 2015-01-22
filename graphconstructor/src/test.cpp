@@ -9,6 +9,18 @@ namespace Sibelia
 {
 	void DnaStringTest(size_t n, std::ostream & log)
 	{
+		DnaString str0(32);
+		for (size_t i = 0; i < n; i++)
+		{
+			size_t idx = rand() % str0.GetSize();			
+			char newChar = DnaString::LITERAL[rand() % DnaString::LITERAL.size()];
+			log << "Setting char, str(" << idx << ") = " << newChar << std::endl;
+			str0.SetChar(idx, newChar);
+			log << "Got char " << str0.GetChar(idx) << std::endl;
+			assert(str0.GetChar(idx) == newChar);
+		}
+
+
 		DnaString str1;
 		std::string str2;
 		for (size_t i = 0; i < n; i++)
@@ -150,10 +162,10 @@ namespace Sibelia
 	{
 		std::stringstream ss;
 		std::vector<std::string> fileName;
-		fileName.push_back("g1.fasta");
-		fileName.push_back("g2.fasta");
-		VertexEnumeratorTest(fileName, 9, (1 << 28) + 1, ss);
-		DnaStringTest(10000, ss);
+	//	fileName.push_back("g1.fasta");
+	//	fileName.push_back("g2.fasta");
+	//	VertexEnumeratorTest(fileName, 9, (1 << 28) + 1, ss);
+		DnaStringTest(10000, std::cerr);
 		
 		return true;
 	}

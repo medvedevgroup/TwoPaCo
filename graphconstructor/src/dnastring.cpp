@@ -7,7 +7,7 @@ namespace Sibelia
 {
 	const std::string DnaString::LITERAL = "ACGT";
 
-	DnaString::DnaString() : size_(0), body_(0)
+	DnaString::DnaString(uint64_t size) : size_(size), body_(0)
 	{
 	}
 
@@ -38,7 +38,7 @@ namespace Sibelia
 
 	void DnaString::AppendFront(char ch)
 	{
-		++size_;
+		++size_ ;
 		body_ <<= 2;
 		body_ |= MakeUp(ch);
 	}
@@ -58,10 +58,17 @@ namespace Sibelia
 		return body_;
 	}
 
-	char DnaString::GetChar(size_t idx) const
+	char DnaString::GetChar(uint64 idx) const
 	{
 		uint64_t charIdx = body_ >> (2 * idx);
 		return LITERAL[charIdx & 0x3];
+	}
+
+	void DnaString::SetChar(uint64_t idx, char ch)
+	{
+		uint64_t mask = uint64_t(0x3) << (idx * 2);
+		body_ &= ~(mask);
+		body_ |= MakeUp(ch) << (2 * idx++);
 	}
 
 	std::string DnaString::ToString() const

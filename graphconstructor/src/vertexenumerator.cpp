@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 #include <algorithm>
+#include <unordered_set>
 
 #include "lib/SpookyV2.h"
 #include "vertexenumerator.h"
@@ -38,10 +39,17 @@ namespace Sibelia
 
 			return true;
 		}
+
+		
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize)
 	{
+		if (vertexLength > 29)
+		{
+			throw std::runtime_error("The vertex size is too large");
+		}
+
 		size_t q = 3;
 		std::vector<std::pair<uint64_t, SpookyHash> > hash(q);
 		for (std::pair<uint64_t, SpookyHash> & h : hash)

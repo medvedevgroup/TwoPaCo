@@ -320,3 +320,4 @@ UpgradeLog*.htm
 
 # Microsoft Fakes
 FakesAssemblies/
+graphconstructor/constructormsvs/ecoli10.fasta
