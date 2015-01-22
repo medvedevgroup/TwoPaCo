@@ -170,10 +170,10 @@ namespace Sibelia
 	{
 		std::stringstream ss;
 		std::vector<std::string> fileName;
-	//	fileName.push_back("g1.fasta");
-	//	fileName.push_back("g2.fasta");
-	//	VertexEnumeratorTest(fileName, 9, (1 << 28) + 1, ss);
-		DnaStringTest(10000, std::cerr);
+		fileName.push_back("g1.fasta");
+		fileName.push_back("g2.fasta");
+		VertexEnumeratorTest(fileName, 9, (1 << 28) + 1, ss);
+	//	DnaStringTest(10000, std::cerr);
 		
 		return true;
 	}
