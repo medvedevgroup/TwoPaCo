@@ -1,4 +1,5 @@
 #include <deque>
+#include <ctime>
 #include <memory>
 #include <cassert>
 #include <iostream>
@@ -50,6 +51,7 @@ namespace Sibelia
 
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
+		std::cerr << "Bloom filter counting..." << std::endl;
 		for (const std::string & nowFileName: fileName)
 		{
 			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
@@ -80,7 +82,9 @@ namespace Sibelia
 			}	
 		}
 
-		
+		size_t mark = clock();
+		std::cerr << "Passed: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
+		std::cerr << "Vertex enumeration...";
 		for (const std::string & nowFileName : fileName)
 		{
 			bool start = true;
@@ -103,6 +107,7 @@ namespace Sibelia
 						}
 						else
 						{
+							bool isBifurcation = false;							
 							size_t inCount = 0;
 							size_t outCount = 0;
 							for (char ch : DnaString::LITERAL)
@@ -113,9 +118,14 @@ namespace Sibelia
 								outEdge.AppendBack(ch);
 								inCount += IsInBloomFilter(bitVector, hash, inEdge) ? 1 : 0;
 								outCount += IsInBloomFilter(bitVector, hash, outEdge) ? 1 : 0;
+								if (inCount > 1 || outCount > 1)
+								{
+								    isBifurcation = true;
+								    break;
+								}
 							}
 
-							if (inCount > 1 || outCount > 1)
+							if (isBifurcation)
 							{
 								bifurcation_.push_back(vertex.GetBody());
 							}
@@ -137,8 +147,12 @@ namespace Sibelia
 			}
 		}
 
+		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC  << std::endl;
+		std::cout << "Sorting and duplicates removal..." << std::endl;
+		mark = clock();
 		std::sort(bifurcation_.begin(), bifurcation_.end());
 		bifurcation_.erase(std::unique(bifurcation_.begin(), bifurcation_.end()), bifurcation_.end());
+		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC << std::endl;
 	}
 
 	size_t VertexEnumerator::GetVerticesCount() const
