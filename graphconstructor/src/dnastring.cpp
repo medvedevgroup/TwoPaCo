@@ -7,8 +7,23 @@ namespace Sibelia
 {
 	const std::string DnaString::LITERAL = "ACGT";
 
+	bool operator == (const DnaString & a, const DnaString & b)
+	{
+		return a.size_ == b.size_ && a.body_ == b.body_;
+	}
+
+	bool operator != (const DnaString & a, const DnaString & b)
+	{
+		return !(a == b);
+	}
+
 	DnaString::DnaString(uint64_t size) : size_(size), body_(0)
 	{
+	}
+
+	DnaString::DnaString(uint64_t size, uint64_t body) : size_(size), body_(body)
+	{
+		*this = Prefix(size);
 	}
 
 	uint64_t DnaString::MakeUp(char ch)
@@ -56,6 +71,22 @@ namespace Sibelia
 	uint64_t DnaString::GetBody() const
 	{
 		return body_;
+	}
+
+	DnaString DnaString::Prefix(uint64_t size) const
+	{
+		if (size == 0)
+		{
+			return DnaString();
+		}
+
+		if (size >= size_)
+		{
+			return *this;
+		}
+
+		uint64_t mask = (uint64_t(1) << (size * 2));
+		return DnaString(size, body_ & (mask - 1));
 	}
 
 	char DnaString::GetChar(uint64 idx) const

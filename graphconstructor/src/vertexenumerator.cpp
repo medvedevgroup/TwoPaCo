@@ -15,22 +15,22 @@ namespace Sibelia
 
 	namespace
 	{
-		void PutInBloomFilter(std::vector<bool> & bitVector, const std::vector<std::pair<uint64_t, SpookyHash> > & hash, const DnaString & item)
+		void PutInBloomFilter(std::vector<bool> & bitVector, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
-			for (const std::pair<uint64_t, SpookyHash> & h : hash)
+			for (const uint64_t & s : seed)
 			{
 				uint64_t body = item.GetBody();
-				uint64_t hvalue = h.second.Hash64(&body, sizeof(body), h.first);
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), s);
 				bitVector[hvalue % bitVector.size()] = true;
 			}
 		}
 
-		bool IsInBloomFilter(const std::vector<bool> & bitVector, const std::vector<std::pair<uint64_t, SpookyHash> > & hash, const DnaString & item)
+		bool IsInBloomFilter(const std::vector<bool> & bitVector, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
-			for (const std::pair<uint64_t, SpookyHash> & h : hash)
+			for (const uint64_t & s : seed)
 			{
 				uint64_t body = item.GetBody();
-				uint64_t hvalue = h.second.Hash64(&body, sizeof(body), h.first);
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), s);
 				if (!bitVector[hvalue % bitVector.size()])
 				{
 					return false;
@@ -40,7 +40,32 @@ namespace Sibelia
 			return true;
 		}
 
-		
+		class VertexHashFunction
+		{
+		public:
+			uint64_t operator () (const uint64_t & a) const
+			{
+				 return SpookyHash::Hash64(&a, sizeof(a), 0);
+			}
+		};
+
+		class VertexEquality
+		{
+		public:
+			VertexEquality(size_t vertexSize) : vertexSize_(vertexSize)
+			{
+				
+			}
+
+			bool operator () (const uint64_t & a, const uint64_t & b) const
+			{
+				DnaString stra(vertexSize_, a);
+				DnaString strb(vertexSize_, b);
+				return stra == strb;
+			}
+		private:
+			size_t vertexSize_;
+		};
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize)
@@ -51,11 +76,8 @@ namespace Sibelia
 		}
 
 		size_t q = 3;
-		std::vector<std::pair<uint64_t, SpookyHash> > hash(q);
-		for (std::pair<uint64_t, SpookyHash> & h : hash)
-		{
-			h.first = rand();
-		}
+		std::vector<uint64_t> seed(q);
+		std::generate(seed.begin(), seed.end(), rand);
 
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
@@ -75,7 +97,7 @@ namespace Sibelia
 				{
 					while (true)
 					{
-						PutInBloomFilter(bitVector, hash, edge);
+						PutInBloomFilter(bitVector, seed, edge);
 						if (parser.GetChar(ch))
 						{
 							edge.AppendBack(ch);
@@ -124,8 +146,8 @@ namespace Sibelia
 								DnaString outEdge = vertex;								
 								inEdge.AppendFront(ch);
 								outEdge.AppendBack(ch);
-								inCount += IsInBloomFilter(bitVector, hash, inEdge) ? 1 : 0;
-								outCount += IsInBloomFilter(bitVector, hash, outEdge) ? 1 : 0;
+								inCount += IsInBloomFilter(bitVector, seed, inEdge) ? 1 : 0;
+								outCount += IsInBloomFilter(bitVector, seed, outEdge) ? 1 : 0;
 								if (inCount > 1 || outCount > 1)
 								{
 								    isBifurcation = true;

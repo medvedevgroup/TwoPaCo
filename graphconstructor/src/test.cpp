@@ -20,7 +20,6 @@ namespace Sibelia
 			assert(str0.GetChar(idx) == newChar);
 		}
 
-
 		DnaString str1;
 		std::string str2;
 		for (size_t i = 0; i < n; i++)
@@ -62,6 +61,15 @@ namespace Sibelia
 			std::string str1b = str1.ToString();
 			log << str1b << std::endl << str2 << std::endl;
 			assert(str1b == str2);
+			
+			size_t prefix = rand() % (str1.GetSize() + 1);
+			DnaString str1pr = str1.Prefix(prefix);
+			std::string str2pr(str2.begin(), str2.begin() + prefix);
+			log << "Checking prefix, size = " << prefix << std::endl;
+			
+			log << str1pr.ToString() << std::endl;
+			log << str2pr << std::endl;
+			assert(str1pr.ToString() == str2pr);
 		}
 	}
 
