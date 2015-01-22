@@ -66,6 +66,16 @@ namespace Sibelia
 		private:
 			size_t vertexSize_;
 		};
+
+		typedef std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> BifCandidateSet;
+
+		class BifurcationCandidate
+		{
+		public:
+			
+		private:
+			DnaString body;
+		};
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize)
@@ -115,6 +125,8 @@ namespace Sibelia
 		size_t mark = clock();
 		std::cerr << "Passed: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
 		std::cerr << "Vertex enumeration...";
+		
+		BifCandidateSet bifSet(0, VertexHashFunction(), VertexEquality(vertexLength));
 		for (const std::string & nowFileName : fileName)
 		{
 			bool start = true;
