@@ -6,19 +6,23 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
 
 #include "test.h"
 #include "vertexenumerator.h"
 
 int main(int argc, char * argv[])
+
 {
 	assert(Sibelia::Runtests());
-	return 0;
+
 	try
 	{		
-		std::vector<std::string> fileName(argv + 1, argv + argc);
-		Sibelia::VertexEnumerator vid(fileName, 25, (1 << 28) + 1);
-		std::cout << vid.GetVerticesCount() << std::endl;
+		std::vector<std::string> fileName(argv + 2, argv + argc);
+		std::stringstream ss(*(argv + 1));
+		size_t filterSize;
+		ss >> filterSize;
+		Sibelia::VertexEnumerator vid(fileName, 25, filterSize);
 	}
 	catch (const std::runtime_error & msg)
 	{
