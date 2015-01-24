@@ -77,6 +77,7 @@ namespace Sibelia
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize)
 	{
+		std::cout << "Filter size = " << filterSize << std::endl;
 		if (vertexLength > 32)
 		{
 			throw std::runtime_error("The vertex size is too large");
@@ -88,7 +89,7 @@ namespace Sibelia
 		std::unordered_set<uint64_t, VertexHashFunction> bifSet_;
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
-		std::cerr << "Bloom filter counting..." << std::endl;
+		std::cout << "Bloom filter counting..." << std::endl;
 		for (const std::string & nowFileName: fileName)
 		{
 			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
@@ -120,8 +121,8 @@ namespace Sibelia
 		}
 
 		size_t mark = clock();
-		std::cerr << "Passed: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
-		std::cerr << "Vertex enumeration...";
+		std::cout << "Passed: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
+		std::cout << "Vertex enumeration..." << std::endl;
 		
 		for (const std::string & nowFileName : fileName)
 		{
@@ -187,12 +188,13 @@ namespace Sibelia
 
 		
 		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC  << std::endl;
-		
+		std::cout << "Vertex count = " << bifSet_.size() << std::endl;
+		/*
 		std::cout << "Sorting and duplicates removal..." << std::endl;
 		mark = clock();
-		bifurcation_.assign(bifSet_.begin(), bifSet_.end());
+		//bifurcation_.assign(bifSet_.begin(), bifSet_.end());
 		std::sort(bifurcation_.begin(), bifurcation_.end());		
-		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC << std::endl;
+		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC << std::endl;*/
 		
 	}
 
