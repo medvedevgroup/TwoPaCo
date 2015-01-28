@@ -1,6 +1,7 @@
 #include <set>
 #include <cassert>
 #include <sstream>
+#include <iterator>
 #include <iostream>
 #include <algorithm>
 
