@@ -23,7 +23,11 @@ namespace Sibelia
 
 	DnaString::DnaString(uint64_t size, uint64_t body) : size_(size), body_(body)
 	{
-		*this = Prefix(size);
+		if (size != sizeof(body) * 4)
+		{
+			uint64_t mask = (uint64_t(1) << (size * 2));
+			body_ &= (mask - 1);
+		}
 	}
 
 	uint64_t DnaString::MakeUp(char ch)

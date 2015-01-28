@@ -12,10 +12,21 @@ namespace Sibelia
 	public:
 		const static size_t INVALID_VERTEX;
 		size_t GetVerticesCount() const;
-		size_t GetId(const DnaString & vertex) const;		
+		size_t GetId(const DnaString & vertex) const;
+		template<class Iterator>
+			void Dump(Iterator out)
+			{
+				for (uint64_t body : bifurcation_)
+				{
+					DnaString str(vertexSize_, body);
+					*out++ = str.ToString();
+				}
+			}
+
 		VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize);
 	private:
 		
+		size_t vertexSize_;
 		std::vector<uint64_t> bifurcation_;
 	};
 }

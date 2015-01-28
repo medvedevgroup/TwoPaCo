@@ -51,7 +51,12 @@ namespace Sibelia
 			uint64_t operator () (const uint64_t & a) const
 			{
 				DnaString str(vertexSize_, a);
-				return SpookyHash::Hash64(&a, sizeof(a), 0);
+#ifdef _DEBUG
+				std::string pstr = str.ToString();
+#endif
+				uint64_t body = str.GetBody();
+				uint64_t hash = SpookyHash::Hash64(&body, sizeof(body), 0);
+				return hash;
 			}
 		private:
 			size_t vertexSize_;
@@ -69,6 +74,10 @@ namespace Sibelia
 			{
 				DnaString stra(vertexSize_, a);
 				DnaString strb(vertexSize_, b);
+#ifdef _DEBUG
+				std::string s1 = stra.ToString();
+				std::string s2 = strb.ToString();
+#endif
 				return stra == strb;
 			}
 		private:
@@ -83,7 +92,8 @@ namespace Sibelia
 		}
 	}
 
-	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize)
+	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize):
+		vertexSize_(vertexLength)
 	{
 		std::cout << "Filter size = " << filterSize << std::endl;
 		if (vertexLength > 30)
@@ -129,13 +139,12 @@ namespace Sibelia
 
 		size_t mark = clock();
 		std::cout << "Passed: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
-		std::cout << "Vertex enumeration..." << std::endl;
-		std::unordered_set<uint64_t, VertexHashFunction> candidateBifSet(0, VertexHashFunction(vertexLength));
-		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));		
+		std::cout << "Vertex enumeration..." << std::endl;		
+		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
+		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 		for (const std::string & nowFileName : fileName)
 		{
-			bool start = true;
-			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); start = true)
+			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); )
 			{
 				char ch;
 				DnaString vertex;
@@ -146,45 +155,40 @@ namespace Sibelia
 
 				if (vertex.GetSize() >= vertexLength)
 				{
-					for (bool go = true; go; start = false)
+					char prev;
+					trueBifSet.insert(vertex.GetBody());
+					for (bool go = true; go; )
 					{
 						bool putTrueBif = false;
 						bool putCandidate = false;
 						bool checkCandidate = false;
-						if (start)
+						if (!trueBifSet.count(vertex.GetBody()))
 						{
-							putTrueBif = true;												
-						}
-						else
-						{
-							if (!trueBifSet.count(vertex.GetBody()))
+							if (!candidateBifSet.count(vertex.GetBody()))
 							{
-								if (!candidateBifSet.count(vertex.GetBody()))
+								size_t inCount = 0;
+								size_t outCount = 0;
+								for (char ch : DnaString::LITERAL)
 								{
-									size_t inCount = 0;
-									size_t outCount = 0;
-									for (char ch : DnaString::LITERAL)
+									DnaString inEdge = vertex;
+									DnaString outEdge = vertex;
+									inEdge.AppendFront(ch);
+									outEdge.AppendBack(ch);
+									inCount += IsInBloomFilter(bitVector, seed, inEdge) ? 1 : 0;
+									outCount += IsInBloomFilter(bitVector, seed, outEdge) ? 1 : 0;
+									if (inCount > 1 || outCount > 1)
 									{
-										DnaString inEdge = vertex;
-										DnaString outEdge = vertex;
-										inEdge.AppendFront(ch);
-										outEdge.AppendBack(ch);
-										inCount += IsInBloomFilter(bitVector, seed, inEdge) ? 1 : 0;
-										outCount += IsInBloomFilter(bitVector, seed, outEdge) ? 1 : 0;
-										if (inCount > 1 || outCount > 1)
-										{
-											putCandidate = true;
-											break;
-										}
-									}									
+										putCandidate = true;
+										break;
+									}
 								}
-								else
-								{
-									checkCandidate = true;
-								}								
-							}							
+							}
+							else
+							{
+								checkCandidate = true;
+							}
 						}
-
+						
 						if (parser.GetChar(ch))
 						{
 							vertex.AppendBack(ch);							
@@ -195,21 +199,35 @@ namespace Sibelia
 							putTrueBif = true;
 						}
 
+						if (checkCandidate)
+						{
+#ifdef _DEBUG
+							std::string pstr = vertex.ToString();
+#endif
+							std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(vertex.GetBody());
+							DnaString candidate(vertexLength + 2, *it);
+							char candExtend = candidate.GetChar(vertexLength);
+							char candPrev = candidate.GetChar(vertexLength + 1);
+							putTrueBif = (candPrev != prev) || (candExtend != vertex.GetChar(vertexLength));
+						}
+
 						if (putTrueBif)
 						{
 							trueBifSet.insert(vertex.GetBody());
 							candidateBifSet.erase(vertex.GetBody());
 						}
-						else if (putCandidate)
+						
+						if (putCandidate)
 						{
-
-						}
-						else if (checkCandidate)
-						{
-
+							DnaString candidate(vertex);
+							candidate.AppendBack(prev);
+#ifdef _DEBUG
+							std::string pstr = candidate.ToString();
+#endif
+							candidateBifSet.insert(candidate.GetBody());
 						}
 						
-						vertex.PopBack();
+						prev = vertex.PopFront();
 					}					
 				}
 			}
@@ -217,13 +235,17 @@ namespace Sibelia
 
 		
 		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC  << std::endl;
-	//	std::cout << "Vertex count = " << bifSet_.size() << std::endl;
-		/*
-		std::cout << "Sorting and duplicates removal..." << std::endl;
-		mark = clock();
-		//bifurcation_.assign(bifSet_.begin(), bifSet_.end());
+		std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
+		std::cout << "FP count = " << candidateBifSet.size() << std::endl;
+		
+		for (uint64_t vertex : trueBifSet)
+		{
+			DnaString v(vertexLength, vertex);
+			bifurcation_.push_back(v.GetBody());
+		}
+
 		std::sort(bifurcation_.begin(), bifurcation_.end());		
-		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC << std::endl;*/
+		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC << std::endl;
 		
 	}
 

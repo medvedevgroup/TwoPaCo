@@ -2,6 +2,7 @@
 #include <cassert>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 #include "test.h"
 
@@ -124,6 +125,7 @@ namespace Sibelia
 
 				if (vertex.size() >= vertexLength)
 				{
+					bif.insert(vertex);
 					while (true)
 					{
 						size_t inCount = 0;
@@ -155,6 +157,7 @@ namespace Sibelia
 						}
 						else
 						{
+							bif.insert(vertex);
 							break;
 						}
 					}
@@ -164,12 +167,25 @@ namespace Sibelia
 
 		std::cout << "TP = " << bif.size() << std::endl;
 		std::cout << "FP = " << vid.GetVerticesCount() - bif.size() << std::endl;
+
+		if (vid.GetVerticesCount() != bif.size())
+		{
+			std::set<std::string> vidSet;
+			vid.Dump(std::inserter(vidSet, vidSet.begin()));
+			std::cout << "Diff:" << std::endl;
+			std::vector<std::string> diff;
+			std::set_difference(vidSet.begin(), vidSet.end(), bif.begin(), bif.end(), std::ostream_iterator<std::string>(std::cout, "\n"));
+			
+		}
 	}
 
 	bool Runtests()
 	{
 		std::stringstream ss;
 		std::vector<std::string> fileName;
+		
+		fileName.push_back("test.fasta");
+		VertexEnumeratorTest(fileName, 4, 1025, ss);
 		fileName.push_back("g1.fasta");
 		fileName.push_back("g2.fasta");
 		VertexEnumeratorTest(fileName, 9, (1 << 28) + 1, ss);
