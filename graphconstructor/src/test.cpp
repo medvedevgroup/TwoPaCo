@@ -188,8 +188,9 @@ namespace Sibelia
 		VertexEnumeratorTest(fileName, 4, 1025, ss);
 		fileName.push_back("g1.fasta");
 		fileName.push_back("g2.fasta");
-		VertexEnumeratorTest(fileName, 9, (1 << 28) + 1, ss);
-	//	DnaStringTest(10000, std::cerr);
+		fileName.push_back("g3.fasta");
+		VertexEnumeratorTest(fileName, 9, (1 << 12) + 1, ss);
+		DnaStringTest(10000, std::cerr);
 		
 		return true;
 	}

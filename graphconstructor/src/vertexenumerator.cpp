@@ -51,9 +51,6 @@ namespace Sibelia
 			uint64_t operator () (const uint64_t & a) const
 			{
 				DnaString str(vertexSize_, a);
-#ifdef _DEBUG
-				std::string pstr = str.ToString();
-#endif
 				uint64_t body = str.GetBody();
 				uint64_t hash = SpookyHash::Hash64(&body, sizeof(body), 0);
 				return hash;
@@ -74,10 +71,6 @@ namespace Sibelia
 			{
 				DnaString stra(vertexSize_, a);
 				DnaString strb(vertexSize_, b);
-#ifdef _DEBUG
-				std::string s1 = stra.ToString();
-				std::string s2 = strb.ToString();
-#endif
 				return stra == strb;
 			}
 		private:
@@ -201,9 +194,6 @@ namespace Sibelia
 
 						if (checkCandidate)
 						{
-#ifdef _DEBUG
-							std::string pstr = vertex.ToString();
-#endif
 							std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(vertex.GetBody());
 							DnaString candidate(vertexLength + 2, *it);
 							char candExtend = candidate.GetChar(vertexLength);
@@ -221,9 +211,6 @@ namespace Sibelia
 						{
 							DnaString candidate(vertex);
 							candidate.AppendBack(prev);
-#ifdef _DEBUG
-							std::string pstr = candidate.ToString();
-#endif
 							candidateBifSet.insert(candidate.GetBody());
 						}
 						
