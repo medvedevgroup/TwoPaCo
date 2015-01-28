@@ -15,7 +15,7 @@ namespace Sibelia
 		size_t GetId(const DnaString & vertex) const;		
 		VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize);
 	private:
-				
+		
 		std::vector<uint64_t> bifurcation_;
 	};
 }

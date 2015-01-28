@@ -9,8 +9,8 @@ namespace Sibelia
 	class DnaString
 	{
 	public:		
-		void PopBack();
-		void PopFront();
+		char PopBack();
+		char PopFront();
 		void AppendBack(char ch);
 		void AppendFront(char ch);
 		DnaString(uint64_t size = 0);
