@@ -23,7 +23,11 @@ namespace Sibelia
 
 	DnaString::DnaString(uint64_t size, uint64_t body) : size_(size), body_(body)
 	{
-		*this = Prefix(size);
+		if (size != sizeof(body) * 4)
+		{
+			uint64_t mask = (uint64_t(1) << (size * 2));
+			body_ &= (mask - 1);
+		}
 	}
 
 	uint64_t DnaString::MakeUp(char ch)
@@ -38,17 +42,21 @@ namespace Sibelia
 		return rand() % LITERAL.size();
 	}
 
-	void DnaString::PopBack()
+	char DnaString::PopBack()
 	{
+		char ret = GetChar(size_ - 1);
 		uint64_t mask = uint64_t(0x3) << (--size_ * 2);
 		body_ &= ~(mask);
+		return ret;
 	}
 
-	void DnaString::PopFront()
-	{		
+	char DnaString::PopFront()
+	{	
+		char ret = GetChar(0);
 		--size_;
 		body_ &= ~0x3;
 		body_ >>= 2;
+		return ret;
 	}
 
 	void DnaString::AppendFront(char ch)
