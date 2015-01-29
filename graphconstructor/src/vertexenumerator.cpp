@@ -238,7 +238,6 @@ namespace Sibelia
 
 	size_t VertexEnumerator::GetVerticesCount() const
 	{
-		//return bifSet_.size();
 		return bifurcation_.size();
 	}
 
