@@ -9,6 +9,16 @@
 
 namespace Sibelia
 {
+	namespace
+	{
+		std::string RevComp(const std::string & str)
+		{
+			std::string ret;
+			std::transform(str.rbegin(), str.rend(), std::back_inserter(ret), DnaString::Reverse);
+			return ret;
+		}
+	}
+
 	void DnaStringTest(size_t n, std::ostream & log)
 	{
 		DnaString str0(32);
@@ -98,6 +108,7 @@ namespace Sibelia
 					while (true)
 					{
 						edges.insert(edge);
+						edges.insert(RevComp(edge));
 						if (parser.GetChar(ch))
 						{
 							edge.push_back(ch);
@@ -127,29 +138,34 @@ namespace Sibelia
 				if (vertex.size() >= vertexLength)
 				{
 					bif.insert(vertex);
+					bif.insert(RevComp(vertex));					
 					while (true)
 					{
-						size_t inCount = 0;
-						size_t outCount = 0;
-						for (char ch : DnaString::LITERAL)
+						std::string candVertex[] = { vertex, RevComp(vertex) };
+						for (const std::string cand : candVertex)
 						{
-							std::string inEdge = ch + vertex;
-							std::string outEdge = vertex + ch;
-							inCount += edges.count(inEdge);
-							outCount += edges.count(outEdge);
-						}
-
-						if (inCount != 1 || outCount != 1)
-						{
-							DnaString check;
-							for (size_t i = 0; i < vertex.size(); i++)
+							size_t inCount = 0;
+							size_t outCount = 0;
+							for (char ch : DnaString::LITERAL)
 							{
-								check.AppendBack(vertex[i]);
+								std::string inEdge = ch + cand;
+								std::string outEdge = cand + ch;
+								inCount += edges.count(inEdge);
+								outCount += edges.count(outEdge);
 							}
 
-							assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX);
-							bif.insert(vertex);
-						}
+							if (inCount != 1 || outCount != 1)
+							{
+								DnaString check;
+								for (size_t i = 0; i < cand.size(); i++)
+								{
+									check.AppendBack(cand[i]);
+								}
+
+								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX);
+								bif.insert(cand);
+							}
+						}						
 
 						if (parser.GetChar(ch))
 						{
@@ -159,6 +175,7 @@ namespace Sibelia
 						else
 						{
 							bif.insert(vertex);
+							bif.insert(RevComp(vertex));
 							break;
 						}
 					}

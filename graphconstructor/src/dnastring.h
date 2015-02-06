@@ -22,6 +22,7 @@ namespace Sibelia
 		uint64_t GetBody() const;
 		std::string ToString() const;
 		static const std::string LITERAL;
+		static char Reverse(char ch);
 	private:
 		uint64_t size_;
 		uint64_t body_;

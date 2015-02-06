@@ -7,6 +7,27 @@ namespace Sibelia
 {
 	const std::string DnaString::LITERAL = "ACGT";
 
+	char DnaString::Reverse(char ch)
+	{
+		switch (ch)
+		{
+		case 'A':
+			return 'T';
+			break;
+		case 'T':
+			return 'A';
+			break;
+		case 'C':
+			return 'G';
+			break;
+		case 'G':
+			return 'C';
+			break;
+		}
+
+		return 'N';
+	}
+
 	bool operator == (const DnaString & a, const DnaString & b)
 	{
 		return a.size_ == b.size_ && a.body_ == b.body_;
