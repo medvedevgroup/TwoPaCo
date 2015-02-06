@@ -23,6 +23,8 @@ namespace Sibelia
 		std::string ToString() const;
 		static const std::string LITERAL;
 		static char Reverse(char ch);
+		DnaString RevComp() const;
+		static std::string RevComp(const std::string & str);
 	private:
 		uint64_t size_;
 		uint64_t body_;

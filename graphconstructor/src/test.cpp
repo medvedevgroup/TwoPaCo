@@ -11,12 +11,7 @@ namespace Sibelia
 {
 	namespace
 	{
-		std::string RevComp(const std::string & str)
-		{
-			std::string ret;
-			std::transform(str.rbegin(), str.rend(), std::back_inserter(ret), DnaString::Reverse);
-			return ret;
-		}
+		
 	}
 
 	void DnaStringTest(size_t n, std::ostream & log)
@@ -73,6 +68,11 @@ namespace Sibelia
 			std::string str1b = str1.ToString();
 			log << str1b << std::endl << str2 << std::endl;
 			assert(str1b == str2);
+
+			std::string str2r = DnaString::RevComp(str2);
+			DnaString str1r = str1.RevComp();
+			std::string str1br = str1r.ToString();
+			assert(str1br == str2);
 			
 			size_t prefix = rand() % (str1.GetSize() + 1);
 			DnaString str1pr = str1.Prefix(prefix);
@@ -108,7 +108,7 @@ namespace Sibelia
 					while (true)
 					{
 						edges.insert(edge);
-						edges.insert(RevComp(edge));
+						edges.insert(DnaString::RevComp(edge));
 						if (parser.GetChar(ch))
 						{
 							edge.push_back(ch);
@@ -138,10 +138,10 @@ namespace Sibelia
 				if (vertex.size() >= vertexLength)
 				{
 					bif.insert(vertex);
-					bif.insert(RevComp(vertex));					
+					bif.insert(DnaString::RevComp(vertex));
 					while (true)
 					{
-						std::string candVertex[] = { vertex, RevComp(vertex) };
+						std::string candVertex[] = { vertex, DnaString::RevComp(vertex) };
 						for (const std::string cand : candVertex)
 						{
 							size_t inCount = 0;
@@ -175,7 +175,7 @@ namespace Sibelia
 						else
 						{
 							bif.insert(vertex);
-							bif.insert(RevComp(vertex));
+							bif.insert(DnaString::RevComp(vertex));
 							break;
 						}
 					}
@@ -201,9 +201,14 @@ namespace Sibelia
 	{
 		std::stringstream ss;
 		std::vector<std::string> fileName;
-		
+		fileName.push_back("teste.fasta");
+	//	VertexEnumeratorTest(fileName, 3, 1025, ss);
+
+		fileName.clear();
 		fileName.push_back("test.fasta");
 		VertexEnumeratorTest(fileName, 4, 1025, ss);
+
+		fileName.clear();
 		fileName.push_back("g1.fasta");
 		fileName.push_back("g2.fasta");
 		fileName.push_back("g3.fasta");

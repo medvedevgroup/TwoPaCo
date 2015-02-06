@@ -141,4 +141,22 @@ namespace Sibelia
 
 		return ret;
 	}
+
+	DnaString DnaString::RevComp() const
+	{
+		DnaString ret;
+		for (size_t i = 0; i < size_; i++)
+		{
+			ret.AppendFront(Reverse(GetChar(i)));
+		}
+
+		return ret;
+	}
+
+	std::string DnaString::RevComp(const std::string & str)
+	{
+		std::string ret;
+		std::transform(str.rbegin(), str.rend(), std::back_inserter(ret), DnaString::Reverse);
+		return ret;
+	}
 }

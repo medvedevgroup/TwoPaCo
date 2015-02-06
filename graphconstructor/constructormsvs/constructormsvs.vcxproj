@@ -159,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="test.fasta" />
+    <None Include="teste.fasta" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
