@@ -15,7 +15,7 @@ int main(int argc, char * argv[])
 
 {
 	assert(Sibelia::Runtests());
-	exit(0);
+	
 	try
 	{		
 		std::vector<std::string> fileName(argv + 2, argv + argc);

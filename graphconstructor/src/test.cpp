@@ -213,7 +213,7 @@ namespace Sibelia
 		fileName.push_back("g1.fasta");
 		fileName.push_back("g2.fasta");
 		fileName.push_back("g3.fasta");
-		VertexEnumeratorTest(fileName, 6, (1 << 12) + 1, ss);
+		VertexEnumeratorTest(fileName, 7, (1 << 12) + 1, ss);
 		
 		
 		return true;

@@ -166,7 +166,6 @@ namespace Sibelia
 								char prev[] = { posPrev, ch }; 
 								char extend[] = { ch, negExtend };
 								DnaString vertex[] = { posVertex, negVertex };
-								bool f = posVertex.ToString() == "CGGACC" || posVertex.ToString() == "GGTCCG";
 								for (size_t strand = 0; strand < 2; strand++)
 								{
 									if (trueBifSet.count(vertex[strand].GetBody()) == 0)
