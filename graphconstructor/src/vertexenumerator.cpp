@@ -114,16 +114,12 @@ namespace Sibelia
 
 				if (posEdge.GetSize() == edgeLength)
 				{
-					DnaString negEdge = posEdge.RevComp();
 					while (true)
 					{						
 						PutInBloomFilter(bitVector, seed, posEdge);
-						PutInBloomFilter(bitVector, seed, negEdge);					
 						if (parser.GetChar(ch))
 						{
-							negEdge.PopBack();
 							posEdge.PopFront();
-							negEdge.AppendFront(DnaString::Reverse(ch));
 							posEdge.AppendBack(ch);							
 						}
 						else
@@ -157,8 +153,6 @@ namespace Sibelia
 					char negExtend;
 					DnaString negVertex = posVertex.RevComp();					
 					trueBifSet.insert(posVertex.GetBody());
-					trueBifSet.insert(negVertex.GetBody());
-														
 					for (bool start = true; ; start = false)
 					{												
 						if (parser.GetChar(ch))
@@ -203,9 +197,7 @@ namespace Sibelia
 											if ((candPrev != prev[strand]) || (candExtend != extend[strand]))
 											{
 												trueBifSet.insert(posVertex.GetBody());
-												trueBifSet.insert(negVertex.GetBody());
 												candidateBifSet.erase(posVertex.GetBody());
-												candidateBifSet.erase(negVertex.GetBody());												
 											}
 										}
 									}
@@ -220,7 +212,6 @@ namespace Sibelia
 						else
 						{							
 							trueBifSet.insert(posVertex.GetBody());
-							trueBifSet.insert(negVertex.GetBody());
 							break;
 						}
 					}
@@ -250,13 +241,16 @@ namespace Sibelia
 
 	size_t VertexEnumerator::GetId(const DnaString & vertex) const
 	{
-		std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), vertex.GetBody());
-		if (it == bifurcation_.end() || *it != vertex.GetBody())
+		DnaString check[2] = { vertex, vertex.RevComp() };
+		for (DnaString str : check)
 		{
-			return INVALID_VERTEX;
+			std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str.GetBody());
+			if (it != bifurcation_.end() || *it == str.GetBody())
+			{
+				return it - bifurcation_.begin();
+			}
 		}
 
-		return it - bifurcation_.begin();
-
+		return INVALID_VERTEX;
 	}
 }
