@@ -72,7 +72,7 @@ namespace Sibelia
 			std::string str2r = DnaString::RevComp(str2);
 			DnaString str1r = str1.RevComp();
 			std::string str1br = str1r.ToString();
-			assert(str1br == str2);
+			assert(str1br == str2r);
 			
 			size_t prefix = rand() % (str1.GetSize() + 1);
 			DnaString str1pr = str1.Prefix(prefix);
@@ -199,6 +199,7 @@ namespace Sibelia
 
 	bool Runtests()
 	{
+	//	DnaStringTest(10000, std::cerr);
 		std::stringstream ss;
 		std::vector<std::string> fileName;
 		fileName.push_back("teste.fasta");
@@ -206,14 +207,14 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 4, 1025, ss);
+//		VertexEnumeratorTest(fileName, 3, 1025, ss);
 
 		fileName.clear();
 		fileName.push_back("g1.fasta");
 		fileName.push_back("g2.fasta");
 		fileName.push_back("g3.fasta");
-		VertexEnumeratorTest(fileName, 9, (1 << 12) + 1, ss);
-		DnaStringTest(10000, std::cerr);
+		VertexEnumeratorTest(fileName, 6, (1 << 12) + 1, ss);
+		
 		
 		return true;
 	}
