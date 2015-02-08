@@ -158,50 +158,55 @@ namespace Sibelia
 						if (parser.GetChar(ch))
 						{							
 							if (!start)
-							{								
-								char prev[] = { posPrev, DnaString::Reverse(ch) }; 
+							{	
+								if (trueBifSet.count(posVertex.GetBody()) == 0)
+								{
+									if (!candidateBifSet.count(posVertex.GetBody()))
+									{
+									}
+								}
+								/*
+								char prev[] = { posPrev, DnaString::Reverse(ch) };
 								char extend[] = { ch, negExtend };
 								DnaString vertex[] = { posVertex, negVertex };
 								for (size_t strand = 0; strand < 2; strand++)
 								{
-									if (trueBifSet.count(vertex[strand].GetBody()) == 0)
-									{
-										if (!candidateBifSet.count(vertex[strand].GetBody()))
-										{
-											size_t inCount = 0;
-											size_t outCount = 0;
-											for (char nextCh : DnaString::LITERAL)
-											{
-												DnaString inEdge = vertex[strand];
-												DnaString outEdge = vertex[strand];
-												inEdge.AppendFront(nextCh);
-												outEdge.AppendBack(nextCh);
-												inCount += IsInBloomFilter(bitVector, seed, inEdge) ? 1 : 0;
-												outCount += IsInBloomFilter(bitVector, seed, outEdge) ? 1 : 0;
-												if (inCount > 1 || outCount > 1)
-												{
-													DnaString candidate(vertex[strand]);
-													candidate.AppendBack(extend[strand]);
-													candidate.AppendBack(prev[strand]);													
-													candidateBifSet.insert(candidate.GetBody());
-													break;
-												}
-											}
-										}
-										else
-										{											
-											std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(vertex[strand].GetBody());
-											DnaString candidate(vertexLength + 2, *it);
-											char candExtend = candidate.GetChar(vertexLength);
-											char candPrev = candidate.GetChar(vertexLength + 1);
-											if ((candPrev != prev[strand]) || (candExtend != extend[strand]))
-											{
-												trueBifSet.insert(posVertex.GetBody());
-												candidateBifSet.erase(posVertex.GetBody());
-											}
-										}
-									}
+
+								
+								size_t inCount = 0;
+								size_t outCount = 0;
+								for (char nextCh : DnaString::LITERAL)
+								{
+								DnaString inEdge = vertex[strand];
+								DnaString outEdge = vertex[strand];
+								inEdge.AppendFront(nextCh);
+								outEdge.AppendBack(nextCh);
+								inCount += IsInBloomFilter(bitVector, seed, inEdge) ? 1 : 0;
+								outCount += IsInBloomFilter(bitVector, seed, outEdge) ? 1 : 0;
+								if (inCount > 1 || outCount > 1)
+								{
+								DnaString candidate(vertex[strand]);
+								candidate.AppendBack(extend[strand]);
+								candidate.AppendBack(prev[strand]);
+								candidateBifSet.insert(candidate.GetBody());
+								break;
 								}
+								}
+								}
+								else
+								{
+								std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(vertex[strand].GetBody());
+								DnaString candidate(vertexLength + 2, *it);
+								char candExtend = candidate.GetChar(vertexLength);
+								char candPrev = candidate.GetChar(vertexLength + 1);
+								if ((candPrev != prev[strand]) || (candExtend != extend[strand]))
+								{
+								trueBifSet.insert(posVertex.GetBody());
+								candidateBifSet.erase(posVertex.GetBody());
+								}
+								}
+								}
+								}*/
 							}
 
 							posVertex.AppendBack(ch);
