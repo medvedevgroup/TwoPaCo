@@ -7,6 +7,14 @@ namespace Sibelia
 {
 	const std::string DnaString::LITERAL = "ACGT";
 
+	DnaString::DnaString(const std::string & body) : size_(0), body_(0)
+	{
+		for (size_t i = 0; i < body.size(); i++)
+		{
+			AppendBack(body[i]);
+		}
+	}
+
 	char DnaString::Reverse(char ch)
 	{
 		switch (ch)
