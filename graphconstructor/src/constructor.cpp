@@ -26,7 +26,7 @@ int main(int argc, char * argv[])
 		std::stringstream ss(*(argv + 1));
 		size_t filterSize;
 		ss >> filterSize;
-		Sibelia::VertexEnumerator vid(fileName, 4, filterSize);
+		Sibelia::VertexEnumerator vid(fileName, 25, filterSize);
 
 		std::vector<std::string> all;
 		vid.Dump(std::back_inserter(all));
