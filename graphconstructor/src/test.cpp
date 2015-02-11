@@ -184,17 +184,19 @@ namespace Sibelia
 		}
 
 		std::cout << "TP = " << bif.size() << std::endl;
-		std::cout << "FP = " << vid.GetVerticesCount() - bif.size() << std::endl;
-
-		if (vid.GetVerticesCount() != bif.size())
+		std::vector<std::string> vidSet;
+		vid.Dump(std::inserter(vidSet, vidSet.begin()));
+		std::cout << "Diff:" << std::endl;
+		for (const std::string & v : vidSet)
 		{
-			std::set<std::string> vidSet;
-			vid.Dump(std::inserter(vidSet, vidSet.begin()));
-			std::cout << "Diff:" << std::endl;
-			std::vector<std::string> diff;
-			std::set_difference(vidSet.begin(), vidSet.end(), bif.begin(), bif.end(), std::ostream_iterator<std::string>(std::cout, "\n"));
-			
+			if (bif.count(v) == 0 && bif.count(DnaString::RevComp(v)) == 0)
+			{
+				std::cout << v << std::endl;
+			}
 		}
+
+		
+		
 	}
 
 	bool Runtests()
@@ -203,7 +205,7 @@ namespace Sibelia
 		std::stringstream ss;
 		std::vector<std::string> fileName;
 		fileName.push_back("teste.fasta");
-	//	VertexEnumeratorTest(fileName, 3, 1025, ss);
+		VertexEnumeratorTest(fileName, 3, 1025, ss);
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
