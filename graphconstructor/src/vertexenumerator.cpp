@@ -161,6 +161,7 @@ namespace Sibelia
 							{	
 								if (trueBifSet.count(posVertex.GetBody()) == 0)
 								{
+									bool f = posVertex.ToString() == "GTTA";
 									bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
 									bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
 									if (!posFound && !negFound)
@@ -211,7 +212,7 @@ namespace Sibelia
 
 									if (negFound)
 									{
-										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
+										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
 										if (it != candidateBifSet.end())
 										{
 											DnaString candidate(vertexLength + 2, *it);
@@ -267,7 +268,7 @@ namespace Sibelia
 		for (DnaString str : check)
 		{
 			std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str.GetBody());
-			if (it != bifurcation_.end() || *it == str.GetBody())
+			if (it != bifurcation_.end() && *it == str.GetBody())
 			{
 				return it - bifurcation_.begin();
 			}
