@@ -15,6 +15,7 @@
 \usepackage{subcaption}
 \usepackage{xcolor}
 \usepackage{cite}
+\usepackage{tablefootnote}
 \usepackage{wrapfig}
 \usepackage{setspace}
 \usepackage{algorithm}
@@ -203,10 +204,10 @@ Unique $k$-mers, singletons and non-singletons in several vertebrate genomes: Hu
 
 \begin{table}[h]
 \begin{center}
-\caption{$k = 25$}
+\caption{$Distinct $k$-mers for k = 25$}
 \begin{tabular}{ccccc}
 \hline
-\#Genomes  & Singletons & Non-singletons & Aprrox. size, GB  &\\
+\#Genomes  & Singletons & Non-singletons & Non-Singletons size, GB\tablefootnote{The size of array where each entry is a 64-bit integer encoding a $k$-mer}  &\\
 \hline
 1 & 2,385,927,412 & 129,133,665 & 0.96 \\
 2 & 3,065,060,806 & 1,734,303,008 & 12.92 \\
