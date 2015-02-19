@@ -21,11 +21,10 @@ int main(int argc, char * argv[])
 	
 	try
 	{		
-		std::vector<std::string> fileName(argv + 3, argv + argc);
-		std::stringstream ss(*(argv + 1));
-		size_t filterSize;
-		ss >> filterSize;
-		Sibelia::VertexEnumerator vid(fileName, 25, filterSize);
+		std::vector<std::string> fileName(argv + 4, argv + argc);		
+		size_t filterSize = atoi(*(argv + 1));
+		size_t hashFunctions = atoi(*(argv + 3));
+		Sibelia::VertexEnumerator vid(fileName, 25, filterSize, hashFunctions);
 		if (std::string(*(argv + 2)) == "1")
 		{
 			std::vector<std::string> all;

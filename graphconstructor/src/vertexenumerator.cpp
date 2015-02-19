@@ -86,7 +86,7 @@ namespace Sibelia
 		}
 	}
 
-	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize):
+	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t q) :
 		vertexSize_(vertexLength)
 	{
 		std::cout << "Filter size = " << filterSize << std::endl;
@@ -94,8 +94,7 @@ namespace Sibelia
 		{
 			throw std::runtime_error("The vertex size is too large");
 		}
-
-		size_t q = 5;
+		
 		std::vector<uint64_t> seed(q);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
