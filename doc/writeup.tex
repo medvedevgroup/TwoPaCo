@@ -171,29 +171,20 @@ A possible solution to both of this issues is to propose a concrete strategy of 
 \end{itemize}
 
 \section{Results}
-A note: the BF (Bloom Filter) algorithm takes $k$-mers only from the positive strand, I will fix it next time.
+Now the BF algorithm counts bifurcations from both strands, results are consistent with Sibelia.
 \begin{table}[h]
-
 \begin{center}
 \caption{Performance Human Chromosome 1}
-\begin{tabular}{ccccc}
+\begin{tabular}{cccccc}
 \hline
-Algorithm  & Running time & Memory Usage & Bifurcations Count & False Positives\\
+Algorithm  & Time & Memory, GB& Distinct Bifurcations\tablefootnote{A bifurcation and its reverse complement is counted as one} & Bifurcations & FPs\\
 \hline
-BF $2^{31}$ bits & 0:29 & 1.35 GB & 1 774 061 & 22 356 788 \\
-BF $2^{32}$ bits & 0:22 & 0.77 GB & 1 774 061 & 3 639 291  \\
-DSK + BCALM   & 0:07 + 1:56 & 6GB + 20MB & \\
-\hline
-\end{tabular}
-
-\caption{Performance on 60 E.coli Strains}
-\begin{tabular}{ccccc}
-\hline
-Algorithm  & Running time & Memory Usage & Bifurcations Count & False Positives\\
-\hline
-BF $2^{31}$ bits & 0:25 & 0.32 GB & 940 002 & 18056 \\
-BF $2^{32}$ bits & 0:24 & 0.58 GB & 940 002 & 2477  \\
-DSK + BCALM   & 0:06 + 10 &  4GB + 20MB & \\
+Sibelia & 0:29 & 11.20 & -  &  3 740 962 & - \\
+BF $2^{31} + 1$ bits & 0:41 & 2.41 & 2 290 713  &  3 740 962 & 47 110 007 \\
+BF $2^{32} + 1$ bits & 0:36 & 1.02 & 2 290 713  &  3 740 962 & 8 821 177 \\
+BF $2^{33} + 1$ bits & 0:33 & 1.28 & 2 290 713  &  3 740 962 & 2 020 156 \\
+BF $2^{34} + 1$ bits & 0:33 & 2.34 & 2 290 713  &  3 740 962 & 1 039 257 \\
+DSK + BCALM   & 0:07 + 1:56 & 6GB + 20MB & - & - & -\\
 \hline
 \end{tabular}
 \end{center}
