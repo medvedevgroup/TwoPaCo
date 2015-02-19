@@ -95,7 +95,7 @@ namespace Sibelia
 			throw std::runtime_error("The vertex size is too large");
 		}
 
-		size_t q = 3;
+		size_t q = 5;
 		std::vector<uint64_t> seed(q);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
