@@ -132,7 +132,9 @@ namespace Sibelia
 
 		size_t mark = clock();
 		std::cout << "Passed: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
-		std::cout << "Vertex enumeration..." << std::endl;		
+		std::cout << "Vertex enumeration..." << std::endl;
+
+		
 		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 		for (const std::string & nowFileName : fileName)
@@ -160,7 +162,6 @@ namespace Sibelia
 							{	
 								if (trueBifSet.count(posVertex.GetBody()) == 0)
 								{
-									bool f = posVertex.ToString() == "GTTA";
 									bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
 									bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
 									if (!posFound && !negFound)
@@ -242,6 +243,7 @@ namespace Sibelia
 			}
 		}		
 		
+
 		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC  << std::endl;
 		std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
 		std::cout << "FP count = " << candidateBifSet.size() << std::endl;		
@@ -251,7 +253,7 @@ namespace Sibelia
 			DnaString v(vertexLength, vertex);
 			bifurcation_.push_back(v.GetBody());
 		}
-
+		
 		std::sort(bifurcation_.begin(), bifurcation_.end());		
 		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC << std::endl;
 	}
