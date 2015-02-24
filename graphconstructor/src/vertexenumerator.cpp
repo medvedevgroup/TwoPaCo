@@ -100,162 +100,201 @@ namespace Sibelia
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
 		std::cout << "Bloom filter counting..." << std::endl;
-		for (const std::string & nowFileName: fileName)
-		{
-			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
-			{
-				char ch;
-				DnaString posEdge;
-				for (size_t j = 0; j < edgeLength && parser.GetChar(ch); j++)
-				{
-					posEdge.AppendBack(ch);
-				}
 
-				if (posEdge.GetSize() == edgeLength)
+		uint64_t low = 0;
+		const size_t MAX_ROUNDS = 3;
+		for (size_t round = 0; round < MAX_ROUNDS; round++)
+		{
+			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
+			for (const std::string & nowFileName : fileName)
+			{
+				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
 				{
-					while (true)
-					{						
-						PutInBloomFilter(bitVector, seed, posEdge);
-						if (parser.GetChar(ch))
-						{
-							posEdge.PopFront();
-							posEdge.AppendBack(ch);							
-						}
-						else
-						{
-							break;
-						}
+					char ch;
+					DnaString posEdge;
+					for (size_t j = 0; j < edgeLength && parser.GetChar(ch); j++)
+					{
+						posEdge.AppendBack(ch);
 					}
-				}
-			}	
-		}
 
-		size_t mark = clock();
-		std::cout << "Passed: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
-		std::cout << "Vertex enumeration..." << std::endl;
-
-		
-		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
-		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
-		for (const std::string & nowFileName : fileName)
-		{
-			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); )
-			{
-				char posExtend;
-				DnaString posVertex;
-				for (size_t j = 0; j < vertexLength && parser.GetChar(posExtend); j++)
-				{
-					posVertex.AppendBack(posExtend);
-				}
-
-				if (posVertex.GetSize() >= vertexLength)
-				{
-					char posPrev;
-					char negExtend;
-					DnaString negVertex = posVertex.RevComp();					
-					trueBifSet.insert(posVertex.GetBody());
-					for (bool start = true; ; start = false)
-					{												
-						if (parser.GetChar(posExtend))
-						{							
-							if (!start)
-							{	
-								if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-								{
-									bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
-									bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
-									if (!posFound && !negFound)
-									{
-										size_t inCount = 0;
-										size_t outCount = 0;
-										for (char nextCh : DnaString::LITERAL)
-										{
-											DnaString posInEdge = posVertex;
-											DnaString posOutEdge = posVertex;
-											posInEdge.AppendFront(nextCh);
-											posOutEdge.AppendBack(nextCh);
-											DnaString negInEdge = negVertex;
-											DnaString negOutEdge = negVertex;
-											negInEdge.AppendBack(DnaString::Reverse(nextCh));
-											negOutEdge.AppendFront(DnaString::Reverse(nextCh));
-											assert(posInEdge.RevComp() == negInEdge);
-											assert(posOutEdge.RevComp() == negOutEdge);
-											inCount += IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge) ? 1 : 0;
-											outCount += IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge) ? 1 : 0;
-										}
-
-										if (inCount > 1 || outCount > 1)
-										{
-											DnaString candidate(posVertex);
-											candidate.AppendBack(posExtend);
-											candidate.AppendBack(posPrev);
-											candidateBifSet.insert(candidate.GetBody());
-											if (posVertex == negVertex)
-											{
-												negFound = true;
-											}
-										}
-									}
-
-									if (posFound)
-									{
-										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
-										DnaString candidate(vertexLength + 2, *it);
-										char candExtend = candidate.GetChar(vertexLength);
-										char candPrev = candidate.GetChar(vertexLength + 1);
-										if ((candPrev != posPrev) || (candExtend != posExtend))
-										{
-											trueBifSet.insert(posVertex.GetBody());
-											candidateBifSet.erase(posVertex.GetBody());
-										}
-									}
-
-									if (negFound)
-									{
-										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
-										if (it != candidateBifSet.end())
-										{
-											DnaString candidate(vertexLength + 2, *it);
-											char candExtend = candidate.GetChar(vertexLength);
-											char candPrev = candidate.GetChar(vertexLength + 1);
-											if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
-											{
-												trueBifSet.insert(posVertex.GetBody());
-												candidateBifSet.erase(posVertex.GetBody());
-											}
-										}										
-									}
-								}								
+					if (posEdge.GetSize() == edgeLength)
+					{
+						while (true)
+						{
+							size_t hit = 0;
+							DnaString kmer[] = { posEdge, posEdge };														
+							kmer[0].PopFront();
+							kmer[1].PopBack();
+							for (size_t i = 0; i < 2; i++)
+							{
+								uint64_t body = kmer[i].GetBody();
+								uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[0]);
+								hit += (hvalue >= low && hvalue <= high) ? 1 : 0;
+							}
+							
+							if (hit)
+							{
+								PutInBloomFilter(bitVector, seed, posEdge);
 							}
 
-							posVertex.AppendBack(posExtend);
-							negVertex.AppendFront(DnaString::Reverse(posExtend));
-							posPrev = posVertex.PopFront();
-							negExtend = negVertex.PopBack();
-						}
-						else
-						{							
-							trueBifSet.insert(posVertex.GetBody());
-							break;
+							if (parser.GetChar(ch))
+							{
+								posEdge.PopFront();
+								posEdge.AppendBack(ch);
+							}
+							else
+							{
+								break;
+							}
 						}
 					}
 				}
 			}
-		}		
-		
 
-		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC  << std::endl;
-		std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
-		std::cout << "FP count = " << candidateBifSet.size() << std::endl;		
+			size_t mark = clock();
+			std::cout << "Vertex enumeration..." << std::endl;
 
-		for (uint64_t vertex : trueBifSet)
-		{
-			DnaString v(vertexLength, vertex);
-			bifurcation_.push_back(v.GetBody());
+			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
+			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
+			for (const std::string & nowFileName : fileName)
+			{
+				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+				{
+					char posExtend;
+					DnaString posVertex;
+					for (size_t j = 0; j < vertexLength && parser.GetChar(posExtend); j++)
+					{
+						posVertex.AppendBack(posExtend);
+					}
+
+					if (posVertex.GetSize() >= vertexLength)
+					{
+						char posPrev;
+						char negExtend;
+						DnaString negVertex = posVertex.RevComp();
+						uint64_t body = posVertex.GetBody();
+						uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[0]);
+						if (hvalue >= low && hvalue <= high)
+						{
+							trueBifSet.insert(posVertex.GetBody());
+						}
+
+						for (bool start = true;; start = false)
+						{							
+							if (parser.GetChar(posExtend))
+							{
+								size_t hit = 0;
+								DnaString kmer[] = { posVertex, negVertex };
+								for (size_t i = 0; i < 2; i++)
+								{
+									uint64_t body = kmer[i].GetBody();
+									uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[0]);
+									hit += (hvalue >= low && hvalue <= high) ? 1 : 0;
+								}
+
+								if (hit > 0)
+								{
+									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
+									{
+										bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
+										bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
+										if (!posFound && !negFound)
+										{
+											size_t inCount = 0;
+											size_t outCount = 0;
+											for (char nextCh : DnaString::LITERAL)
+											{
+												DnaString posInEdge = posVertex;
+												DnaString posOutEdge = posVertex;
+												posInEdge.AppendFront(nextCh);
+												posOutEdge.AppendBack(nextCh);
+												DnaString negInEdge = negVertex;
+												DnaString negOutEdge = negVertex;
+												negInEdge.AppendBack(DnaString::Reverse(nextCh));
+												negOutEdge.AppendFront(DnaString::Reverse(nextCh));
+												assert(posInEdge.RevComp() == negInEdge);
+												assert(posOutEdge.RevComp() == negOutEdge);
+												inCount += IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge) ? 1 : 0;
+												outCount += IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge) ? 1 : 0;
+											}
+
+											if (inCount > 1 || outCount > 1)
+											{
+												DnaString candidate(posVertex);
+												candidate.AppendBack(posExtend);
+												candidate.AppendBack(posPrev);
+												candidateBifSet.insert(candidate.GetBody());
+												if (posVertex == negVertex)
+												{
+													negFound = true;
+												}
+											}
+										}
+
+										if (posFound)
+										{
+											std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
+											DnaString candidate(vertexLength + 2, *it);
+											char candExtend = candidate.GetChar(vertexLength);
+											char candPrev = candidate.GetChar(vertexLength + 1);
+											if ((candPrev != posPrev) || (candExtend != posExtend))
+											{
+												trueBifSet.insert(posVertex.GetBody());
+												candidateBifSet.erase(posVertex.GetBody());
+											}
+										}
+
+										if (negFound)
+										{
+											std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
+											if (it != candidateBifSet.end())
+											{
+												DnaString candidate(vertexLength + 2, *it);
+												char candExtend = candidate.GetChar(vertexLength);
+												char candPrev = candidate.GetChar(vertexLength + 1);
+												if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
+												{
+													trueBifSet.insert(posVertex.GetBody());
+													candidateBifSet.erase(posVertex.GetBody());
+												}
+											}
+										}
+									}
+								}
+
+							
+								posVertex.AppendBack(posExtend);
+								negVertex.AppendFront(DnaString::Reverse(posExtend));
+								posPrev = posVertex.PopFront();
+								negExtend = negVertex.PopBack();
+							}
+							else
+							{
+								if (hvalue >= low && hvalue <= high)
+								{ 
+									trueBifSet.insert(posVertex.GetBody());
+								}
+
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			std::cout << "Round " << round << ", " << low << ":" << high;
+			std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
+			std::cout << "FP count = " << candidateBifSet.size() << std::endl;			
+			for (uint64_t vertex : trueBifSet)
+			{
+				DnaString v(vertexLength, vertex);
+				bifurcation_.push_back(v.GetBody());
+			}
+
+			low = high + 1;
 		}
 		
 		std::sort(bifurcation_.begin(), bifurcation_.end());		
-		std::cout << "Passed: " << double(clock() - mark) / CLOCKS_PER_SEC << std::endl;
 	}
 
 	size_t VertexEnumerator::GetVerticesCount() const
