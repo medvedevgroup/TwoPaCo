@@ -15,15 +15,24 @@
 #include "test.h"
 #include "vertexenumerator.h"
 
+size_t Atoi(const char * str)
+{
+	size_t ret;
+	std::stringstream ss(str);
+	ss >> ret;
+	return ret;
+}
+
 int main(int argc, char * argv[])
 {
 	assert(Sibelia::Runtests());
-	
+
 	try
-	{		
-		std::vector<std::string> fileName(argv + 4, argv + argc);		
-		size_t filterSize = atoi(*(argv + 1));
-		size_t hashFunctions = atoi(*(argv + 3));
+	{
+		std::vector<std::string> fileName(argv + 4, argv + argc);
+
+		size_t filterSize = Atoi(*(argv + 1));
+		size_t hashFunctions = Atoi(*(argv + 3));
 		Sibelia::VertexEnumerator vid(fileName, 25, filterSize, hashFunctions);
 		if (std::string(*(argv + 2)) == "1")
 		{
@@ -35,13 +44,13 @@ int main(int argc, char * argv[])
 			std::sort(all.begin(), all.end());
 			all.erase(std::unique(all.begin(), all.end()), all.end());
 			std::cout << "All = " << all.size();
-		}		
+		}
 	}
 	catch (const std::runtime_error & msg)
 	{
 		std::cerr << msg.what() << std::endl;
 	}
-	
+
 
 	return 0;
 }
