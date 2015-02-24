@@ -160,7 +160,7 @@ namespace Sibelia
 						{							
 							if (!start)
 							{	
-								if (trueBifSet.count(posVertex.GetBody()) == 0)
+								if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 								{
 									bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
 									bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
