@@ -119,16 +119,24 @@ namespace Sibelia
 
 					if (posEdge.GetSize() == edgeLength)
 					{
+						DnaString negEdge = posEdge.RevComp();
 						while (true)
 						{
+							size_t k = 0;
 							size_t hit = 0;
-							DnaString kmer[] = { posEdge, posEdge };														
-							kmer[0].PopFront();
-							kmer[1].PopBack();
-							for (size_t i = 0; i < 2; i++)
-							{
-								uint64_t body = kmer[i].GetBody();
-								uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[0]);
+							DnaString kmer[2][2] = { { posEdge, negEdge }, { posEdge, negEdge } };							
+							for (size_t i = 0; i < 2; i++, k++)
+							{								
+								kmer[i][k].PopBack();
+								kmer[i][1 - k].PopFront();
+								uint64_t hvalue = UINT64_MAX;
+								assert(kmer[i][0] == kmer[i][1].RevComp());								
+								for (size_t j = 0; j < 2; j++)
+								{
+									uint64_t body = kmer[i][j].GetBody();
+									hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
+								}
+								
 								hit += (hvalue >= low && hvalue <= high) ? 1 : 0;
 							}
 							
@@ -141,6 +149,9 @@ namespace Sibelia
 							{
 								posEdge.PopFront();
 								posEdge.AppendBack(ch);
+								negEdge.PopBack();
+								negEdge.AppendFront(DnaString::Reverse(ch));
+								assert(posEdge.RevComp() == negEdge);
 							}
 							else
 							{
@@ -184,15 +195,15 @@ namespace Sibelia
 							if (parser.GetChar(posExtend))
 							{
 								size_t hit = 0;
+								uint64_t hvalue = UINT64_MAX;
 								DnaString kmer[] = { posVertex, negVertex };
 								for (size_t i = 0; i < 2; i++)
 								{
 									uint64_t body = kmer[i].GetBody();
-									uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[0]);
-									hit += (hvalue >= low && hvalue <= high) ? 1 : 0;
+									hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));									
 								}
 
-								if (hit > 0)
+								if (hvalue >= low && hvalue <= high)
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 									{
@@ -282,7 +293,7 @@ namespace Sibelia
 				}
 			}
 
-			std::cout << "Round " << round << ", " << low << ":" << high;
+			std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 			std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
 			std::cout << "FP count = " << candidateBifSet.size() << std::endl;			
 			for (uint64_t vertex : trueBifSet)

@@ -34,6 +34,7 @@ int main(int argc, char * argv[])
 		size_t filterSize = Atoi(*(argv + 1));
 		size_t hashFunctions = Atoi(*(argv + 3));
 		Sibelia::VertexEnumerator vid(fileName, 25, filterSize, hashFunctions);
+		std::cout << "Distinct = " << vid.GetVerticesCount();
 		if (std::string(*(argv + 2)) == "1")
 		{
 			std::vector<std::string> all;
@@ -43,7 +44,7 @@ int main(int argc, char * argv[])
 			all.insert(all.begin(), rev.begin(), rev.end());
 			std::sort(all.begin(), all.end());
 			all.erase(std::unique(all.begin(), all.end()), all.end());
-			std::cout << "All = " << all.size();
+			std::cout << "All = " << all.size() << std::endl;
 		}
 	}
 	catch (const std::runtime_error & msg)

@@ -1,7 +1,9 @@
 0) Refactor: BF -- into a class
-1.2) Implement FP removal
-1.1) Profile to see the heaviest parts
 4) Put in a BF only things that are necessary: if we already have ACT G and ACT C, it doesn't make sense to put there ACT T
 3) Implement iterative filtering? Once bif candidates are discovered (set $B$), place in a BF only (k + 1)-mers associated with $B$
 
 5) Utilize (k + 1)--mer counter -- work with the set of (k + 1)--mers rather than with the genomes themselves
+
+-------------------------------
+
+6) Parallelizing FP removal -- can subdivide k-mers even further, and each thread can have its own hashtable
