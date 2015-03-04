@@ -27,7 +27,7 @@ enum{NOPRECOMP,FULLPRECOMP};
 *           hf.update(out,c); // update hash value
 *        }
 */
-template <int precomputationtype=NOPRECOMP>
+template <int precomputationtype=NOPRECOMP,typename hashvaluetype = uint32, typename chartype =  unsigned char>
 class GeneralHash {
   public:
   
@@ -105,7 +105,6 @@ class GeneralHash {
     // this is a convenience function, use eat,update and .hashvalue to use as a rolling hash function 
     template<class container>
     hashvaluetype  hash(container & c) const {
-    	assert(c.size()==static_cast<uint>(n));
     	hashvaluetype answer(0);
     	for(uint k = 0; k<c.size();++k) {
     		fastleftshift(answer, 1) ;
@@ -116,9 +115,9 @@ class GeneralHash {
 
     hashvaluetype hashvalue;
     const int wordsize;
-    const int n;
+    int n;
     hashvaluetype irreduciblepoly;
-    CharacterHash hasher;
+    CharacterHash<hashvaluetype,chartype> hasher;
     const hashvaluetype lastbit;
     vector<hashvaluetype> precomputedshift;
 

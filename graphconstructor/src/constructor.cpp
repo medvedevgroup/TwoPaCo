@@ -23,6 +23,8 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
+
+
 int main(int argc, char * argv[])
 {
 	assert(Sibelia::Runtests());
@@ -51,7 +53,6 @@ int main(int argc, char * argv[])
 	{
 		std::cerr << msg.what() << std::endl;
 	}
-
 
 	return 0;
 }

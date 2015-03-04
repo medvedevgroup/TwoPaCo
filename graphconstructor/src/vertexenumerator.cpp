@@ -9,6 +9,8 @@
 #include "lib/SpookyV2.h"
 #include "vertexenumerator.h"
 
+#include <boost/thread/thread.hpp>
+
 namespace Sibelia
 {	
 	const size_t VertexEnumerator::INVALID_VERTEX = -1;
@@ -94,12 +96,13 @@ namespace Sibelia
 		{
 			throw std::runtime_error("The vertex size is too large");
 		}
-		
+				
 		std::vector<uint64_t> seed(q);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
 		std::cout << "Bloom filter counting..." << std::endl;
+				
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 3;
