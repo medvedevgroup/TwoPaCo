@@ -102,7 +102,7 @@ namespace Sibelia
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
 		std::cout << "Bloom filter counting..." << std::endl;
-		omp_set_num_threads(4);
+		omp_set_num_threads(2);
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 3;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
@@ -216,9 +216,9 @@ namespace Sibelia
 											size_t inCount = 0;
 											size_t outCount = 0;
 #pragma omp parallel for
-											for (int i = 0; i < DnaString::LITERAL.size(); i++)												
+											for (int i = 0; i < DnaString::LITERAL.size() * 2; i++)												
 											{
-												char nextCh = DnaString::LITERAL[i];
+												char nextCh = DnaString::LITERAL[i / 2];
 												DnaString posInEdge = posVertex;
 												DnaString posOutEdge = posVertex;
 												posInEdge.AppendFront(nextCh);
@@ -229,13 +229,13 @@ namespace Sibelia
 												negOutEdge.AppendFront(DnaString::Reverse(nextCh));
 												assert(posInEdge.RevComp() == negInEdge);
 												assert(posOutEdge.RevComp() == negOutEdge);
-												if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
+												if (i % 2 == 0 && (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge)))
 												{
 #pragma omp atomic
 													inCount++;
 												}
 
-												if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
+												if (i % 2 == 1 && (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge)))
 												{
 #pragma omp atomic
 													outCount++;
