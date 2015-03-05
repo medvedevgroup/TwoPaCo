@@ -5,7 +5,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
-
+#include <omp.h>
 #include "lib/SpookyV2.h"
 #include "vertexenumerator.h"
 
@@ -102,8 +102,7 @@ namespace Sibelia
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
 		std::cout << "Bloom filter counting..." << std::endl;
-				
-
+		omp_set_num_threads(4);
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 3;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
@@ -216,8 +215,10 @@ namespace Sibelia
 										{
 											size_t inCount = 0;
 											size_t outCount = 0;
-											for (char nextCh : DnaString::LITERAL)
+#pragma omp parallel for
+											for (int i = 0; i < DnaString::LITERAL.size(); i++)												
 											{
+												char nextCh = DnaString::LITERAL[i];
 												DnaString posInEdge = posVertex;
 												DnaString posOutEdge = posVertex;
 												posInEdge.AppendFront(nextCh);
@@ -228,8 +229,17 @@ namespace Sibelia
 												negOutEdge.AppendFront(DnaString::Reverse(nextCh));
 												assert(posInEdge.RevComp() == negInEdge);
 												assert(posOutEdge.RevComp() == negOutEdge);
-												inCount += IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge) ? 1 : 0;
-												outCount += IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge) ? 1 : 0;
+												if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
+												{
+#pragma omp atomic
+													inCount++;
+												}
+
+												if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
+												{
+#pragma omp atomic
+													outCount++;
+												}
 											}
 
 											if (inCount > 1 || outCount > 1)
