@@ -9,7 +9,7 @@
 #include "lib/SpookyV2.h"
 #include "vertexenumerator.h"
 
-#include <boost/thread/thread.hpp>
+#include "ngramhashing/cyclichash.h"
 
 namespace Sibelia
 {	
@@ -73,7 +73,6 @@ namespace Sibelia
 			{
 				DnaString stra(vertexSize_, a);
 				DnaString strb(vertexSize_, b);
-				bool x = stra == strb;
  				return stra == strb;
 			}
 		private:
@@ -96,7 +95,102 @@ namespace Sibelia
 		{
 			throw std::runtime_error("The vertex size is too large");
 		}
-				
+		
+		std::vector<uint64_t> seed(q);
+		std::vector<bool> bitVector(filterSize, false);
+		std::generate(seed.begin(), seed.end(), rand);
+		size_t edgeLength = vertexLength + 1;
+		size_t start = clock();
+		for (const std::string & nowFileName : fileName)
+		{
+			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+			{
+				char ch;
+				DnaString posEdge;
+				for (size_t j = 0; j < edgeLength && parser.GetChar(ch); j++)
+				{
+					posEdge.AppendBack(ch);
+				}
+
+				if (posEdge.GetSize() == edgeLength)
+				{
+					DnaString negEdge = posEdge.RevComp();
+					while (true)
+					{
+						PutInBloomFilter(bitVector, seed, posEdge);
+						if (parser.GetChar(ch))
+						{
+							posEdge.PopFront();
+							posEdge.AppendBack(ch);
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+
+
+
+		std::cout << "Spooky: " << double(clock() - start) / CLOCKS_PER_SEC << std::endl;
+		bitVector.assign(filterSize, false);		
+
+		start = clock();
+		for (const std::string & nowFileName : fileName)
+		{
+			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+			{
+				char ch;
+				DnaString posEdge;
+				std::vector<std::unique_ptr<CyclicHash<uint64> > > hf(q);
+				for (std::unique_ptr<CyclicHash<uint64> > & ptr : hf)
+				{
+					ptr.reset(new CyclicHash<uint64>(edgeLength, 64));
+				}
+
+				std::deque<char> str;
+				for (size_t j = 0; j < edgeLength && parser.GetChar(ch); j++)
+				{
+					str.push_back(ch);
+					for (std::unique_ptr<CyclicHash<uint64> > & ptr : hf)
+					{						
+						ptr->eat(ch);
+					}
+				}
+
+				if (str.size() == edgeLength)
+				{
+					while (true)
+					{
+						for (std::unique_ptr<CyclicHash<uint64> > & ptr : hf)
+						{
+							bitVector[ptr->hashvalue % bitVector.size()] = true;
+						}
+
+						if (parser.GetChar(ch))
+						{
+							str.push_back(ch);
+							for (std::unique_ptr<CyclicHash<uint64> > & ptr : hf)
+							{
+								ptr->update(str.front(), ch);
+							}
+							
+							str.pop_front();
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+		std::cout << "Ngram: " << double(clock() - start) / CLOCKS_PER_SEC << std::endl;
+
+		/*
 		std::vector<uint64_t> seed(q);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
@@ -318,7 +412,7 @@ namespace Sibelia
 			low = high + 1;
 		}
 		
-		std::sort(bifurcation_.begin(), bifurcation_.end());		
+		std::sort(bifurcation_.begin(), bifurcation_.end());		*/
 	}
 
 	size_t VertexEnumerator::GetVerticesCount() const
