@@ -1,16 +1,20 @@
 #include <deque>
 #include <ctime>
 #include <memory>
+#include <bitset>
 #include <cassert>
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
-#include <omp.h>
-#include "lib/SpookyV2.h"
-#include "vertexenumerator.h"
 
+#include <boost/ref.hpp>
+#include <boost/thread.hpp>
+#include <boost/lockfree/spsc_queue.hpp>
+
+#include "lib/SpookyV2.h"
 #include "ngramhashing/cyclichash.h"
-#include "ngramhashing/rabinkarphash.h"
+
+#include "vertexenumerator.h"
 
 namespace Sibelia
 {	
@@ -86,6 +90,39 @@ namespace Sibelia
 		{
 			return std::find(DnaString::LITERAL.begin(), DnaString::LITERAL.end(), ch) - DnaString::LITERAL.begin();
 		}
+
+		struct Task
+		{
+			size_t start;
+			std::string str;
+			static const size_t TASK_SIZE = 8;
+			Task() {}
+			Task(size_t start, std::string && str) : start(start), str(std::move(str)) {}
+		};
+
+		struct Result
+		{
+			size_t start;
+			std::vector<bool> isCandidate;
+			Result() {}
+			Result(size_t start, std::vector<bool> && isCandidate) : start(start), isCandidate(std::move(isCandidate)) {}
+		};
+
+		const std::string & TEMP_FILE = "cand.bin";
+		
+		typedef boost::lockfree::fixed_sized<1> QUEUE_CAPACITY;
+		typedef boost::lockfree::spsc_queue<Task, QUEUE_CAPACITY> TaskQueue;
+		typedef boost::lockfree::spsc_queue<Result, QUEUE_CAPACITY> ResultQueue;
+
+		void CandidateCheckingWorker(const std::vector<bool> & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
+		{
+
+		}
+
+		void WriterThread(std::vector<ResultQueue> & resultQueue)
+		{
+
+		}
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t q) :
@@ -102,9 +139,10 @@ namespace Sibelia
 		size_t edgeLength = vertexLength + 1;
 		std::vector<bool> bitVector(filterSize, false);
 		std::cout << "Bloom filter counting..." << std::endl;
-		omp_set_num_threads(2);
+
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 3;
+		const size_t WORKER_THREADS = 2;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
@@ -167,6 +205,61 @@ namespace Sibelia
 			size_t mark = clock();
 			std::cout << "Vertex enumeration..." << std::endl;
 
+			std::vector<TaskQueue> taskQueue;
+			std::vector<ResultQueue> resultQueue;
+			boost::thread writerThread(WriterThread, boost::ref(resultQueue));
+			std::vector<boost::thread> workerThread(WORKER_THREADS);
+			for (size_t i = 0; i < workerThread.size(); i++)
+			{
+				workerThread[i] = boost::thread(CandidateCheckingWorker, boost::ref(bitVector), vertexLength, boost::ref(taskQueue[i]), boost::ref(resultQueue[i]));
+			}
+
+			for (const std::string & nowFileName : fileName)
+			{
+				size_t start = 0;
+				size_t counter = 0;
+				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+				{
+					char ch;
+					std::string buf;
+					bool over = false;
+					do
+					{
+						bool over = parser.GetChar(ch);
+						if (!over)
+						{
+							counter++;
+							buf.push_back(ch);
+						}
+
+						if ((buf.size() == Task::TASK_SIZE) || over)
+						{
+							for(bool found = false; !found; )							
+							{								
+								for (TaskQueue & q : taskQueue)
+								{
+									if (q.write_available() > 0)
+									{
+										std::string overlap;
+										if (!over)
+										{
+											overlap.assign(buf.end() - vertexLength, buf.end());											
+										}
+										
+										start = counter - std::min(buf.size(), vertexLength);
+										q.push(Task(start, std::move(buf)));
+										buf.swap(overlap);										
+										found = true;
+									}
+								}
+							}
+						}
+
+					} while (!over);
+				}
+			}
+
+			std::ifstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			for (const std::string & nowFileName : fileName)
@@ -182,30 +275,22 @@ namespace Sibelia
 
 					if (posVertex.GetSize() >= vertexLength)
 					{
+						char buf;
 						char posPrev;
 						char negExtend;
+						size_t bitCount = 0;						
+						std::bitset<sizeof(char)> candidFlag;
 						DnaString negVertex = posVertex.RevComp();
-						uint64_t body = posVertex.GetBody();
-						uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[0]);
-						if (hvalue >= low && hvalue <= high)
-						{
-							trueBifSet.insert(posVertex.GetBody());
-						}
+						candid.read(&buf, 1);
+
+						//!!!
+						trueBifSet.insert(posVertex.GetBody());
 
 						for (bool start = true;; start = false)
 						{							
 							if (parser.GetChar(posExtend))
 							{
-								size_t hit = 0;
-								uint64_t hvalue = UINT64_MAX;
-								DnaString kmer[] = { posVertex, negVertex };
-								for (size_t i = 0; i < 2; i++)
-								{
-									uint64_t body = kmer[i].GetBody();
-									hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));									
-								}
-
-								if (hvalue >= low && hvalue <= high)
+								if (candidFlag[bitCount++])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 									{
@@ -213,45 +298,9 @@ namespace Sibelia
 										bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
 										if (!posFound && !negFound)
 										{
-											size_t inCount = 0;
-											size_t outCount = 0;
-#pragma omp parallel for
-											for (int i = 0; i < DnaString::LITERAL.size() * 2; i++)												
+											if (posVertex == negVertex)
 											{
-												char nextCh = DnaString::LITERAL[i / 2];
-												DnaString posInEdge = posVertex;
-												DnaString posOutEdge = posVertex;
-												posInEdge.AppendFront(nextCh);
-												posOutEdge.AppendBack(nextCh);
-												DnaString negInEdge = negVertex;
-												DnaString negOutEdge = negVertex;
-												negInEdge.AppendBack(DnaString::Reverse(nextCh));
-												negOutEdge.AppendFront(DnaString::Reverse(nextCh));
-												assert(posInEdge.RevComp() == negInEdge);
-												assert(posOutEdge.RevComp() == negOutEdge);
-												if (i % 2 == 0 && (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge)))
-												{
-#pragma omp atomic
-													inCount++;
-												}
-
-												if (i % 2 == 1 && (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge)))
-												{
-#pragma omp atomic
-													outCount++;
-												}
-											}
-
-											if (inCount > 1 || outCount > 1)
-											{
-												DnaString candidate(posVertex);
-												candidate.AppendBack(posExtend);
-												candidate.AppendBack(posPrev);
-												candidateBifSet.insert(candidate.GetBody());
-												if (posVertex == negVertex)
-												{
-													negFound = true;
-												}
+												negFound = true;
 											}
 										}
 
@@ -284,22 +333,25 @@ namespace Sibelia
 											}
 										}
 									}
-								}
 
 							
-								posVertex.AppendBack(posExtend);
-								negVertex.AppendFront(DnaString::Reverse(posExtend));
-								posPrev = posVertex.PopFront();
-								negExtend = negVertex.PopBack();
-							}
-							else
-							{
-								if (hvalue >= low && hvalue <= high)
-								{ 
-									trueBifSet.insert(posVertex.GetBody());
+									posVertex.AppendBack(posExtend);
+									negVertex.AppendFront(DnaString::Reverse(posExtend));
+									posPrev = posVertex.PopFront();
+									negExtend = negVertex.PopBack();
 								}
+								else
+								{
+									//!!!
+									trueBifSet.insert(posVertex.GetBody());
+									break;
+								}
+							}
 
-								break;
+							if (bitCount >= sizeof(char))
+							{
+								candid.read(&buf, 1);
+								bitCount = 0;
 							}
 						}
 					}
@@ -314,6 +366,7 @@ namespace Sibelia
 				DnaString v(vertexLength, vertex);
 				bifurcation_.push_back(v.GetBody());
 			}
+			
 
 			low = high + 1;
 		}
