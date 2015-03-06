@@ -96,6 +96,7 @@ namespace Sibelia
 			size_t start;
 			std::string str;
 			static const size_t TASK_SIZE = 8;
+			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
 			Task(size_t start, std::string && str) : start(start), str(std::move(str)) {}
 		};
@@ -104,6 +105,7 @@ namespace Sibelia
 		{
 			size_t start;
 			std::vector<bool> isCandidate;
+			static const size_t GAME_OVER = SIZE_MAX;
 			Result() {}
 			Result(size_t start, std::vector<bool> && isCandidate) : start(start), isCandidate(std::move(isCandidate)) {}
 		};
@@ -114,9 +116,94 @@ namespace Sibelia
 		typedef boost::lockfree::spsc_queue<Task, QUEUE_CAPACITY> TaskQueue;
 		typedef boost::lockfree::spsc_queue<Result, QUEUE_CAPACITY> ResultQueue;
 
-		void CandidateCheckingWorker(const std::vector<bool> & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
+		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const std::vector<bool> & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
 		{
+			while (true)
+			{
+				if (taskQueue.read_available() > 0)
+				{
+					Task task;
+					taskQueue.pop(task);
+					if (task.start == Task::GAME_OVER)
+					{
+						resultQueue.push(Result(Result::GAME_OVER, std::vector<bool>()));
+						break;
+					}
 
+					if (task.str.size() < vertexLength)
+					{
+						continue;
+					}
+
+					char posExtend;
+					DnaString posVertex;
+					std::vector<bool> result(task.str.size() - vertexLength + 1);
+					for (size_t j = 0; j < vertexLength; j++)
+					{
+						posVertex.AppendBack(task.str[j]);
+					}
+
+					char posPrev;
+					char negExtend;
+					size_t pos = 0;
+					DnaString negVertex = posVertex.RevComp();
+					do
+					{
+						size_t hit = 0;
+						uint64_t hvalue = UINT64_MAX;
+						DnaString kmer[] = { posVertex, negVertex };
+						for (size_t i = 0; i < 2; i++)
+						{
+							uint64_t body = kmer[i].GetBody();
+							hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
+						}
+
+						if (hvalue >= low && hvalue <= high)
+						{
+							size_t inCount = 0;
+							size_t outCount = 0;
+							for (int i = 0; i < DnaString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
+							{
+								char nextCh = DnaString::LITERAL[i];
+								DnaString posInEdge = posVertex;
+								DnaString posOutEdge = posVertex;
+								posInEdge.AppendFront(nextCh);
+								posOutEdge.AppendBack(nextCh);
+								DnaString negInEdge = negVertex;
+								DnaString negOutEdge = negVertex;
+								negInEdge.AppendBack(DnaString::Reverse(nextCh));
+								negOutEdge.AppendFront(DnaString::Reverse(nextCh));
+								assert(posInEdge.RevComp() == negInEdge);
+								assert(posOutEdge.RevComp() == negOutEdge);
+								if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
+								{
+									inCount++;
+								}
+
+								if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
+								{
+									outCount++;
+								}
+							}
+
+							if (inCount > 1 || outCount > 1)
+							{
+								result[pos] = true;
+							}
+						}
+
+						posExtend = task.str[pos + vertexLength];
+						posVertex.AppendBack(posExtend);
+						negVertex.AppendFront(DnaString::Reverse(posExtend));
+						posPrev = posVertex.PopFront();
+						negExtend = negVertex.PopBack();
+						pos++;
+					}
+					while (pos <= task.str.size() - vertexLength);
+					while (resultQueue.write_available() == 0);
+					resultQueue.push(Result(task.start, std::move(result)));
+				}				
+			}
 		}
 
 		void WriterThread(std::vector<ResultQueue> & resultQueue)
@@ -211,7 +298,7 @@ namespace Sibelia
 			std::vector<boost::thread> workerThread(WORKER_THREADS);
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
-				workerThread[i] = boost::thread(CandidateCheckingWorker, boost::ref(bitVector), vertexLength, boost::ref(taskQueue[i]), boost::ref(resultQueue[i]));
+				workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(taskQueue[i]), boost::ref(resultQueue[i]));
 			}
 
 			for (const std::string & nowFileName : fileName)
@@ -257,6 +344,12 @@ namespace Sibelia
 
 					} while (!over);
 				}
+			}
+
+			for (TaskQueue & q : taskQueue)
+			{
+				while (q.write_available() == 0);
+				q.push(Task(Task::GAME_OVER, std::string()));
 			}
 
 			std::ifstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
