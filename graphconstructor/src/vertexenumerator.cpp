@@ -113,14 +113,15 @@ namespace Sibelia
 			{
 				return start < res.start;
 			}
-
 		};
 
 		const std::string & TEMP_FILE = "cand.bin";
 		
-		typedef boost::lockfree::fixed_sized<1> QUEUE_CAPACITY;
-		typedef boost::lockfree::spsc_queue<Task, QUEUE_CAPACITY> TaskQueue;
-		typedef boost::lockfree::spsc_queue<Result, QUEUE_CAPACITY> ResultQueue;
+		const size_t QUEUE_CAPACITY = 1;
+		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
+		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
+		typedef boost::lockfree::spsc_queue<Result> ResultQueue;
+		typedef std::unique_ptr<ResultQueue> ResultQueuePtr;
 
 		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const std::vector<bool> & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
 		{
@@ -131,6 +132,7 @@ namespace Sibelia
 				{									
 					if (task.start == Task::GAME_OVER)
 					{
+						while (resultQueue.write_available() == 0);
 						resultQueue.push(Result(Result::GAME_OVER, std::vector<bool>()));
 						break;
 					}
@@ -211,20 +213,20 @@ namespace Sibelia
 			}
 		}
 
-		void WriterThread(size_t workerThreads, std::vector<ResultQueue> & resultQueue)
+		void WriterThread(size_t workerThreads, std::vector<ResultQueuePtr> & resultQueue)
 		{
 			uint64_t last = 0;
 			std::set<Result> buffer;
 			std::ofstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
 			typedef unsigned long BIT_TYPE;
 			size_t bitCount = 0;
-			std::bitset<sizeof(BIT_TYPE)> bits;
+			std::bitset<sizeof(BIT_TYPE) * 8> bits;
 			while (workerThreads > 0)
 			{
-				for (ResultQueue & q : resultQueue)
+				for (ResultQueuePtr & q : resultQueue)
 				{
 					Result res;
-					while (q.pop(res));
+					while (q->pop(res));
 					{
 						if (res.start == Result::GAME_OVER)
 						{
@@ -243,8 +245,9 @@ namespace Sibelia
 					for (bool value : buffer.begin()->isCandidate)
 					{
 						bits.set(bitCount++, value);
-						if (bitCount == sizeof(BIT_TYPE))
+						if (bitCount == bits.size())
 						{
+							bitCount = 0;
 							BIT_TYPE buf = bits.to_ulong();
 							candid.write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
 						}
@@ -279,7 +282,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 3;
-		const size_t WORKER_THREADS = 2;
+		const size_t WORKER_THREADS = 1;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
@@ -342,15 +345,18 @@ namespace Sibelia
 			size_t mark = clock();
 			std::cout << "Vertex enumeration..." << std::endl;
 
-			std::vector<TaskQueue> taskQueue;
-			std::vector<ResultQueue> resultQueue;			
+			std::vector<TaskQueuePtr> taskQueue;
+			std::vector<ResultQueuePtr> resultQueue;
 			std::vector<boost::thread> workerThread(WORKER_THREADS);
 			boost::thread writerThread(WriterThread, WORKER_THREADS, boost::ref(resultQueue));
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
-				workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(taskQueue[i]), boost::ref(resultQueue[i]));
+				taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+				resultQueue.push_back(ResultQueuePtr(new ResultQueue(QUEUE_CAPACITY)));
+				workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(*resultQueue[i]));
 			}
 
+			TaskQueue q(QUEUE_CAPACITY);
 			for (const std::string & nowFileName : fileName)
 			{
 				size_t start = 0;
@@ -362,7 +368,7 @@ namespace Sibelia
 					bool over = false;
 					do
 					{
-						bool over = parser.GetChar(ch);
+						over = !parser.GetChar(ch);
 						if (!over)
 						{
 							counter++;
@@ -373,9 +379,9 @@ namespace Sibelia
 						{
 							for(bool found = false; !found; )							
 							{								
-								for (TaskQueue & q : taskQueue)
+								for (TaskQueuePtr & q : taskQueue)
 								{
-									if (q.write_available() > 0)
+									if (q->write_available() > 0)
 									{
 										std::string overlap;
 										if (!over)
@@ -384,7 +390,7 @@ namespace Sibelia
 										}
 										
 										start = counter - std::min(buf.size(), vertexLength);
-										q.push(Task(start, std::move(buf)));
+										q->push(Task(start, std::move(buf)));
 										buf.swap(overlap);										
 										found = true;
 									}
@@ -396,11 +402,13 @@ namespace Sibelia
 				}
 			}
 
-			for (TaskQueue & q : taskQueue)
+			for (TaskQueuePtr & q : taskQueue)
 			{
-				while (q.write_available() == 0);
-				q.push(Task(Task::GAME_OVER, std::string()));
+				while (q->write_available() == 0);
+				q->push(Task(Task::GAME_OVER, std::string()));
 			}
+
+			writerThread.join();
 
 			std::ifstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));

@@ -206,7 +206,7 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
-//		VertexEnumeratorTest(fileName, 4, 1025, ss);
+		VertexEnumeratorTest(fileName, 4, 1025, ss);
 
 		fileName.clear();
 		fileName.push_back("tiny.fasta");

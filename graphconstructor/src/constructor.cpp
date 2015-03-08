@@ -2,6 +2,7 @@
 #include <ctime>
 #include <string>
 #include <vector>
+#include <memory>
 #include <cassert>
 #include <cstdint>
 #include <cassert>
@@ -25,9 +26,9 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-
-	//assert(Sibelia::Runtests());
-	Sibelia::Runtests();
+	
+	assert(Sibelia::Runtests());
+	//Sibelia::Runtests();
 	try
 	{
 		std::vector<std::string> fileName(argv + 4, argv + argc);
