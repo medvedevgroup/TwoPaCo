@@ -1,3 +1,4 @@
+#include <set>
 #include <deque>
 #include <ctime>
 #include <memory>
@@ -93,21 +94,26 @@ namespace Sibelia
 
 		struct Task
 		{
-			size_t start;
+			uint64_t start;
 			std::string str;
-			static const size_t TASK_SIZE = 8;
+			static const size_t TASK_SIZE = 64;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
-			Task(size_t start, std::string && str) : start(start), str(std::move(str)) {}
+			Task(uint64_t start, std::string && str) : start(start), str(std::move(str)) {}
 		};
 
 		struct Result
 		{
-			size_t start;
+			uint64_t start;
 			std::vector<bool> isCandidate;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Result() {}
-			Result(size_t start, std::vector<bool> && isCandidate) : start(start), isCandidate(std::move(isCandidate)) {}
+			Result(uint64_t start, std::vector<bool> && isCandidate) : start(start), isCandidate(std::move(isCandidate)) {}
+			bool operator < (const Result & res) const
+			{
+				return start < res.start;
+			}
+
 		};
 
 		const std::string & TEMP_FILE = "cand.bin";
@@ -120,10 +126,9 @@ namespace Sibelia
 		{
 			while (true)
 			{
-				if (taskQueue.read_available() > 0)
-				{
-					Task task;
-					taskQueue.pop(task);
+				Task task;
+				if (taskQueue.pop(task))
+				{									
 					if (task.start == Task::GAME_OVER)
 					{
 						resultQueue.push(Result(Result::GAME_OVER, std::vector<bool>()));
@@ -206,10 +211,55 @@ namespace Sibelia
 			}
 		}
 
-		void WriterThread(std::vector<ResultQueue> & resultQueue)
+		void WriterThread(size_t workerThreads, std::vector<ResultQueue> & resultQueue)
 		{
+			uint64_t last = 0;
+			std::set<Result> buffer;
+			std::ofstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
+			typedef unsigned long BIT_TYPE;
+			size_t bitCount = 0;
+			std::bitset<sizeof(BIT_TYPE)> bits;
+			while (workerThreads > 0)
+			{
+				for (ResultQueue & q : resultQueue)
+				{
+					Result res;
+					while (q.pop(res));
+					{
+						if (res.start == Result::GAME_OVER)
+						{
+							workerThreads--;
+						}
+						else
+						{
+							buffer.insert(res);
+						}
+					}
+				}
 
-		}
+				while (buffer.size() > 0 && buffer.begin()->start <= last + Task::TASK_SIZE)
+				{
+					last = buffer.begin()->start;
+					for (bool value : buffer.begin()->isCandidate)
+					{
+						bits.set(bitCount++, value);
+						if (bitCount == sizeof(BIT_TYPE))
+						{
+							BIT_TYPE buf = bits.to_ulong();
+							candid.write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
+						}
+					}
+
+					buffer.erase(buffer.begin());
+				}
+			}
+
+			if (last > 0)
+			{
+				BIT_TYPE buf = bits.to_ulong();
+				candid.write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
+			}
+		}		
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t q) :
@@ -293,9 +343,9 @@ namespace Sibelia
 			std::cout << "Vertex enumeration..." << std::endl;
 
 			std::vector<TaskQueue> taskQueue;
-			std::vector<ResultQueue> resultQueue;
-			boost::thread writerThread(WriterThread, boost::ref(resultQueue));
+			std::vector<ResultQueue> resultQueue;			
 			std::vector<boost::thread> workerThread(WORKER_THREADS);
+			boost::thread writerThread(WriterThread, WORKER_THREADS, boost::ref(resultQueue));
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(taskQueue[i]), boost::ref(resultQueue[i]));

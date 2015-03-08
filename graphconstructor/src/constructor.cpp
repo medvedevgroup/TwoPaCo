@@ -23,8 +23,6 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
-
-
 int main(int argc, char * argv[])
 {
 
