@@ -213,14 +213,16 @@ namespace Sibelia
 			}
 		}
 
+		typedef unsigned long BIT_TYPE;
+		const size_t BITS_COUNT = sizeof(BIT_TYPE) * 8;
+
 		void WriterThread(size_t workerThreads, std::vector<ResultQueuePtr> & resultQueue)
 		{
 			uint64_t last = 0;
 			std::set<Result> buffer;
-			std::ofstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
-			typedef unsigned long BIT_TYPE;
+			std::ofstream candid(TEMP_FILE.c_str(), std::ios_base::binary);			
 			size_t bitCount = 0;
-			std::bitset<sizeof(BIT_TYPE) * 8> bits;
+			std::bitset<BITS_COUNT> bits;
 			while (workerThreads > 0)
 			{
 				for (ResultQueuePtr & q : resultQueue)
@@ -426,19 +428,19 @@ namespace Sibelia
 
 					if (posVertex.GetSize() >= vertexLength)
 					{
-						char buf;
+						BIT_TYPE buf;
 						char posPrev;
 						char negExtend;
-						size_t bitCount = 0;						
-						std::bitset<sizeof(char)> candidFlag;
+						size_t bitCount = 1;
 						DnaString negVertex = posVertex.RevComp();
-						candid.read(&buf, 1);
+						candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
+						std::bitset<BITS_COUNT> candidFlag(buf);
 
 						//!!!
 						trueBifSet.insert(posVertex.GetBody());
 
 						for (bool start = true;; start = false)
-						{							
+						{
 							if (parser.GetChar(posExtend))
 							{
 								if (candidFlag[bitCount++])
@@ -485,28 +487,28 @@ namespace Sibelia
 										}
 									}
 
-							
 									posVertex.AppendBack(posExtend);
 									negVertex.AppendFront(DnaString::Reverse(posExtend));
 									posPrev = posVertex.PopFront();
 									negExtend = negVertex.PopBack();
 								}
-								else
+
+								if (bitCount >= BITS_COUNT)
 								{
-									//!!!
-									trueBifSet.insert(posVertex.GetBody());
-									break;
+									candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
+									candidFlag = buf;
+									bitCount = 0;
 								}
 							}
-
-							if (bitCount >= sizeof(char))
+							else
 							{
-								candid.read(&buf, 1);
-								bitCount = 0;
+								//!!!
+								trueBifSet.insert(posVertex.GetBody());
+								break;
 							}
 						}
 					}
-				}
+				}	
 			}
 
 			std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
