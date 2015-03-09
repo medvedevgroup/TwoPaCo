@@ -94,34 +94,41 @@ namespace Sibelia
 
 		struct Task
 		{
-			uint64_t start;
+			size_t recId;
+			uint64_t start;			
 			std::string str;
 			static const size_t TASK_SIZE = 64;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
-			Task(uint64_t start, std::string && str) : start(start), str(std::move(str)) {}
+			Task(size_t recId, uint64_t start, std::string && str) : recId(recId), start(start), str(std::move(str)) {}
 		};
 
 		struct Result
 		{
+			size_t recId;
 			uint64_t start;
 			std::vector<bool> isCandidate;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Result() {}
-			Result(uint64_t start, std::vector<bool> && isCandidate) : start(start), isCandidate(std::move(isCandidate)) {}
+			Result(size_t recId, uint64_t start, std::vector<bool> && isCandidate) : recId(recId), start(start), isCandidate(std::move(isCandidate)) {}
 			bool operator < (const Result & res) const
 			{
 				return start < res.start;
 			}
 		};
 
-		const std::string & TEMP_FILE = "cand.bin";
-		
 		const size_t QUEUE_CAPACITY = 1;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 		typedef boost::lockfree::spsc_queue<Result> ResultQueue;
 		typedef std::unique_ptr<ResultQueue> ResultQueuePtr;
+
+		std::string TempFile(size_t record)
+		{
+			std::stringstream ss;
+			ss << record << ".bin";
+			return ss.str();
+		}
 
 		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const std::vector<bool> & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
 		{
@@ -133,7 +140,7 @@ namespace Sibelia
 					if (task.start == Task::GAME_OVER)
 					{
 						while (resultQueue.write_available() == 0);
-						resultQueue.push(Result(Result::GAME_OVER, std::vector<bool>()));
+						resultQueue.push(Result(0, Result::GAME_OVER, std::vector<bool>()));
 						break;
 					}
 
@@ -208,7 +215,7 @@ namespace Sibelia
 					}
 					while (pos <= task.str.size() - vertexLength);
 					while (resultQueue.write_available() == 0);
-					resultQueue.push(Result(task.start, std::move(result)));
+					resultQueue.push(Result(task.recId, task.start, std::move(result)));
 				}				
 			}
 		}
@@ -216,18 +223,24 @@ namespace Sibelia
 		typedef unsigned long BIT_TYPE;
 		const size_t BITS_COUNT = sizeof(BIT_TYPE) * 8;
 
-		void WriterThread(size_t workerThreads, std::vector<ResultQueuePtr> & resultQueue)
+		void WriterThread(size_t workerThreads, size_t fastaRecords, std::vector<ResultQueuePtr> & resultQueue)
 		{
-			uint64_t last = 0;
-			std::set<Result> buffer;
-			std::ofstream candid(TEMP_FILE.c_str(), std::ios_base::binary);			
+			std::vector<uint64_t> last(fastaRecords, 0);
+			std::vector<std::set<Result> > buffer(fastaRecords);
+			std::vector<std::ofstream> candid(fastaRecords);
+			for (size_t i = 0; i < fastaRecords; i++)
+			{
+				std::string name = TempFile(i).c_str();
+				candid[i].open(name.c_str(), std::ios_base::binary);
+			}
+			
 			size_t bitCount = 0;
 			std::bitset<BITS_COUNT> bits;
 			while (workerThreads > 0)
 			{
 				for (ResultQueuePtr & q : resultQueue)
 				{
-					Result res;					
+					Result res;
 					while (q->pop(res))
 					{
 						if (res.start == Result::GAME_OVER)
@@ -236,38 +249,41 @@ namespace Sibelia
 						}
 						else
 						{
-							buffer.insert(res);
+							size_t record = res.recId;
+							buffer[res.recId].insert(res);
+							while (buffer[record].size() > 0 && buffer[record].begin()->start <= last[record] + Task::TASK_SIZE)
+							{
+								last[record] = buffer[record].begin()->start;
+								size_t cnt = 0;
+								for (bool value : buffer[record].begin()->isCandidate)
+								{
+									bits.set(bitCount++, value);
+									if (bitCount == bits.size())
+									{
+										bitCount = 0;
+										BIT_TYPE buf = bits.to_ulong();
+										candid[record].write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
+									}
+								}
+
+								buffer[record].erase(buffer[record].begin());
+							}
 						}
 					}
-				}
-
-				while (buffer.size() > 0 && buffer.begin()->start <= last + Task::TASK_SIZE)
-				{
-					last = buffer.begin()->start;
-					size_t cnt = 0;
-					for (bool value : buffer.begin()->isCandidate)
-					{
-					//	std::cout << (buffer.begin()->start + cnt++) << ": " << value << std::endl;
-						bits.set(bitCount++, value);
-						if (bitCount == bits.size())
-						{
-							bitCount = 0;
-							BIT_TYPE buf = bits.to_ulong();
-							candid.write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
-						}
-					}
-
-					buffer.erase(buffer.begin());
-				}
+				}							
 			}
 
-			if (last > 0)
+			for (size_t record = 0; record < fastaRecords; record++)
 			{
-				BIT_TYPE buf = bits.to_ulong();
-				candid.write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
-			}
+				if (last[record] > 0)
+				{
+					BIT_TYPE buf = bits.to_ulong();
+					candid[record].write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
+				}
+			}			
 		}		
 	}
+
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t q) :
 		vertexSize_(vertexLength)
@@ -286,15 +302,17 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 2;
+		const size_t WORKER_THREADS = 1;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
+			size_t fastaRecords = 0;
 			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
 			for (const std::string & nowFileName : fileName)
 			{
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
 				{
 					char ch;
+					fastaRecords++;
 					DnaString posEdge;
 					for (size_t j = 0; j < edgeLength && parser.GetChar(ch); j++)
 					{
@@ -348,11 +366,10 @@ namespace Sibelia
 
 			size_t mark = clock();
 			std::cout << "Vertex enumeration..." << std::endl;
-
 			std::vector<TaskQueuePtr> taskQueue;
 			std::vector<ResultQueuePtr> resultQueue;
 			std::vector<boost::thread> workerThread(WORKER_THREADS);
-			boost::thread writerThread(WriterThread, WORKER_THREADS, boost::ref(resultQueue));
+			boost::thread writerThread(WriterThread, WORKER_THREADS, fastaRecords, boost::ref(resultQueue));
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
@@ -363,19 +380,20 @@ namespace Sibelia
 			TaskQueue q(QUEUE_CAPACITY);
 			for (const std::string & nowFileName : fileName)
 			{
-				size_t counter = 0;
-				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+				size_t record = 0;
+				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
 					char ch;					
 					std::string buf;
-					size_t start = counter;
+					uint64_t prev = 0;
+					uint64_t start = 0;
 					bool over = false;
 					do
 					{
 						over = !parser.GetChar(ch);
 						if (!over)
 						{
-							counter++;
+							start++;
 							buf.push_back(ch);
 						}
 
@@ -393,8 +411,8 @@ namespace Sibelia
 											overlap.assign(buf.end() - vertexLength + 1, buf.end());											
 										}
 										
-										q->push(Task(start, std::move(buf)));
-										start = counter - overlap.size();
+										q->push(Task(record, prev, std::move(buf)));
+										prev = start - vertexLength + 1;
 										buf.swap(overlap);										
 										found = true;
 										break;
@@ -410,16 +428,16 @@ namespace Sibelia
 			for (TaskQueuePtr & q : taskQueue)
 			{
 				while (q->write_available() == 0);
-				q->push(Task(Task::GAME_OVER, std::string()));
+				q->push(Task(0, Task::GAME_OVER, std::string()));
 			}
 
-			writerThread.join();
-			std::ifstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
+			writerThread.join();			
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			for (const std::string & nowFileName : fileName)
 			{
-				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+				size_t record = 0;
+				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
 					char posExtend;
 					DnaString posVertex;
@@ -435,20 +453,20 @@ namespace Sibelia
 						char negExtend;
 						size_t bitCount = 0;
 						DnaString negVertex = posVertex.RevComp();
+						std::ifstream candid(TempFile(record).c_str(), std::ios_base::binary);
 						candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
 						std::bitset<BITS_COUNT> candidFlag(buf);
 						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 						{
 							trueBifSet.insert(posVertex.GetBody());
 						}
-						
 
-						for (bool start = true;; start = false)
+						for (bool go = true; go; )
 						{
-							if (parser.GetChar(posExtend))
+							if (go = parser.GetChar(posExtend))
 							{
-								bool tr = posVertex.ToString() == "CTTT" || negVertex.ToString() == "CTTT";
-								if (candidFlag[bitCount++])
+								std::cout << posVertex.ToString() << std::endl;
+								if (candidFlag[bitCount])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 									{
@@ -500,23 +518,18 @@ namespace Sibelia
 								posVertex.AppendBack(posExtend);
 								negVertex.AppendFront(DnaString::Reverse(posExtend));
 								posPrev = posVertex.PopFront();
-								negExtend = negVertex.PopBack();
-
-								if (bitCount >= BITS_COUNT)
-								{
-									candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
-									candidFlag = buf;
-									bitCount = 0;
-								}
+								negExtend = negVertex.PopBack();								
 							}
-							else
+							else if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 							{
-								if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-								{
-									trueBifSet.insert(posVertex.GetBody());
-								}
+								trueBifSet.insert(posVertex.GetBody());
+							}
 
-								break;
+							if (++bitCount >= BITS_COUNT)
+							{								
+								candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
+								candidFlag = buf;
+								bitCount = 0;
 							}
 						}
 					}
