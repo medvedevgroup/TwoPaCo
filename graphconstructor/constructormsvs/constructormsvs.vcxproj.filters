@@ -54,8 +54,5 @@
   <ItemGroup>
     <None Include="test.fasta" />
     <None Include="teste.fasta" />
-    <None Include="cand.bin">
-      <Filter>Resource Files</Filter>
-    </None>
   </ItemGroup>
 </Project>

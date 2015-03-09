@@ -227,8 +227,8 @@ namespace Sibelia
 			{
 				for (ResultQueuePtr & q : resultQueue)
 				{
-					Result res;
-					while (q->pop(res));
+					Result res;					
+					while (q->pop(res))
 					{
 						if (res.start == Result::GAME_OVER)
 						{
@@ -286,7 +286,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 1;
+		const size_t WORKER_THREADS = 2;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
@@ -397,6 +397,7 @@ namespace Sibelia
 										start = counter - overlap.size();
 										buf.swap(overlap);										
 										found = true;
+										break;
 									}
 								}
 							}
