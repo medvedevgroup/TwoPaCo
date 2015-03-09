@@ -283,7 +283,7 @@ namespace Sibelia
 		std::cout << "Bloom filter counting..." << std::endl;
 
 		uint64_t low = 0;
-		const size_t MAX_ROUNDS = 3;
+		const size_t MAX_ROUNDS = 1;
 		const size_t WORKER_THREADS = 1;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
@@ -411,7 +411,6 @@ namespace Sibelia
 			}
 
 			writerThread.join();
-
 			std::ifstream candid(TEMP_FILE.c_str(), std::ios_base::binary);
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
@@ -431,13 +430,15 @@ namespace Sibelia
 						BIT_TYPE buf;
 						char posPrev;
 						char negExtend;
-						size_t bitCount = 1;
+						size_t bitCount = 0;
 						DnaString negVertex = posVertex.RevComp();
 						candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
 						std::bitset<BITS_COUNT> candidFlag(buf);
-
-						//!!!
-						trueBifSet.insert(posVertex.GetBody());
+						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
+						{
+							trueBifSet.insert(posVertex.GetBody());
+						}
+						
 
 						for (bool start = true;; start = false)
 						{
@@ -451,6 +452,10 @@ namespace Sibelia
 										bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
 										if (!posFound && !negFound)
 										{
+											DnaString candidate(posVertex);
+											candidate.AppendBack(posExtend);
+											candidate.AppendBack(posPrev);
+											candidateBifSet.insert(candidate.GetBody());
 											if (posVertex == negVertex)
 											{
 												negFound = true;
@@ -485,13 +490,13 @@ namespace Sibelia
 												}
 											}
 										}
-									}
-
-									posVertex.AppendBack(posExtend);
-									negVertex.AppendFront(DnaString::Reverse(posExtend));
-									posPrev = posVertex.PopFront();
-									negExtend = negVertex.PopBack();
+									}									
 								}
+
+								posVertex.AppendBack(posExtend);
+								negVertex.AppendFront(DnaString::Reverse(posExtend));
+								posPrev = posVertex.PopFront();
+								negExtend = negVertex.PopBack();
 
 								if (bitCount >= BITS_COUNT)
 								{
@@ -502,8 +507,11 @@ namespace Sibelia
 							}
 							else
 							{
-								//!!!
-								trueBifSet.insert(posVertex.GetBody());
+								if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
+								{
+									trueBifSet.insert(posVertex.GetBody());
+								}
+
 								break;
 							}
 						}
