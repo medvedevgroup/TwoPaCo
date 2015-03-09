@@ -244,8 +244,10 @@ namespace Sibelia
 				while (buffer.size() > 0 && buffer.begin()->start <= last + Task::TASK_SIZE)
 				{
 					last = buffer.begin()->start;
+					size_t cnt = 0;
 					for (bool value : buffer.begin()->isCandidate)
 					{
+					//	std::cout << (buffer.begin()->start + cnt++) << ": " << value << std::endl;
 						bits.set(bitCount++, value);
 						if (bitCount == bits.size())
 						{
@@ -361,12 +363,12 @@ namespace Sibelia
 			TaskQueue q(QUEUE_CAPACITY);
 			for (const std::string & nowFileName : fileName)
 			{
-				size_t start = 0;
 				size_t counter = 0;
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
 				{
-					char ch;
+					char ch;					
 					std::string buf;
+					size_t start = counter;
 					bool over = false;
 					do
 					{
@@ -377,7 +379,7 @@ namespace Sibelia
 							buf.push_back(ch);
 						}
 
-						if ((buf.size() == Task::TASK_SIZE) || over)
+						if (buf.size() >= vertexLength && (buf.size() == Task::TASK_SIZE || over))
 						{
 							for(bool found = false; !found; )							
 							{								
@@ -388,11 +390,11 @@ namespace Sibelia
 										std::string overlap;
 										if (!over)
 										{
-											overlap.assign(buf.end() - vertexLength, buf.end());											
+											overlap.assign(buf.end() - vertexLength + 1, buf.end());											
 										}
 										
-										start = counter - std::min(buf.size(), vertexLength);
 										q->push(Task(start, std::move(buf)));
+										start = counter - overlap.size();
 										buf.swap(overlap);										
 										found = true;
 									}
@@ -444,6 +446,7 @@ namespace Sibelia
 						{
 							if (parser.GetChar(posExtend))
 							{
+								bool tr = posVertex.ToString() == "CTTT" || negVertex.ToString() == "CTTT";
 								if (candidFlag[bitCount++])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)

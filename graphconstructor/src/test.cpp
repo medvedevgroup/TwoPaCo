@@ -207,10 +207,6 @@ namespace Sibelia
 		fileName.clear();
 		fileName.push_back("test.fasta");
 		VertexEnumeratorTest(fileName, 4, 1025, ss);
-
-		fileName.clear();
-		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, (size_t(1) << size_t(31)) + size_t(1), ss);
 	
 		fileName.clear();
 		fileName.push_back("g1.fasta");
@@ -219,7 +215,11 @@ namespace Sibelia
 		for (size_t k = 8; k <= 25; k++)
 		{
 			VertexEnumeratorTest(fileName, k, (1 << 24) + 1, ss);
-		}		
+		}
+
+		fileName.clear();
+		fileName.push_back("tiny.fasta");
+		VertexEnumeratorTest(fileName, 25, (size_t(1) << size_t(31)) + size_t(1), ss);
 		
 		return true;
 	}

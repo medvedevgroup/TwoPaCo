@@ -164,6 +164,7 @@
     <ClInclude Include="..\src\vertexenumerator.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cand.bin" />
     <None Include="test.fasta" />
     <None Include="teste.fasta" />
   </ItemGroup>
