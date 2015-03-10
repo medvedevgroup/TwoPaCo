@@ -304,7 +304,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 6;
+		const size_t WORKER_THREADS = 4;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			size_t fastaRecords = 0;
