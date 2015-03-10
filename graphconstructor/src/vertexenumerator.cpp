@@ -159,7 +159,7 @@ namespace Sibelia
 
 					char posPrev;
 					char negExtend;
-					size_t pos = 0;
+					size_t pos = 0;					
 					DnaString negVertex = posVertex.RevComp();
 					do
 					{
@@ -224,18 +224,18 @@ namespace Sibelia
 		const size_t BITS_COUNT = sizeof(BIT_TYPE) * 8;
 
 		void WriterThread(size_t workerThreads, size_t fastaRecords, std::vector<ResultQueuePtr> & resultQueue)
-		{
+		{			
 			std::vector<uint64_t> last(fastaRecords, 0);
-			std::vector<std::set<Result> > buffer(fastaRecords);
+			std::vector<uint64_t> bitCount(fastaRecords, 0);
 			std::vector<std::ofstream> candid(fastaRecords);
+			std::vector<std::set<Result> > buffer(fastaRecords);			
+			std::vector<std::bitset<BITS_COUNT> > bits(fastaRecords);
 			for (size_t i = 0; i < fastaRecords; i++)
 			{
 				std::string name = TempFile(i).c_str();
 				candid[i].open(name.c_str(), std::ios_base::binary);
 			}
 			
-			size_t bitCount = 0;
-			std::bitset<BITS_COUNT> bits;
 			while (workerThreads > 0)
 			{
 				for (ResultQueuePtr & q : resultQueue)
@@ -250,18 +250,17 @@ namespace Sibelia
 						else
 						{
 							size_t record = res.recId;
-							buffer[res.recId].insert(res);
+							buffer[record].insert(res);
 							while (buffer[record].size() > 0 && buffer[record].begin()->start <= last[record] + Task::TASK_SIZE)
 							{
-								last[record] = buffer[record].begin()->start;
-								size_t cnt = 0;
+								last[record] = buffer[record].begin()->start;								
 								for (bool value : buffer[record].begin()->isCandidate)
 								{
-									bits.set(bitCount++, value);
-									if (bitCount == bits.size())
+									bits[record].set(bitCount[record]++, value);
+									if (bitCount[record] == bits[record].size())
 									{
-										bitCount = 0;
-										BIT_TYPE buf = bits.to_ulong();
+										bitCount[record] = 0;
+										BIT_TYPE buf = bits[record].to_ulong();
 										candid[record].write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
 									}
 								}
@@ -275,9 +274,9 @@ namespace Sibelia
 
 			for (size_t record = 0; record < fastaRecords; record++)
 			{
-				if (last[record] > 0)
+				if (bitCount[record] > 0)
 				{
-					BIT_TYPE buf = bits.to_ulong();
+					BIT_TYPE buf = bits[record].to_ulong();
 					candid[record].write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
 				}
 			}			
@@ -465,8 +464,7 @@ namespace Sibelia
 						{
 							if (go = parser.GetChar(posExtend))
 							{
-								std::cout << posVertex.ToString() << std::endl;
-								if (candidFlag[bitCount])
+								if (candidFlag[bitCount % BITS_COUNT])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 									{
@@ -529,7 +527,6 @@ namespace Sibelia
 							{								
 								candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
 								candidFlag = buf;
-								bitCount = 0;
 							}
 						}
 					}
