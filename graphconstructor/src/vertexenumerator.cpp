@@ -176,6 +176,7 @@ namespace Sibelia
 						{
 							size_t inCount = 0;
 							size_t outCount = 0;
+							bool t = posVertex.ToString() == "AAGCAACT";
 							for (int i = 0; i < DnaString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 							{
 								char nextCh = DnaString::LITERAL[i];
@@ -464,7 +465,8 @@ namespace Sibelia
 						{
 							if (go = parser.GetChar(posExtend))
 							{
-								if (candidFlag[bitCount % BITS_COUNT])
+								bool t = posVertex.ToString() == "AAGCAACT";
+								if (candidFlag[bitCount])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 									{
@@ -527,6 +529,7 @@ namespace Sibelia
 							{								
 								candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
 								candidFlag = buf;
+								bitCount -= BITS_COUNT;
 							}
 						}
 					}
