@@ -1,7 +1,7 @@
 #ifndef CHARACTERHASH
 #define CHARACTERHASH
 
-typedef unsigned long long uint64;
+typedef uint64_t uint64;
 typedef unsigned int uint32;
 typedef unsigned int uint;
 
