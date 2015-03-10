@@ -97,7 +97,7 @@ namespace Sibelia
 			size_t recId;
 			uint64_t start;			
 			std::string str;
-			static const size_t TASK_SIZE = 64;
+			static const size_t TASK_SIZE = 4096;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
 			Task(size_t recId, uint64_t start, std::string && str) : recId(recId), start(start), str(std::move(str)) {}
@@ -117,7 +117,7 @@ namespace Sibelia
 			}
 		};
 
-		const size_t QUEUE_CAPACITY = 1;
+		const size_t QUEUE_CAPACITY = 8;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 		typedef boost::lockfree::spsc_queue<Result> ResultQueue;
@@ -176,7 +176,6 @@ namespace Sibelia
 						{
 							size_t inCount = 0;
 							size_t outCount = 0;
-							bool t = posVertex.ToString() == "AAGCAACT";
 							for (int i = 0; i < DnaString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 							{
 								char nextCh = DnaString::LITERAL[i];
@@ -225,9 +224,11 @@ namespace Sibelia
 		const size_t BITS_COUNT = sizeof(BIT_TYPE) * 8;
 
 		void WriterThread(size_t workerThreads, size_t fastaRecords, std::vector<ResultQueuePtr> & resultQueue)
-		{			
-			std::vector<uint64_t> last(fastaRecords, 0);
+		{
+			//std::ofstream log("log");
+			std::ostream & log = std::cerr;			
 			std::vector<uint64_t> bitCount(fastaRecords, 0);
+			std::vector<uint64_t> awaitStart(fastaRecords, 0);
 			std::vector<std::ofstream> candid(fastaRecords);
 			std::vector<std::set<Result> > buffer(fastaRecords);			
 			std::vector<std::bitset<BITS_COUNT> > bits(fastaRecords);
@@ -251,10 +252,10 @@ namespace Sibelia
 						else
 						{
 							size_t record = res.recId;
-							buffer[record].insert(res);
-							while (buffer[record].size() > 0 && buffer[record].begin()->start <= last[record] + Task::TASK_SIZE)
-							{
-								last[record] = buffer[record].begin()->start;								
+							buffer[record].insert(res);							
+							while (buffer[record].size() > 0 && buffer[record].begin()->start == awaitStart[record])
+							{								
+								awaitStart[record] += buffer[record].begin()->isCandidate.size();								
 								for (bool value : buffer[record].begin()->isCandidate)
 								{
 									bits[record].set(bitCount[record]++, value);
@@ -275,6 +276,7 @@ namespace Sibelia
 
 			for (size_t record = 0; record < fastaRecords; record++)
 			{
+				assert(buffer[record].empty());
 				if (bitCount[record] > 0)
 				{
 					BIT_TYPE buf = bits[record].to_ulong();
@@ -302,7 +304,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 1;
+		const size_t WORKER_THREADS = 4;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			size_t fastaRecords = 0;
@@ -465,7 +467,6 @@ namespace Sibelia
 						{
 							if (go = parser.GetChar(posExtend))
 							{
-								bool t = posVertex.ToString() == "AAGCAACT";
 								if (candidFlag[bitCount])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
