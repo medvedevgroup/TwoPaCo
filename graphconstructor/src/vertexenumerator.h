@@ -1,8 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
-#include <vector>
-
+#include "bloomfilter.h"
 #include "streamfastaparser.h"
 
 namespace Sibelia

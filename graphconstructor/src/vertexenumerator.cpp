@@ -23,29 +23,30 @@ namespace Sibelia
 
 	namespace
 	{
-		void PutInBloomFilter(std::vector<bool> & bitVector, const std::vector<uint64_t> & seed, const DnaString & item)
+		void PutInBloomFilter(BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
-			for (const uint64_t & s : seed)
+			std::vector<size_t> hf(seed.size());
+			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
-				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), s);
-				bitVector[hvalue % bitVector.size()] = true;
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
+				hf[i] = hvalue % filter.Size();
 			}
+
+			filter.Put(hf);
 		}
 
-		bool IsInBloomFilter(const std::vector<bool> & bitVector, const std::vector<uint64_t> & seed, const DnaString & item)
+		bool IsInBloomFilter(const BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
-			for (const uint64_t & s : seed)
+			std::vector<size_t> hf(seed.size());
+			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
-				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), s);
-				if (!bitVector[hvalue % bitVector.size()])
-				{
-					return false;
-				}
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
+				hf[i] = hvalue % filter.Size();
 			}
 
-			return true;
+			return filter.Get(hf);
 		}
 
 		class VertexHashFunction
@@ -130,7 +131,7 @@ namespace Sibelia
 			return ss.str();
 		}
 
-		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const std::vector<bool> & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
+		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const BloomFilter & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
 		{
 			while (true)
 			{
@@ -299,12 +300,12 @@ namespace Sibelia
 		std::vector<uint64_t> seed(q);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
-		std::vector<bool> bitVector(filterSize, false);
+		BloomFilter bitVector(filterSize);
 		std::cout << "Bloom filter counting..." << std::endl;
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 2;
+		const size_t WORKER_THREADS = 6;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			size_t fastaRecords = 0;
