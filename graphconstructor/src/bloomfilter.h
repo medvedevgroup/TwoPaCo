@@ -1,6 +1,7 @@
 #ifndef _BLOOM_FILTER_
 #define _BLOOM_FILTER
 
+#include <cstdlib>
 #include <vector>
 #include <atomic>
 

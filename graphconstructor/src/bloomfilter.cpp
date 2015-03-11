@@ -1,4 +1,5 @@
 #include "bloomfilter.h"
+#include <cassert>
 #include <iostream>
 namespace Sibelia
 {
