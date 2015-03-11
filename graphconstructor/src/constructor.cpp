@@ -48,8 +48,6 @@ int main(int argc, char * argv[])
 			all.erase(std::unique(all.begin(), all.end()), all.end());
 			std::cout << "All = " << all.size() << std::endl;
 		}
-
-		std::cout << "Time: " << double(clock()) / CLOCKS_PER_SEC << std::endl;
 	}
 	catch (const std::runtime_error & msg)
 	{
