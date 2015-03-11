@@ -27,7 +27,15 @@ namespace Sibelia
 			size_t bit;
 			size_t element;
 			GetCoord(idx, element, bit);
-			filter_[element] |= 1 << bit;
+			while (true)
+			{
+				unsigned char oldValue = filter_[element];
+				unsigned char newValue = oldValue | 1 << bit;
+				if (filter_[element].compare_exchange_strong(oldValue, newValue))
+				{
+					break;
+				}
+			}
 		}
 	}
 
