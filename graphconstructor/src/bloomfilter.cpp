@@ -2,14 +2,14 @@
 #include <iostream>
 namespace Sibelia
 {
-	BloomFilter::BloomFilter(size_t size) : size_(size), filter_(new UChar[size])
+	BloomFilter::BloomFilter(size_t size) : size_(size), realSize_(size / 8 + 1), filter_(new UChar[realSize_])
 	{
 		Init();
 	}
 
 	void BloomFilter::Init()
 	{
-		for (size_t i = 0; i < size_; i++)
+		for (size_t i = 0; i < realSize_; i++)
 		{
 			filter_[i] = 0;
 		}
@@ -58,7 +58,8 @@ namespace Sibelia
 	void BloomFilter::GetCoord(size_t idx, size_t & element, size_t & bit) const
 	{
 		bit = idx & 0x7;
-		element = idx >> 3;		
+		element = idx >> 3;
+		assert(element < size_ / 8 + 1);
 	}
 
 	BloomFilter::~BloomFilter()

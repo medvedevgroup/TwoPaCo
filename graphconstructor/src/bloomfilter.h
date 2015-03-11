@@ -19,6 +19,7 @@ namespace Sibelia
 		static const size_t SUCCESS = -1;		
 		typedef std::atomic<unsigned char> UChar;
 		size_t size_;
+		size_t realSize_;
 		UChar * filter_;
 		void GetCoord(size_t idx, size_t & element, size_t & bit) const;
 	};

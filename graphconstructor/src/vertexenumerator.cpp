@@ -98,7 +98,7 @@ namespace Sibelia
 			size_t recId;
 			uint64_t start;			
 			std::string str;
-			static const size_t TASK_SIZE = 1000;
+			static const size_t TASK_SIZE = 65536;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
 			Task(size_t recId, uint64_t start, std::string && str) : recId(recId), start(start), str(std::move(str)) {}
@@ -118,7 +118,7 @@ namespace Sibelia
 			}
 		};
 
-		const size_t QUEUE_CAPACITY = 1;
+		const size_t QUEUE_CAPACITY = 12;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 		typedef boost::lockfree::spsc_queue<Result> ResultQueue;
@@ -367,7 +367,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 2;
+		const size_t WORKER_THREADS = 4;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			size_t fastaRecords = 0;
