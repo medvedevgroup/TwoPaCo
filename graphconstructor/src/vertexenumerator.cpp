@@ -98,7 +98,7 @@ namespace Sibelia
 			size_t recId;
 			uint64_t start;			
 			std::string str;
-			static const size_t TASK_SIZE = 4096;
+			static const size_t TASK_SIZE = 64;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
 			Task(size_t recId, uint64_t start, std::string && str) : recId(recId), start(start), str(std::move(str)) {}
@@ -118,7 +118,7 @@ namespace Sibelia
 			}
 		};
 
-		const size_t QUEUE_CAPACITY = 8;
+		const size_t QUEUE_CAPACITY = 1;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 		typedef boost::lockfree::spsc_queue<Result> ResultQueue;
@@ -131,13 +131,80 @@ namespace Sibelia
 			return ss.str();
 		}
 
+		void CountingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, BloomFilter & bitVector, size_t edgeLength, TaskQueue & taskQueue)
+		{
+			while (true)
+			{
+				Task task;
+				if (taskQueue.pop(task))
+				{
+					if (task.start == Task::GAME_OVER)
+					{
+						break;
+					}
+
+					if (task.str.size() < edgeLength)
+					{
+						continue;
+					}
+
+					DnaString posEdge;
+					for (size_t j = 0; j < edgeLength; j++)
+					{
+						posEdge.AppendBack(task.str[j]);
+					}
+
+					size_t pos = 0;
+					DnaString negEdge = posEdge.RevComp();					
+					do
+					{
+						size_t k = 0;
+						size_t hit = 0;
+
+						DnaString posv = posEdge;
+						posv.PopBack();
+						bool tt = posv.ToString() == "CGCTAACC";
+
+						DnaString kmer[2][2] = { { posEdge, negEdge }, { posEdge, negEdge } };
+						for (size_t i = 0; i < 2; i++, k++)
+						{
+							kmer[i][k].PopBack();
+							kmer[i][1 - k].PopFront();
+							uint64_t hvalue = UINT64_MAX;
+							assert(kmer[i][0] == kmer[i][1].RevComp());
+							for (size_t j = 0; j < 2; j++)
+							{
+								uint64_t body = kmer[i][j].GetBody();
+								hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
+							}
+
+							hit += (hvalue >= low && hvalue <= high) ? 1 : 0;
+						}
+
+						if (hit)
+						{
+							PutInBloomFilter(bitVector, seed, posEdge);
+						}
+
+						char ch = task.str[pos + edgeLength];
+						posEdge.PopFront();
+						posEdge.AppendBack(ch);
+						negEdge.PopBack();
+						negEdge.AppendFront(DnaString::Reverse(ch));
+						assert(posEdge.RevComp() == negEdge);
+						pos++;
+					} while (pos + edgeLength < task.str.size());
+				}
+			}
+		}
+
 		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const BloomFilter & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
 		{
 			while (true)
 			{
 				Task task;
 				if (taskQueue.pop(task))
-				{									
+				{							
 					if (task.start == Task::GAME_OVER)
 					{
 						while (resultQueue.write_available() == 0);
@@ -173,6 +240,7 @@ namespace Sibelia
 							hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
 						}
 
+						bool tt = posVertex.ToString() == "CGCTAACC";
 						if (hvalue >= low && hvalue <= high)
 						{
 							size_t inCount = 0;
@@ -214,7 +282,7 @@ namespace Sibelia
 						negExtend = negVertex.PopBack();
 						pos++;
 					}
-					while (pos <= task.str.size() - vertexLength);
+					while (pos + vertexLength < task.str.size());
 					while (resultQueue.write_available() == 0);
 					resultQueue.push(Result(task.recId, task.start, std::move(result)));
 				}				
@@ -305,74 +373,81 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 6;
+		const size_t WORKER_THREADS = 1;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			size_t fastaRecords = 0;
 			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
-			time_t mark = time(0);
-			for (const std::string & nowFileName : fileName)
+			time_t mark = time(0);			
 			{
-				for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+				std::vector<TaskQueuePtr> taskQueue;
+				std::vector<boost::thread> workerThread(WORKER_THREADS);
+				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					char ch;
-					fastaRecords++;
-					DnaString posEdge;
-					for (size_t j = 0; j < edgeLength && parser.GetChar(ch); j++)
-					{
-						posEdge.AppendBack(ch);
-					}
+					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+					workerThread[i] = boost::thread(CountingWorker, low, high, boost::cref(seed), boost::ref(bitVector), edgeLength, boost::ref(*taskQueue[i]));
+				}
 
-					if (posEdge.GetSize() == edgeLength)
-					{
-						DnaString negEdge = posEdge.RevComp();
-						while (true)
+				for (const std::string & nowFileName : fileName)
+				{
+					for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); fastaRecords++)
+					{										
+						char ch;
+						std::string buf;
+						uint64_t prev = 0;
+						uint64_t start = 0;
+						bool over = false;
+						do
 						{
-							size_t k = 0;
-							size_t hit = 0;
-							DnaString kmer[2][2] = { { posEdge, negEdge }, { posEdge, negEdge } };							
-							for (size_t i = 0; i < 2; i++, k++)
-							{								
-								kmer[i][k].PopBack();
-								kmer[i][1 - k].PopFront();
-								uint64_t hvalue = UINT64_MAX;
-								assert(kmer[i][0] == kmer[i][1].RevComp());								
-								for (size_t j = 0; j < 2; j++)
-								{
-									uint64_t body = kmer[i][j].GetBody();
-									hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
-								}
-								
-								hit += (hvalue >= low && hvalue <= high) ? 1 : 0;
-							}
-							
-							if (hit)
+							over = !parser.GetChar(ch);
+							if (!over)
 							{
-								PutInBloomFilter(bitVector, seed, posEdge);
+								start++;
+								buf.push_back(ch);
 							}
 
-							if (parser.GetChar(ch))
+							if (buf.size() >= edgeLength && (buf.size() == Task::TASK_SIZE || over))
 							{
-								posEdge.PopFront();
-								posEdge.AppendBack(ch);
-								negEdge.PopBack();
-								negEdge.AppendFront(DnaString::Reverse(ch));
-								assert(posEdge.RevComp() == negEdge);
+								for (bool found = false; !found;)
+								{
+									for (TaskQueuePtr & q : taskQueue)
+									{
+										if (q->write_available() > 0)
+										{
+											std::string overlap;
+											if (!over)
+											{
+												overlap.assign(buf.end() - edgeLength + 1, buf.end());
+											}
+
+											q->push(Task(fastaRecords, prev, std::move(buf)));
+											prev = start - edgeLength + 1;
+											buf.swap(overlap);
+											found = true;
+											break;
+										}
+									}
+								}
 							}
-							else
-							{
-								break;
-							}
-						}
+
+						} while (!over);
 					}
+				}
+
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					while (taskQueue[i]->write_available() == 0);				
+					taskQueue[i]->push(Task(0, Task::GAME_OVER, std::string()));
+					workerThread[i].join();
 				}
 			}
 			
 			std::cout << "Counting time = " << time(0) - mark << std::endl;
 			std::cout << "Vertex enumeration..." << std::endl;
 			mark = time(0);
+			
 			std::vector<TaskQueuePtr> taskQueue;
-			std::vector<ResultQueuePtr> resultQueue;
+			std::vector<ResultQueuePtr> resultQueue;			
 			std::vector<boost::thread> workerThread(WORKER_THREADS);
 			boost::thread writerThread(WriterThread, WORKER_THREADS, fastaRecords, boost::ref(resultQueue));
 			for (size_t i = 0; i < workerThread.size(); i++)
@@ -382,7 +457,6 @@ namespace Sibelia
 				workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(*resultQueue[i]));
 			}
 
-			TaskQueue q(QUEUE_CAPACITY);
 			for (const std::string & nowFileName : fileName)
 			{
 				size_t record = 0;
@@ -473,6 +547,7 @@ namespace Sibelia
 						{
 							if (go = parser.GetChar(posExtend))
 							{
+								bool tt = posVertex.ToString() == "CGCTAACC";
 								if (candidFlag[bitCount])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
