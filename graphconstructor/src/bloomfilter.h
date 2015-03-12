@@ -18,11 +18,11 @@ namespace Sibelia
 		bool Get(const std::vector<size_t> & hf) const;
 	private:
 		static const size_t SUCCESS = -1;		
-		typedef std::atomic<unsigned char> UChar;
+		typedef std::atomic<uint64_t> UInt;
 		size_t size_;
 		size_t realSize_;
-		UChar * filter_;
-		void GetCoord(size_t idx, size_t & element, size_t & bit) const;
+		UInt * filter_;
+		void GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const;
 	};
 }
 

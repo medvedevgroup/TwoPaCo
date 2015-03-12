@@ -286,6 +286,8 @@ namespace Sibelia
 		typedef unsigned long BIT_TYPE;
 		const size_t BITS_COUNT = sizeof(BIT_TYPE) * 8;
 
+		std::vector<std::vector<bool> > isCandidBit;
+
 		void WriterThread(size_t workerThreads, size_t fastaRecords, std::vector<ResultQueuePtr> & resultQueue)
 		{
 			//std::ofstream log("log");
@@ -346,9 +348,8 @@ namespace Sibelia
 					candid[record].write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
 				}
 			}			
-		}		
+		}
 	}
-
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t q) :
 		vertexSize_(vertexLength)
@@ -362,147 +363,151 @@ namespace Sibelia
 		std::vector<uint64_t> seed(q);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
-		BloomFilter bitVector(filterSize);
 		std::cout << "Bloom filter counting..." << std::endl;
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 4;
+		const size_t WORKER_THREADS = 8;
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			size_t fastaRecords = 0;
 			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
 			time_t mark = time(0);
-			std::vector<TaskQueuePtr> taskQueue;
-			std::vector<ResultQueuePtr> resultQueue;
-			std::vector<boost::thread> workerThread(WORKER_THREADS);
-			for (size_t i = 0; i < workerThread.size(); i++)
 			{
-				taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
-				resultQueue.push_back(ResultQueuePtr(new ResultQueue(QUEUE_CAPACITY)));
-				workerThread[i] = boost::thread(CountingWorker, low, high, boost::cref(seed), boost::ref(bitVector), edgeLength, boost::ref(*taskQueue[i]));
-			}
-
-			for (const std::string & nowFileName : fileName)
-			{
-				size_t record = 0;
-				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+				BloomFilter bitVector(filterSize);
+				std::vector<TaskQueuePtr> taskQueue;
+				std::vector<ResultQueuePtr> resultQueue;
+				std::vector<boost::thread> workerThread(WORKER_THREADS);
+				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					char ch;
-					fastaRecords++;
-					std::string buf;
-					uint64_t prev = 0;
-					uint64_t start = 0;
-					bool over = false;
-					do
-					{
-						over = !parser.GetChar(ch);
-						if (!over)
-						{
-							start++;
-							buf.push_back(ch);
-						}
+					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+					resultQueue.push_back(ResultQueuePtr(new ResultQueue(QUEUE_CAPACITY)));
+					workerThread[i] = boost::thread(CountingWorker, low, high, boost::cref(seed), boost::ref(bitVector), edgeLength, boost::ref(*taskQueue[i]));
+				}
 
-						if (buf.size() >= vertexLength && (buf.size() == Task::TASK_SIZE || over))
+				for (const std::string & nowFileName : fileName)
+				{
+					size_t record = 0;
+					for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+					{
+						char ch;
+						fastaRecords++;
+						isCandidBit.push_back(std::vector<bool>());
+						std::string buf;
+						uint64_t prev = 0;
+						uint64_t start = 0;
+						bool over = false;
+						do
 						{
-							for (bool found = false; !found;)
+							over = !parser.GetChar(ch);
+							if (!over)
 							{
-								for (TaskQueuePtr & q : taskQueue)
-								{
-									if (q->write_available() > 0)
-									{
-										std::string overlap;
-										if (!over)
-										{
-											overlap.assign(buf.end() - edgeLength + 1, buf.end());
-										}
+								start++;
+								buf.push_back(ch);
+							}
 
-										q->push(Task(record, prev, std::move(buf)));
-										prev = start - edgeLength + 1;
-										buf.swap(overlap);
-										found = true;
-										break;
+							isCandidBit.back().push_back(false);
+							if (buf.size() >= vertexLength && (buf.size() == Task::TASK_SIZE || over))
+							{
+								for (bool found = false; !found;)
+								{
+									for (TaskQueuePtr & q : taskQueue)
+									{
+										if (q->write_available() > 0)
+										{
+											std::string overlap;
+											if (!over)
+											{
+												overlap.assign(buf.end() - edgeLength + 1, buf.end());
+											}
+
+											q->push(Task(record, prev, std::move(buf)));
+											prev = start - edgeLength + 1;
+											buf.swap(overlap);
+											found = true;
+											break;
+										}
 									}
 								}
 							}
-						}
 
-					} while (!over);
+						} while (!over);
+					}
 				}
-			}
 
-			for (size_t i = 0; i < taskQueue.size(); i++)
-			{
-				TaskQueuePtr & q = taskQueue[i];
-				while (q->write_available() == 0);
-				q->push(Task(0, Task::GAME_OVER, std::string()));
-				workerThread[i].join();
-			}
-
-
-			std::cout << "Counting time = " << time(0) - mark << std::endl;
-			std::cout << "Vertex enumeration..." << std::endl;
-			mark = time(0);
-			boost::thread writerThread(WriterThread, WORKER_THREADS, fastaRecords, boost::ref(resultQueue));
-			for (size_t i = 0; i < workerThread.size(); i++)
-			{
-				workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(*resultQueue[i]));
-			}
-
-			for (const std::string & nowFileName : fileName)
-			{
-				size_t record = 0;
-				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+				for (size_t i = 0; i < taskQueue.size(); i++)
 				{
-					char ch;					
-					std::string buf;
-					uint64_t prev = 0;
-					uint64_t start = 0;
-					bool over = false;
-					do
-					{
-						over = !parser.GetChar(ch);
-						if (!over)
-						{
-							start++;
-							buf.push_back(ch);
-						}
+					TaskQueuePtr & q = taskQueue[i];
+					while (q->write_available() == 0);
+					q->push(Task(0, Task::GAME_OVER, std::string()));
+					workerThread[i].join();
+				}
 
-						if (buf.size() >= vertexLength && (buf.size() == Task::TASK_SIZE || over))
+				std::cout << "Counting time = " << time(0) - mark << std::endl;
+				std::cout << "Vertex enumeration..." << std::endl;
+				mark = time(0);
+				boost::thread writerThread(WriterThread, WORKER_THREADS, fastaRecords, boost::ref(resultQueue));
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(*resultQueue[i]));
+				}
+
+				for (const std::string & nowFileName : fileName)
+				{
+					size_t record = 0;
+					for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+					{
+						char ch;
+						std::string buf;
+						uint64_t prev = 0;
+						uint64_t start = 0;
+						bool over = false;
+						do
 						{
-							for(bool found = false; !found; )							
-							{								
-								for (TaskQueuePtr & q : taskQueue)
+							over = !parser.GetChar(ch);
+							if (!over)
+							{
+								start++;
+								buf.push_back(ch);
+							}
+
+							if (buf.size() >= vertexLength && (buf.size() == Task::TASK_SIZE || over))
+							{
+								for (bool found = false; !found;)
 								{
-									if (q->write_available() > 0)
+									for (TaskQueuePtr & q : taskQueue)
 									{
-										std::string overlap;
-										if (!over)
+										if (q->write_available() > 0)
 										{
-											overlap.assign(buf.end() - vertexLength + 1, buf.end());											
+											std::string overlap;
+											if (!over)
+											{
+												overlap.assign(buf.end() - vertexLength + 1, buf.end());
+											}
+
+											q->push(Task(record, prev, std::move(buf)));
+											prev = start - vertexLength + 1;
+											buf.swap(overlap);
+											found = true;
+											break;
 										}
-										
-										q->push(Task(record, prev, std::move(buf)));
-										prev = start - vertexLength + 1;
-										buf.swap(overlap);										
-										found = true;
-										break;
 									}
 								}
 							}
-						}
 
-					} while (!over);
+						} while (!over);
+					}
 				}
+
+				for (TaskQueuePtr & q : taskQueue)
+				{
+					while (q->write_available() == 0);
+					q->push(Task(0, Task::GAME_OVER, std::string()));
+				}
+
+				writerThread.join();
 			}
 
-			for (TaskQueuePtr & q : taskQueue)
-			{
-				while (q->write_available() == 0);
-				q->push(Task(0, Task::GAME_OVER, std::string()));
-			}
-
-			writerThread.join();
 			std::cout << "Enumeration time = " << time(0) - mark << std::endl;
 			mark = time(0);
 			std::cout << "Aggregation of the results..." << std::endl;

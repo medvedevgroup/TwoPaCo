@@ -3,7 +3,7 @@
 #include <iostream>
 namespace Sibelia
 {
-	BloomFilter::BloomFilter(size_t size) : size_(size), realSize_(size / 8 + 1), filter_(new UChar[realSize_])
+	BloomFilter::BloomFilter(size_t size) : size_(size), realSize_(size / 64 + 1), filter_(new UInt[realSize_])
 	{
 		Init();
 	}
@@ -27,16 +27,14 @@ namespace Sibelia
 		{ 
 			size_t bit;
 			size_t element;
+			uint64_t oldValue;
+			uint64_t newValue;
 			GetCoord(idx, element, bit);
-			while (true)
+			do
 			{
-				unsigned char oldValue = filter_[element];
-				unsigned char newValue = oldValue | 1 << bit;
-				if (filter_[element].compare_exchange_strong(oldValue, newValue))
-				{
-					break;
-				}
-			}
+				oldValue = filter_[element].load();
+				newValue = oldValue | (1 << bit);
+			} while (!filter_[element].compare_exchange_strong(oldValue, newValue));
 		}
 	}
 
@@ -44,8 +42,8 @@ namespace Sibelia
 	{
 		for (size_t idx : hf)
 		{
-			size_t bit;
-			size_t element;
+			uint64_t bit;
+			uint64_t element;
 			GetCoord(idx, element, bit);
 			if ((filter_[element] & (1 << bit)) == 0)
 			{
@@ -56,11 +54,11 @@ namespace Sibelia
 		return true;
 	}
 
-	void BloomFilter::GetCoord(size_t idx, size_t & element, size_t & bit) const
+	void BloomFilter::GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const
 	{
-		bit = idx & 0x7;
-		element = idx >> 3;
-		assert(element < size_ / 8 + 1);
+		bit = idx & ((uint64_t(1) << uint64_t(6)) - 1);
+		element = idx >> 6;
+		assert(element < size_ / 64 + 1);
 	}
 
 	BloomFilter::~BloomFilter()
