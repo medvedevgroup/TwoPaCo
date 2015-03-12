@@ -23,9 +23,8 @@ namespace Sibelia
 
 	namespace
 	{
-		void PutInBloomFilter(BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
-		{
-			std::vector<size_t> hf(seed.size());
+		void PutInBloomFilter(std::vector<size_t> & hf, BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
+		{			
 			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
@@ -36,9 +35,8 @@ namespace Sibelia
 			filter.Put(hf);
 		}
 
-		bool IsInBloomFilter(const BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
+		bool IsInBloomFilter(std::vector<size_t> & hf, const BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
-			std::vector<size_t> hf(seed.size());
 			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
@@ -133,6 +131,7 @@ namespace Sibelia
 
 		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const BloomFilter & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
 		{
+			std::vector<size_t> hf(seed.size());
 			while (true)
 			{
 				Task task;
@@ -194,12 +193,12 @@ namespace Sibelia
 								negOutEdge.AppendFront(DnaString::Reverse(nextCh));
 								assert(posInEdge.RevComp() == negInEdge);
 								assert(posOutEdge.RevComp() == negOutEdge);
-								if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
+								if (IsInBloomFilter(hf, bitVector, seed, posInEdge) || IsInBloomFilter(hf, bitVector, seed, negInEdge))
 								{
 									inCount++;
 								}
 
-								if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
+								if (IsInBloomFilter(hf, bitVector, seed, posOutEdge) || IsInBloomFilter(hf, bitVector, seed, negOutEdge))
 								{
 									outCount++;
 								}
@@ -223,6 +222,7 @@ namespace Sibelia
 
 		void CountingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, BloomFilter & bitVector, size_t edgeLength, TaskQueue & taskQueue)
 		{
+			std::vector<size_t> hf(seed.size());
 			while (true)
 			{
 				Task task;
@@ -256,13 +256,13 @@ namespace Sibelia
 						size_t k = 0;
 						size_t hit = 0;
 						DnaString kmer[2][2] = { { posEdge, negEdge }, { posEdge, negEdge } };
-						for (size_t i = 0; i < 2; i++, k++)
+						for (size_t i = 0; i < 2 && !hit; i++, k++)
 						{
 							kmer[i][k].PopBack();
 							kmer[i][1 - k].PopFront();
 							uint64_t hvalue = UINT64_MAX;
 							assert(kmer[i][0] == kmer[i][1].RevComp());
-							for (size_t j = 0; j < 2; j++)
+							for (size_t j = 0; j < 2 && !hit; j++)
 							{
 								uint64_t body = kmer[i][j].GetBody();
 								hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
@@ -273,7 +273,7 @@ namespace Sibelia
 
 						if (hit)
 						{
-							PutInBloomFilter(bitVector, seed, posEdge);
+							PutInBloomFilter(hf, bitVector, seed, posEdge);
 						}
 
 						posEdge.PopFront();
