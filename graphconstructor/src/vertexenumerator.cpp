@@ -156,15 +156,15 @@ namespace Sibelia
 					{
 						posVertex.AppendBack(task.str[j]);
 					}
-
-					char posPrev;
+					
 					char negExtend;
+					char posPrev = 0;
 					DnaString negVertex = posVertex.RevComp();
 					for (size_t pos = 0; pos + vertexLength - 1 < task.str.size(); pos++)
-					{
-						posExtend = task.str[pos + vertexLength - 1];
-						posVertex.AppendBack(posExtend);
-						negVertex.AppendFront(DnaString::Reverse(posExtend));
+					{						
+						posVertex.AppendBack(task.str[pos + vertexLength - 1]);
+						negVertex.AppendFront(DnaString::Reverse(task.str[pos + vertexLength - 1]));
+						posExtend = pos + vertexLength < task.str.size() ? task.str[pos + vertexLength] : 0;
 						assert(posVertex.RevComp() == negVertex);
 					
 						size_t hit = 0;
@@ -184,7 +184,7 @@ namespace Sibelia
 							{
 								char nextCh = DnaString::LITERAL[i];
 								char revNextCh = DnaString::Reverse(nextCh);								
-								if (nextCh == posPrev || posExtend == revNextCh)
+								if (posPrev != 0 && nextCh == posPrev)
 								{
 									++inCount;
 								}
@@ -200,7 +200,7 @@ namespace Sibelia
 									}									
 								}
 
-								if (nextCh == posExtend || posPrev == revNextCh)
+								if (posExtend != 0 && nextCh == posExtend)
 								{
 									++outCount;
 								}
