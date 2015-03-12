@@ -25,15 +25,15 @@ namespace Sibelia
 	{
 		for (size_t idx : hf)
 		{ 
-			size_t bit;
-			size_t element;
+			uint64_t bit;
+			uint64_t element;
 			uint64_t oldValue;
 			uint64_t newValue;
 			GetCoord(idx, element, bit);
 			do
 			{
 				oldValue = filter_[element].load();
-				newValue = oldValue | (1 << bit);
+				newValue = oldValue | (uint64_t(1) << uint64_t(bit));
 			} while (!filter_[element].compare_exchange_strong(oldValue, newValue));
 		}
 	}
@@ -45,7 +45,7 @@ namespace Sibelia
 			uint64_t bit;
 			uint64_t element;
 			GetCoord(idx, element, bit);
-			if ((filter_[element] & (1 << bit)) == 0)
+			if ((filter_[element] & (uint64_t(1) << uint64_t(bit))) == 0)
 			{
 				return false;
 			}

@@ -297,11 +297,12 @@ namespace Sibelia
 			std::vector<std::ofstream> candid(fastaRecords);
 			std::vector<std::set<Result> > buffer(fastaRecords);			
 			std::vector<std::bitset<BITS_COUNT> > bits(fastaRecords);
+			/*
 			for (size_t i = 0; i < fastaRecords; i++)
 			{
 				std::string name = TempFile(i).c_str();
 				candid[i].open(name.c_str(), std::ios_base::binary);
-			}
+			}*/
 			
 			while (workerThreads > 0)
 			{
@@ -320,7 +321,8 @@ namespace Sibelia
 							buffer[record].insert(res);							
 							while (buffer[record].size() > 0 && buffer[record].begin()->start == awaitStart[record])
 							{								
-								awaitStart[record] += buffer[record].begin()->isCandidate.size();								
+								awaitStart[record] += buffer[record].begin()->isCandidate.size();
+								/*
 								for (bool value : buffer[record].begin()->isCandidate)
 								{
 									bits[record].set(bitCount[record]++, value);
@@ -330,6 +332,12 @@ namespace Sibelia
 										BIT_TYPE buf = bits[record].to_ulong();
 										candid[record].write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
 									}
+								}*/
+
+								const Result & t = *(buffer[record].begin());
+								for (size_t i = 0; i < t.isCandidate.size(); i++)
+								{
+									isCandidBit[t.recId][t.start + i] = t.isCandidate[i];
 								}
 
 								buffer[record].erase(buffer[record].begin());
@@ -339,6 +347,7 @@ namespace Sibelia
 				}							
 			}
 
+			/*
 			for (size_t record = 0; record < fastaRecords; record++)
 			{
 				assert(buffer[record].empty());
@@ -347,7 +356,7 @@ namespace Sibelia
 					BIT_TYPE buf = bits[record].to_ulong();
 					candid[record].write(reinterpret_cast<const char*>(&buf), sizeof(BIT_TYPE) / sizeof(char));
 				}
-			}			
+			}*/			
 		}
 	}
 
@@ -368,6 +377,7 @@ namespace Sibelia
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
 		const size_t WORKER_THREADS = 8;
+		isCandidBit.clear();
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
 			size_t fastaRecords = 0;
@@ -531,20 +541,21 @@ namespace Sibelia
 						char posPrev;
 						char negExtend;
 						size_t bitCount = 0;
+						size_t kmer = 0;
 						DnaString negVertex = posVertex.RevComp();
-						std::ifstream candid(TempFile(record).c_str(), std::ios_base::binary);
-						candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
-						std::bitset<BITS_COUNT> candidFlag(buf);
+					//	std::ifstream candid(TempFile(record).c_str(), std::ios_base::binary);
+					//	candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
+			//			std::bitset<BITS_COUNT> candidFlag(buf);
 						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 						{
 							trueBifSet.insert(posVertex.GetBody());
 						}
 
-						for (bool go = true; go; )
+						for (bool go = true; go; kmer++)
 						{
 							if (go = parser.GetChar(posExtend))
 							{
-								if (candidFlag[bitCount])
+								if (isCandidBit[record][kmer])
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 									{
@@ -602,13 +613,13 @@ namespace Sibelia
 							{
 								trueBifSet.insert(posVertex.GetBody());
 							}
-
+							/*
 							if (++bitCount >= BITS_COUNT)
 							{								
 								candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
 								candidFlag = buf;
 								bitCount -= BITS_COUNT;
-							}
+							}*/
 						}
 					}
 				}	
