@@ -183,24 +183,37 @@ namespace Sibelia
 							for (int i = 0; i < DnaString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 							{
 								char nextCh = DnaString::LITERAL[i];
-								DnaString posInEdge = posVertex;
-								DnaString posOutEdge = posVertex;
-								posInEdge.AppendFront(nextCh);
-								posOutEdge.AppendBack(nextCh);
-								DnaString negInEdge = negVertex;
-								DnaString negOutEdge = negVertex;
-								negInEdge.AppendBack(DnaString::Reverse(nextCh));
-								negOutEdge.AppendFront(DnaString::Reverse(nextCh));
-								assert(posInEdge.RevComp() == negInEdge);
-								assert(posOutEdge.RevComp() == negOutEdge);
-								if (IsInBloomFilter(hf, bitVector, seed, posInEdge) || IsInBloomFilter(hf, bitVector, seed, negInEdge))
+								char revNextCh = DnaString::Reverse(nextCh);								
+								if (nextCh == posPrev || posExtend == revNextCh)
 								{
-									inCount++;
+									++inCount;
+								}
+								else
+								{
+									DnaString posInEdge = posVertex;
+									DnaString negInEdge = negVertex;
+									posInEdge.AppendFront(nextCh);
+									negInEdge.AppendBack(DnaString::Reverse(nextCh));
+									if (IsInBloomFilter(hf, bitVector, seed, posInEdge) || IsInBloomFilter(hf, bitVector, seed, negInEdge))
+									{
+										inCount++;
+									}									
 								}
 
-								if (IsInBloomFilter(hf, bitVector, seed, posOutEdge) || IsInBloomFilter(hf, bitVector, seed, negOutEdge))
+								if (nextCh == posExtend || posPrev == revNextCh)
 								{
-									outCount++;
+									++outCount;
+								}
+								else
+								{
+									DnaString posOutEdge = posVertex;
+									DnaString negOutEdge = negVertex;
+									posOutEdge.AppendBack(nextCh);
+									negOutEdge.AppendFront(DnaString::Reverse(nextCh));
+									if (IsInBloomFilter(hf, bitVector, seed, posOutEdge) || IsInBloomFilter(hf, bitVector, seed, negOutEdge))
+									{
+										outCount++;
+									}
 								}
 							}
 
@@ -360,6 +373,7 @@ namespace Sibelia
 		}
 	}
 
+
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t q) :
 		vertexSize_(vertexLength)
 	{
@@ -376,7 +390,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 8;
+		const size_t WORKER_THREADS = 1;
 		isCandidBit.clear();
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
