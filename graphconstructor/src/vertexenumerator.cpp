@@ -59,8 +59,7 @@ namespace Sibelia
 			{
 				DnaString str(vertexSize_, a);
 				uint64_t body = str.GetBody();
-				uint64_t hash = SpookyHash::Hash64(&body, sizeof(body), 0);
-				return hash;
+				return body;
 			}
 		private:
 			size_t vertexSize_;
@@ -390,7 +389,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 1;
+		const size_t WORKER_THREADS = 6;
 		isCandidBit.clear();
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
 		{
