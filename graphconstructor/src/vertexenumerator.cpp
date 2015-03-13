@@ -550,6 +550,38 @@ namespace Sibelia
 
 					if (posVertex.GetSize() >= vertexLength)
 					{
+						char posPrev;
+						char negExtend;
+						DnaString negVertex = posVertex.RevComp();
+						for (bool go = true; go;)
+						{
+							if (go = parser.GetChar(posExtend))
+							{
+								posVertex.AppendBack(posExtend);
+								negVertex.AppendFront(DnaString::Reverse(posExtend));
+								posPrev = posVertex.PopFront();
+								negExtend = negVertex.PopBack();
+							}
+						}
+					}
+				}
+			}
+
+			/*
+			for (const std::string & nowFileName : fileName)
+			{
+				size_t record = 0;
+				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+				{
+					char posExtend;
+					DnaString posVertex;
+					for (size_t j = 0; j < vertexLength && parser.GetChar(posExtend); j++)
+					{
+						posVertex.AppendBack(posExtend);
+					}
+
+					if (posVertex.GetSize() >= vertexLength)
+					{
 						BIT_TYPE buf;
 						char posPrev;
 						char negExtend;
@@ -626,18 +658,18 @@ namespace Sibelia
 							{
 								trueBifSet.insert(posVertex.GetBody());
 							}
-							/*
-							if (++bitCount >= BITS_COUNT)
-							{								
-								candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
-								candidFlag = buf;
-								bitCount -= BITS_COUNT;
-							}*/
+							
+						//	if (++bitCount >= BITS_COUNT)
+						//	{								
+						//		candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
+						//		candidFlag = buf;
+						//		bitCount -= BITS_COUNT;
+						//	}
 						}
 					}
 				}	
 			}
-
+			*/
 			std::cout << "Aggregation time = " << time(0) - mark << std::endl;
 			std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 			std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
