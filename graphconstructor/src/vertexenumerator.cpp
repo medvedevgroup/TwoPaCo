@@ -431,7 +431,7 @@ namespace Sibelia
 							}
 
 							isCandidBit.back().push_back(false);
-							if (buf.size() >= vertexLength && (buf.size() == Task::TASK_SIZE || over))
+							if (buf.size() >= edgeLength && (buf.size() == Task::TASK_SIZE || over))
 							{
 								for (bool found = false; !found;)
 								{

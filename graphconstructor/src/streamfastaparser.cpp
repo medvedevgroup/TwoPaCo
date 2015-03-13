@@ -5,7 +5,8 @@
 
 namespace Sibelia
 {
-	const std::string StreamFastaParser::VALID_CHARS = "ACGTURYKMSWBDHWNX-";
+	//const std::string StreamFastaParser::VALID_CHARS = "ACGTURYKMSWBDHWNX-";
+	const std::string StreamFastaParser::VALID_CHARS = "ACGT";
 
 	StreamFastaParser::Exception::Exception(const std::string & msg): std::runtime_error(msg)
 	{
