@@ -403,67 +403,18 @@ namespace Sibelia
 
 				char negExtend;
 				char posPrev = task.str[0];
-				DnaString negVertex = posVertex.RevComp();
 				for (size_t pos = 1; pos + vertexLength < task.str.size(); pos++)
 				{
 					posVertex.AppendBack(task.str[pos + vertexLength - 1]);
-					negVertex.AppendFront(DnaString::Reverse(task.str[pos + vertexLength - 1]));
-					posExtend = pos + vertexLength < task.str.size() ? task.str[pos + vertexLength] : 0;
-					assert(posVertex.RevComp() == negVertex);
 					if (isCandidBit[task.recId][task.start + pos])
 					{
 						{
-							std::lock_guard<boost::detail::spinlock> guard(lock);						
-							if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-							{
-								bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
-								bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
-								if (!posFound && !negFound)
-								{
-									DnaString candidate(posVertex);
-									candidate.AppendBack(posExtend);
-									candidate.AppendBack(posPrev);
-									candidateBifSet.insert(candidate.GetBody());
-									if (posVertex == negVertex)
-									{
-										negFound = true;
-									}
-								}
-
-								if (posFound)
-								{
-									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
-									DnaString candidate(vertexLength + 2, *it);
-									char candExtend = candidate.GetChar(vertexLength);
-									char candPrev = candidate.GetChar(vertexLength + 1);
-									if ((candPrev != posPrev) || (candExtend != posExtend))
-									{
-										trueBifSet.insert(posVertex.GetBody());
-										candidateBifSet.erase(posVertex.GetBody());
-									}
-								}
-
-								if (negFound)
-								{
-									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
-									if (it != candidateBifSet.end())
-									{
-										DnaString candidate(vertexLength + 2, *it);
-										char candExtend = candidate.GetChar(vertexLength);
-										char candPrev = candidate.GetChar(vertexLength + 1);
-										if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
-										{
-											trueBifSet.insert(posVertex.GetBody());
-											candidateBifSet.erase(posVertex.GetBody());
-										}
-									}
-								}
-							}
+							std::lock_guard<boost::detail::spinlock> guard(lock);
+							trueBifSet.insert(posVertex.GetBody());
 						}
 					}
 
-					posPrev = posVertex.PopFront();
-					negExtend = negVertex.PopBack();
+					posVertex.PopFront();
 				}
 			}
 		}
