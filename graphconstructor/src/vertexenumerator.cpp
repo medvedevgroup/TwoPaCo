@@ -1,6 +1,7 @@
 #include <set>
 #include <deque>
 #include <ctime>
+#include <mutex>
 #include <memory>
 #include <bitset>
 #include <cassert>
@@ -371,7 +372,7 @@ namespace Sibelia
 			}*/
 		}
 	}
-
+	boost::detail::spinlock lock;
 	typedef std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> KMerSet;
 
 	void AggregationWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, size_t vertexLength, TaskQueue & taskQueue, KMerSet & trueBifSet, KMerSet & candidateBifSet)
@@ -411,47 +412,50 @@ namespace Sibelia
 					assert(posVertex.RevComp() == negVertex);
 					if (isCandidBit[task.recId][task.start + pos])
 					{
-						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 						{
-							bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
-							bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
-							if (!posFound && !negFound)
+							std::lock_guard<boost::detail::spinlock> guard(lock);						
+							if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 							{
-								DnaString candidate(posVertex);
-								candidate.AppendBack(posExtend);
-								candidate.AppendBack(posPrev);
-								candidateBifSet.insert(candidate.GetBody());
-								if (posVertex == negVertex)
+								bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
+								bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
+								if (!posFound && !negFound)
 								{
-									negFound = true;
+									DnaString candidate(posVertex);
+									candidate.AppendBack(posExtend);
+									candidate.AppendBack(posPrev);
+									candidateBifSet.insert(candidate.GetBody());
+									if (posVertex == negVertex)
+									{
+										negFound = true;
+									}
 								}
-							}
 
-							if (posFound)
-							{
-								std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
-								DnaString candidate(vertexLength + 2, *it);
-								char candExtend = candidate.GetChar(vertexLength);
-								char candPrev = candidate.GetChar(vertexLength + 1);
-								if ((candPrev != posPrev) || (candExtend != posExtend))
+								if (posFound)
 								{
-									trueBifSet.insert(posVertex.GetBody());
-									candidateBifSet.erase(posVertex.GetBody());
-								}
-							}
-
-							if (negFound)
-							{
-								std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
-								if (it != candidateBifSet.end())
-								{
+									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
 									DnaString candidate(vertexLength + 2, *it);
 									char candExtend = candidate.GetChar(vertexLength);
 									char candPrev = candidate.GetChar(vertexLength + 1);
-									if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
+									if ((candPrev != posPrev) || (candExtend != posExtend))
 									{
 										trueBifSet.insert(posVertex.GetBody());
 										candidateBifSet.erase(posVertex.GetBody());
+									}
+								}
+
+								if (negFound)
+								{
+									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
+									if (it != candidateBifSet.end())
+									{
+										DnaString candidate(vertexLength + 2, *it);
+										char candExtend = candidate.GetChar(vertexLength);
+										char candPrev = candidate.GetChar(vertexLength + 1);
+										if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
+										{
+											trueBifSet.insert(posVertex.GetBody());
+											candidateBifSet.erase(posVertex.GetBody());
+										}
 									}
 								}
 							}
