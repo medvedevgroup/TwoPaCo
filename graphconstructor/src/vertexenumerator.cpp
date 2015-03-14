@@ -387,7 +387,7 @@ namespace Sibelia
 					break;
 				}
 
-				if (task.str.size() < vertexLength + 1)
+				if (task.str.size() < vertexLength + 2)
 				{
 					continue;
 				}
@@ -403,7 +403,7 @@ namespace Sibelia
 				char negExtend;
 				char posPrev = task.str[0];
 				DnaString negVertex = posVertex.RevComp();
-				for (size_t pos = 1; pos + vertexLength - 1 < task.str.size(); pos++)
+				for (size_t pos = 1; pos + vertexLength < task.str.size(); pos++)
 				{
 					posVertex.AppendBack(task.str[pos + vertexLength - 1]);
 					negVertex.AppendFront(DnaString::Reverse(task.str[pos + vertexLength - 1]));
@@ -458,8 +458,6 @@ namespace Sibelia
 						}
 					}
 
-					posVertex.AppendBack(posExtend);
-					negVertex.AppendFront(DnaString::Reverse(posExtend));
 					posPrev = posVertex.PopFront();
 					negExtend = negVertex.PopBack();
 				}
@@ -625,6 +623,8 @@ namespace Sibelia
 					q->push(Task(0, Task::GAME_OVER, std::string()));
 					workerThread[i].join();
 				}
+
+				writerThread.join();
 			}
 
 			std::cout << "Enumeration time = " << time(0) - mark << std::endl;
@@ -643,7 +643,6 @@ namespace Sibelia
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
 					char ch;
-					bool isStart = true;
 					std::string buf;
 					uint64_t prev = 0;
 					uint64_t start = 0;
@@ -656,15 +655,21 @@ namespace Sibelia
 							start++;
 							buf.push_back(ch);
 						}
-
-						if (buf.size() >= vertexLength && (buf.size() == Task::TASK_SIZE || over))
+						else if (buf.size() >= vertexLength)
 						{
-							if (isStart)
-							{
-								DnaString bif(std::string(buf.begin(), buf.begin() + vertexLength));
-								boundaryBif.insert(bif.GetBody());
-							}
+							DnaString bif(std::string(buf.end() - vertexLength, buf.end()));
+							boundaryBif.insert(bif.GetBody());
+						}
 
+						if (start == vertexLength)
+						{
+							DnaString bif(buf);
+							boundaryBif.insert(bif.GetBody());
+						}
+
+						if (buf.size() >= vertexLength + 2 && (buf.size() == Task::TASK_SIZE || over))
+						{
+							
 							for (bool found = false; !found;)
 							{
 								for (TaskQueuePtr & q : taskQueue)
@@ -676,11 +681,6 @@ namespace Sibelia
 										{
 											overlap.assign(buf.end() - vertexLength, buf.end());
 										}
-										else
-										{
-											DnaString bif(std::string(buf.end() - vertexLength, buf.end()));
-											boundaryBif.insert(bif.GetBody());
-										}
 
 										q->push(Task(record, prev, std::move(buf)));
 										prev = start - vertexLength;
@@ -691,9 +691,6 @@ namespace Sibelia
 								}
 							}
 						}
-
-						isStart = false;
-
 					} while (!over);
 				}
 			}
