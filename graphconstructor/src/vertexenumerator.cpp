@@ -377,7 +377,10 @@ namespace Sibelia
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads) :
 		vertexSize_(vertexLength)
 	{
+		std::cout << "Threads = " << threads << std::endl;
+		std::cout << "Hash functions = " << hashFunctions << std::endl;
 		std::cout << "Filter size = " << filterSize << std::endl;
+		
 		if (vertexLength > 30)
 		{
 			throw std::runtime_error("The vertex size is too large");
@@ -386,7 +389,6 @@ namespace Sibelia
 		std::vector<uint64_t> seed(hashFunctions);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
-		std::cout << "Bloom filter counting..." << std::endl;
 
 		uint64_t low = 0;
 		isCandidBit.clear();
@@ -400,6 +402,8 @@ namespace Sibelia
 				std::vector<TaskQueuePtr> taskQueue;
 				std::vector<ResultQueuePtr> resultQueue;
 				std::vector<boost::thread> workerThread(threads);
+				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
+				std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
@@ -465,8 +469,7 @@ namespace Sibelia
 					workerThread[i].join();
 				}
 
-				std::cout << "Counting time = " << time(0) - mark << std::endl;
-				std::cout << "Vertex enumeration..." << std::endl;
+				std::cout << time(0) - mark << "\t";
 				mark = time(0);
 				boost::thread writerThread(WriterThread, threads, fastaRecords, boost::ref(resultQueue));
 				for (size_t i = 0; i < workerThread.size(); i++)
@@ -530,9 +533,8 @@ namespace Sibelia
 				writerThread.join();
 			}
 
-			std::cout << "Enumeration time = " << time(0) - mark << std::endl;
+			std::cout << time(0) - mark << "\t";
 			mark = time(0);
-			std::cout << "Aggregation of the results..." << std::endl;
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			for (const std::string & nowFileName : fileName)
@@ -636,8 +638,7 @@ namespace Sibelia
 				}	
 			}
 
-			std::cout << "Aggregation time = " << time(0) - mark << std::endl;
-			std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
+			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
 			std::cout << "FP count = " << candidateBifSet.size() << std::endl;			
 			for (uint64_t vertex : trueBifSet)

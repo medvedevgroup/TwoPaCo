@@ -104,6 +104,7 @@ int main(int argc, char * argv[])
 			std::cout << "All = " << all.size() << std::endl;
 		}
 
+		std::cout << std::endl;
 
 	}
 	catch (TCLAP::ArgException &e)
