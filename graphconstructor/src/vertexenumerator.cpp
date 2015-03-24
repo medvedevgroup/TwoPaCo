@@ -640,7 +640,8 @@ namespace Sibelia
 
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
-			std::cout << "FP count = " << candidateBifSet.size() << std::endl;			
+			std::cout << "FP count = " << candidateBifSet.size() << std::endl;
+			std::cout << std::string(80, '-') << std::endl;
 			for (uint64_t vertex : trueBifSet)
 			{
 				DnaString v(vertexLength, vertex);
