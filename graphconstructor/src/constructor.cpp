@@ -48,7 +48,7 @@ int main(int argc, char * argv[])
 			"integer",
 			cmd);
 
-		TCLAP::ValueArg<unsigned long long> filterSize("f",
+		TCLAP::ValueArg<uint64_t> filterSize("f",
 			"filtersize",
 			"Size of the filter",
 			true,
