@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <sstream>
 
+#include <tclap/CmdLine.h>
+
 #include "test.h"
 #include "vertexenumerator.h"
 
@@ -26,17 +28,71 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-	assert(Sibelia::Runtests());
-	//Sibelia::Runtests();
+	//assert(Sibelia::Runtests());
+	
 	try
 	{
-		std::vector<std::string> fileName(argv + 4, argv + argc);
+		TCLAP::CmdLine cmd("Program for condensed de Bruijn graph construction", ' ', "0");
+		
+		TCLAP::SwitchArg countAll("",
+			"all",
+			"Count all bifurcation",
+			cmd,
+			false);
 
-		size_t filterSize = Atoi(*(argv + 1));
-		size_t hashFunctions = Atoi(*(argv + 3));
-		Sibelia::VertexEnumerator vid(fileName, 25, filterSize, hashFunctions);
+		TCLAP::ValueArg<unsigned int> kvalue("k",
+			"kvalue",
+			"Value of k",
+			false,
+			25,
+			"integer",
+			cmd);
+
+		TCLAP::ValueArg<unsigned long long> filterSize("f",
+			"filtersize",
+			"Size of the filter",
+			true,
+			0,
+			"integer",
+			cmd);
+
+		TCLAP::ValueArg<unsigned int> hashFunctions("q",
+			"hashfnumber",
+			"Number of hash functions",
+			false,
+			5,
+			"integer",
+			cmd);
+
+		TCLAP::ValueArg<unsigned int> rounds("r",
+			"rounds",
+			"Number of hash functions",
+			false,
+			1,
+			"integer",
+			cmd);
+
+		TCLAP::ValueArg<unsigned int> threads("t",
+			"threads",
+			"Number of hash functions",
+			false,
+			1,
+			"integer",
+			cmd);
+
+		TCLAP::UnlabeledMultiArg<std::string> fileName("filenames",
+			"FASTA file(s) with nucleotide sequences.",
+			true,
+			"fasta files with genomes",
+			cmd);
+
+
+		cmd.parse(argc, argv);
+		
+		Sibelia::VertexEnumerator vid(fileName.getValue(), kvalue.getValue(), filterSize.getValue(), hashFunctions.getValue(), rounds.getValue(), threads.getValue());
 		std::cout << "Distinct = " << vid.GetVerticesCount() << std::endl;
-		if (std::string(*(argv + 2)) == "1")
+
+		if (countAll.isSet())
 		{
 			std::vector<std::string> all;
 			vid.Dump(std::back_inserter(all));
@@ -47,11 +103,21 @@ int main(int argc, char * argv[])
 			all.erase(std::unique(all.begin(), all.end()), all.end());
 			std::cout << "All = " << all.size() << std::endl;
 		}
+
+
 	}
-	catch (const std::runtime_error & msg)
+	catch (TCLAP::ArgException &e)
 	{
-		std::cerr << msg.what() << std::endl;
+		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+		return 1;
 	}
+	catch (std::runtime_error & e)
+	{
+		std::cerr << "error: " << e.what() << std::endl;
+		return 1;
+	}
+
+	
 
 	return 0;
 }

@@ -374,7 +374,7 @@ namespace Sibelia
 	}
 
 
-	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t q) :
+	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads) :
 		vertexSize_(vertexLength)
 	{
 		std::cout << "Filter size = " << filterSize << std::endl;
@@ -383,25 +383,23 @@ namespace Sibelia
 			throw std::runtime_error("The vertex size is too large");
 		}
 		
-		std::vector<uint64_t> seed(q);
+		std::vector<uint64_t> seed(hashFunctions);
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
 		std::cout << "Bloom filter counting..." << std::endl;
 
 		uint64_t low = 0;
-		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 1;
 		isCandidBit.clear();
-		for (size_t round = 0; round < MAX_ROUNDS; round++)
+		for (size_t round = 0; round < rounds; round++)
 		{
 			size_t fastaRecords = 0;
-			uint64_t high = round == MAX_ROUNDS - 1 ? UINT64_MAX : (UINT64_MAX / MAX_ROUNDS) * (round + 1);
+			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			time_t mark = time(0);
 			{
 				BloomFilter bitVector(filterSize);
 				std::vector<TaskQueuePtr> taskQueue;
 				std::vector<ResultQueuePtr> resultQueue;
-				std::vector<boost::thread> workerThread(WORKER_THREADS);
+				std::vector<boost::thread> workerThread(threads);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
@@ -470,7 +468,7 @@ namespace Sibelia
 				std::cout << "Counting time = " << time(0) - mark << std::endl;
 				std::cout << "Vertex enumeration..." << std::endl;
 				mark = time(0);
-				boost::thread writerThread(WriterThread, WORKER_THREADS, fastaRecords, boost::ref(resultQueue));
+				boost::thread writerThread(WriterThread, threads, fastaRecords, boost::ref(resultQueue));
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(*resultQueue[i]));
@@ -558,7 +556,7 @@ namespace Sibelia
 						DnaString negVertex = posVertex.RevComp();
 					//	std::ifstream candid(TempFile(record).c_str(), std::ios_base::binary);
 					//	candid.read(reinterpret_cast<char*>(&buf), sizeof(buf));
-			//			std::bitset<BITS_COUNT> candidFlag(buf);
+					//	std::bitset<BITS_COUNT> candidFlag(buf);
 						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 						{
 							trueBifSet.insert(posVertex.GetBody());
@@ -648,7 +646,6 @@ namespace Sibelia
 				bifurcation_.push_back(v.GetBody());
 			}
 			
-
 			low = high + 1;
 		}
 		
