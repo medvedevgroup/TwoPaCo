@@ -437,7 +437,7 @@ namespace Sibelia
 
 		uint64_t low = 0;
 		const size_t MAX_ROUNDS = 1;
-		const size_t WORKER_THREADS = 1;
+		const size_t WORKER_THREADS = 4;
 		isCandidBit.clear();
 		KMerSet boundaryBif(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 		for (size_t round = 0; round < MAX_ROUNDS; round++)
