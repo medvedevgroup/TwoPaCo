@@ -380,7 +380,8 @@ namespace Sibelia
 		std::cout << "Threads = " << threads << std::endl;
 		std::cout << "Hash functions = " << hashFunctions << std::endl;
 		std::cout << "Filter size = " << filterSize << std::endl;
-		
+		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
+
 		if (vertexLength > 30)
 		{
 			throw std::runtime_error("The vertex size is too large");
@@ -535,7 +536,7 @@ namespace Sibelia
 
 			std::cout << time(0) - mark << "\t";
 			mark = time(0);
-			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> trueBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
+			size_t nowCount = 0;
 			std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			for (const std::string & nowFileName : fileName)
 			{
@@ -561,6 +562,7 @@ namespace Sibelia
 					//	std::bitset<BITS_COUNT> candidFlag(buf);
 						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 						{
+							++nowCount;
 							trueBifSet.insert(posVertex.GetBody());
 						}
 
@@ -594,6 +596,7 @@ namespace Sibelia
 											char candPrev = candidate.GetChar(vertexLength + 1);
 											if ((candPrev != posPrev) || (candExtend != posExtend))
 											{
+												++nowCount;
 												trueBifSet.insert(posVertex.GetBody());
 												candidateBifSet.erase(posVertex.GetBody());
 											}
@@ -609,12 +612,13 @@ namespace Sibelia
 												char candPrev = candidate.GetChar(vertexLength + 1);
 												if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
 												{
+													++nowCount;
 													trueBifSet.insert(posVertex.GetBody());
 													candidateBifSet.erase(posVertex.GetBody());
 												}
 											}
 										}
-									}									
+									}
 								}
 
 								posVertex.AppendBack(posExtend);
@@ -624,6 +628,7 @@ namespace Sibelia
 							}
 							else if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 							{
+								++nowCount;
 								trueBifSet.insert(posVertex.GetBody());
 							}
 							/*
@@ -639,18 +644,18 @@ namespace Sibelia
 			}
 
 			std::cout << time(0) - mark << std::endl;
-			std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
+			std::cout << "Vertex count = " << nowCount << std::endl;
 			std::cout << "FP count = " << candidateBifSet.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
-			for (uint64_t vertex : trueBifSet)
-			{
-				DnaString v(vertexLength, vertex);
-				bifurcation_.push_back(v.GetBody());
-			}
-			
 			low = high + 1;
 		}
 		
+		for (uint64_t vertex : trueBifSet)
+		{
+			DnaString v(vertexLength, vertex);
+			bifurcation_.push_back(v.GetBody());
+		}
+
 		std::sort(bifurcation_.begin(), bifurcation_.end());
 	}
 
