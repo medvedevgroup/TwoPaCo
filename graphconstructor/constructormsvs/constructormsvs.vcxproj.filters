@@ -33,7 +33,7 @@
     <ClCompile Include="..\src\test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\bloomfilter.cpp">
+    <ClCompile Include="..\src\concurrentbitvector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -53,7 +53,7 @@
     <ClInclude Include="..\src\test.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\bloomfilter.h">
+    <ClInclude Include="..\src\concurrentbitvector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

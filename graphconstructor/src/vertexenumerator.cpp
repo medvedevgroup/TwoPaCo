@@ -23,28 +23,29 @@ namespace Sibelia
 
 	namespace
 	{
-		void PutInBloomFilter(std::vector<size_t> & hf, BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
+		void PutInBloomFilter(ConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{			
 			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
 				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
-				hf[i] = hvalue % filter.Size();
+				filter.SetConcurrently(hvalue % filter.Size());
 			}
-
-			filter.Put(hf);
 		}
 
-		bool IsInBloomFilter(std::vector<size_t> & hf, const BloomFilter & filter, const std::vector<uint64_t> & seed, const DnaString & item)
+		bool IsInBloomFilter(const ConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
 			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
 				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
-				hf[i] = hvalue % filter.Size();
+				if (!filter.Get(hvalue % filter.Size()))
+				{
+					return false;
+				}
 			}
 
-			return filter.Get(hf);
+			return true;
 		}
 
 		class VertexHashFunction
@@ -129,7 +130,7 @@ namespace Sibelia
 			return ss.str();
 		}
 
-		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const BloomFilter & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
+		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const ConcurrentBitVector & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
 		{
 			std::vector<size_t> hf(seed.size());
 			while (true)
@@ -194,7 +195,7 @@ namespace Sibelia
 									DnaString negInEdge = negVertex;
 									posInEdge.AppendFront(nextCh);
 									negInEdge.AppendBack(DnaString::Reverse(nextCh));
-									if (IsInBloomFilter(hf, bitVector, seed, posInEdge) || IsInBloomFilter(hf, bitVector, seed, negInEdge))
+									if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
 									{
 										inCount++;
 									}									
@@ -210,7 +211,7 @@ namespace Sibelia
 									DnaString negOutEdge = negVertex;
 									posOutEdge.AppendBack(nextCh);
 									negOutEdge.AppendFront(DnaString::Reverse(nextCh));
-									if (IsInBloomFilter(hf, bitVector, seed, posOutEdge) || IsInBloomFilter(hf, bitVector, seed, negOutEdge))
+									if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
 									{
 										outCount++;
 									}
@@ -233,7 +234,7 @@ namespace Sibelia
 			}
 		}
 
-		void CountingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, BloomFilter & bitVector, size_t edgeLength, TaskQueue & taskQueue)
+		void CountingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, ConcurrentBitVector & bitVector, size_t edgeLength, TaskQueue & taskQueue)
 		{
 			std::vector<size_t> hf(seed.size());
 			while (true)
@@ -286,7 +287,7 @@ namespace Sibelia
 
 						if (hit)
 						{
-							PutInBloomFilter(hf, bitVector, seed, posEdge);
+							PutInBloomFilter(bitVector, seed, posEdge);
 						}
 
 						posEdge.PopFront();
@@ -399,7 +400,7 @@ namespace Sibelia
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			time_t mark = time(0);
 			{
-				BloomFilter bitVector(filterSize);
+				ConcurrentBitVector bitVector(filterSize);
 				std::vector<TaskQueuePtr> taskQueue;
 				std::vector<ResultQueuePtr> resultQueue;
 				std::vector<boost::thread> workerThread(threads);

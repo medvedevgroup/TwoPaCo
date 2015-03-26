@@ -149,7 +149,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\bloomfilter.cpp" />
+    <ClCompile Include="..\src\concurrentbitvector.cpp" />
     <ClCompile Include="..\src\constructor.cpp" />
     <ClCompile Include="..\src\dnastring.cpp" />
     <ClCompile Include="..\src\lib\SpookyV2.cpp" />
@@ -158,7 +158,7 @@
     <ClCompile Include="..\src\vertexenumerator.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\bloomfilter.h" />
+    <ClInclude Include="..\src\concurrentbitvector.h" />
     <ClInclude Include="..\src\dnastring.h" />
     <ClInclude Include="..\src\lib\SpookyV2.h" />
     <ClInclude Include="..\src\streamfastaparser.h" />

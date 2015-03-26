@@ -1,5 +1,5 @@
-#ifndef _BLOOM_FILTER_
-#define _BLOOM_FILTER
+#ifndef _CONCURRENT_BIT_VECTOR_
+#define _CONCURRENT_BIT_VECTOR_
 
 #include <cstdlib>
 #include <vector>
@@ -7,15 +7,15 @@
 
 namespace Sibelia
 {
-	class BloomFilter
+	class ConcurrentBitVector
 	{
 	public:
-		~BloomFilter();
-		BloomFilter(size_t size);
+		~ConcurrentBitVector();
+		ConcurrentBitVector(size_t size);
 		void Init();
 		size_t Size() const;
-		void Put(const std::vector<size_t> & hf);
-		bool Get(const std::vector<size_t> & hf) const;
+		void SetConcurrently(size_t idx);
+		bool Get(size_t idx) const;
 	private:
 		static const size_t SUCCESS = -1;		
 		typedef std::atomic<uint64_t> UInt;

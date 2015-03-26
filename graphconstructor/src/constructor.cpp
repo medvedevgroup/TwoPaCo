@@ -28,7 +28,7 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-	//assert(Sibelia::Runtests());
+	assert(Sibelia::Runtests());
 	
 	try
 	{
