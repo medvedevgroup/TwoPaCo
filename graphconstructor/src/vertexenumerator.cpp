@@ -130,7 +130,7 @@ namespace Sibelia
 			return ss.str();
 		}
 
-		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const ConcurrentBitVector & bitVector, size_t vertexLength, TaskQueue & taskQueue, ResultQueue & resultQueue)
+		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const ConcurrentBitVector & bitVector, size_t vertexLength, TaskQueue & taskQueue, std::vector<std::unique_ptr<ConcurrentBitVector> > & isCandidBit)
 		{
 			std::vector<size_t> hf(seed.size());
 			while (true)
@@ -139,9 +139,7 @@ namespace Sibelia
 				if (taskQueue.pop(task))
 				{									
 					if (task.start == Task::GAME_OVER)
-					{
-						while (resultQueue.write_available() == 0);
-						resultQueue.push(Result(0, Result::GAME_OVER, std::vector<bool>()));
+					{						
 						break;
 					}
 
@@ -167,7 +165,7 @@ namespace Sibelia
 						negVertex.AppendFront(DnaString::Reverse(task.str[pos + vertexLength - 1]));
 						posExtend = pos + vertexLength < task.str.size() ? task.str[pos + vertexLength] : 0;
 						assert(posVertex.RevComp() == negVertex);
-					
+	
 						size_t hit = 0;
 						uint64_t hvalue = UINT64_MAX;
 						DnaString kmer[] = { posVertex, negVertex };
@@ -220,16 +218,13 @@ namespace Sibelia
 
 							if (inCount > 1 || outCount > 1)
 							{
-								result[pos] = true;
+								isCandidBit[task.recId]->SetConcurrently(task.start + pos);
 							}
 						}
 
 						posPrev = posVertex.PopFront();
 						negExtend = negVertex.PopBack();
 					}
-					
-					while (resultQueue.write_available() == 0);
-					resultQueue.push(Result(task.recId, task.start, std::move(result)));
 				}				
 			}
 		}
@@ -300,7 +295,7 @@ namespace Sibelia
 		typedef unsigned long BIT_TYPE;
 		const size_t BITS_COUNT = sizeof(BIT_TYPE) * 8;
 
-		std::vector<std::vector<bool> > isCandidBit;
+		
 
 		void WriterThread(size_t workerThreads, size_t fastaRecords, std::vector<ResultQueuePtr> & resultQueue)
 		{
@@ -351,7 +346,7 @@ namespace Sibelia
 								const Result & t = *(buffer[record].begin());
 								for (size_t i = 0; i < t.isCandidate.size(); i++)
 								{
-									isCandidBit[t.recId][t.start + i] = t.isCandidate[i];
+		//							isCandidBit[t.recId][t.start + i] = t.isCandidate[i];
 								}
 
 								buffer[record].erase(buffer[record].begin());
@@ -392,24 +387,22 @@ namespace Sibelia
 		std::generate(seed.begin(), seed.end(), rand);		
 		size_t edgeLength = vertexLength + 1;
 
-		uint64_t low = 0;
-		isCandidBit.clear();
+		uint64_t low = 0;		
 		for (size_t round = 0; round < rounds; round++)
 		{
-			size_t fastaRecords = 0;
+			std::vector<size_t> fastaRecordsSize;
+			std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			time_t mark = time(0);
 			{
 				ConcurrentBitVector bitVector(filterSize);
 				std::vector<TaskQueuePtr> taskQueue;
-				std::vector<ResultQueuePtr> resultQueue;
 				std::vector<boost::thread> workerThread(threads);
 				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 				std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
-					resultQueue.push_back(ResultQueuePtr(new ResultQueue(QUEUE_CAPACITY)));
 					workerThread[i] = boost::thread(CountingWorker, low, high, boost::cref(seed), boost::ref(bitVector), edgeLength, boost::ref(*taskQueue[i]));
 				}
 
@@ -419,8 +412,7 @@ namespace Sibelia
 					for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 					{
 						char ch;
-						fastaRecords++;
-						isCandidBit.push_back(std::vector<bool>());
+						fastaRecordsSize.push_back(0);						
 						std::string buf;
 						uint64_t prev = 0;
 						uint64_t start = 0;
@@ -434,7 +426,7 @@ namespace Sibelia
 								buf.push_back(ch);
 							}
 
-							isCandidBit.back().push_back(false);
+							++fastaRecordsSize.back();
 							if (buf.size() >= edgeLength && (buf.size() == Task::TASK_SIZE || over))
 							{
 								for (bool found = false; !found;)
@@ -463,6 +455,11 @@ namespace Sibelia
 					}
 				}
 
+				for (size_t sz : fastaRecordsSize)
+				{
+					isCandidBit.push_back(std::unique_ptr<ConcurrentBitVector>(new ConcurrentBitVector(sz)));
+				}
+
 				for (size_t i = 0; i < taskQueue.size(); i++)
 				{
 					TaskQueuePtr & q = taskQueue[i];
@@ -472,11 +469,10 @@ namespace Sibelia
 				}
 
 				std::cout << time(0) - mark << "\t";
-				mark = time(0);
-				boost::thread writerThread(WriterThread, threads, fastaRecords, boost::ref(resultQueue));
+				mark = time(0);			
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(*resultQueue[i]));
+					workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(isCandidBit));
 				}
 
 				for (const std::string & nowFileName : fileName)
@@ -526,13 +522,12 @@ namespace Sibelia
 					}
 				}
 
-				for (TaskQueuePtr & q : taskQueue)
+				for (size_t i = 0; i < taskQueue.size(); i++)
 				{
-					while (q->write_available() == 0);
-					q->push(Task(0, Task::GAME_OVER, std::string()));
+					while (taskQueue[i]->write_available() == 0);
+					taskQueue[i]->push(Task(0, Task::GAME_OVER, std::string()));
+					workerThread[i].join();
 				}
-
-				writerThread.join();
 			}
 
 			std::cout << time(0) - mark << "\t";
@@ -571,7 +566,7 @@ namespace Sibelia
 						{
 							if (go = parser.GetChar(posExtend))
 							{
-								if (isCandidBit[record][kmer])
+								if (isCandidBit[record]->Get(kmer))
 								{
 									if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 									{
