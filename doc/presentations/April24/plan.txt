@@ -1,0 +1,21 @@
+Rearrangements:
+-- What are they?
+-- What are causes?
+-- Random breakage vs. breakpoint reuse
+-- How to explain non-randomness?
+The hypothesis: the longer the intergene, the more (linearly) rearrangements
+-- Reconstruct and annotate the anscetral genome
+-- Identify breakpoints in successors
+-- Gene regions are almost free of rearrangements
+-- Concentrate on intergene regions
+-- Test hyptohesis: build a regression model
+-- Surprise: power law instead of a linear one
+What's the explanation?
+-- Is GC content the explanation? Nope
+-- Is conserved non-coding elements the explanation? Quite a little bit, but not much...
+Most rearrangements are inversions in intergenes? 
+-- Check by simulation
+-- Distributions of inversion lengths are unknown...
+-- Use 3D structure as a proxy
+-- No explanation
+The model based on chromatin closeness explains most...

@@ -1,0 +1,212 @@
+\documentclass[svgnames,14pt]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{wrapfig}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\title{The 3D Organization of Chromatin Explains Evolutionary Fragile Genomic Regions by \\ \vspace{12pt} \normalsize{Camille Berthelot, Matthieu Muffato, \\ Judith Abecassis and Hugues Roest Crollius} }
+\author{Speaker: Ilia Minkin}
+\institute{}
+\algnotext{EndFor}
+\algnotext{EndIf}
+\algnotext{EndWhile}
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{caption}[numbered]
+\captionsetup[figure]{labelformat=empty}
+
+\begin{document}
+
+\date{24th April 2015}
+\maketitle
+
+\begin{frame}
+\frametitle{Two types of genome alterations}
+
+1. Small point mutations:
+
+{\vspace{12pt} \Large \color{Blue}
+ACTTG\\
+A{\color{Red}G}T--\hspace{2.7pt}G
+\vspace{12pt}}
+
+\pause
+2. Large rearrangements:
+\begin{itemize}
+\item Inversions
+\item Transpositions
+\item Fusions
+\item ...
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Genome Rearrangements}
+\begin{figure}
+	\centering
+	\includegraphics[scale = 0.20]{BasicRearr.jpg}
+\caption{Source: \textit{Dierssen et al, 2009}}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Motivation}
+Rearrangements:
+\begin{itemize}
+\item Are a major driving force in evolution
+\item Play large role in diseases (e.g. cancer)
+\end{itemize}
+Known causes:
+\begin{itemize}
+\item Non-homologous end joining
+\item Non-allelic homologous recombination
+\item Replication fork stalling
+\item ...
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{The Big Question}
+Are rearrangements more likely to happen in one parts of a genome than the others?
+\pause
+
+\vspace{12pt}
+Two hypothesis:
+\begin{enumerate}
+\item Uniform distribution of breakpoints
+\item Breakpoints get reused
+\end{enumerate}
+\pause 
+
+\vspace{12pt}
+{\color{Red} Why are some regions of a genome more "fragile" than the others?}
+\end{frame}
+
+\begin{frame}
+\frametitle{Methodology}
+Assume that genes are "unbreakable"
+
+\vspace{12pt}
+Then, how does intergene length affects rearrangement rate?
+
+\vspace{12pt}
+If breakpoint density is uniform, number of breakpoints should increase
+in proportion to intergene length ---  Poisson distribution
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Methodology}
+Boreoeutheria: the last common ancestor of primates, rodents, and laurasiatherians
+
+\vspace{12pt}
+Null hypothesis: breakpoints are distributed uniformly
+
+\vspace{12pt}
+Stages of the study:
+\begin{itemize}
+\item Reconstruct gene order of Boreoeutheria
+\item Identify breakpoints w.r.t human, mouse, dog, cow and horse
+\item Do Poisson regression of "breakage rate" 
+\item Expect linear law if null hypothesis is true
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Breakpoint Identification}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .75]{Breakpoint.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{How to Explain the Equation?}
+$$r = 2.4 10^{-3} \times L ^ {0.38}$$
+
+93\% of variation in breakpoint occurrence is explained by intergene length
+
+\vspace{12pt}
+Maybe GC content is the real cause?
+\end{frame}
+
+\begin{frame}
+\frametitle{Is GC Content The Explanation?}
+No.
+\vspace{12pt}
+
+\pause
+Added GC content in regression -- non-significant coefficient
+\end{frame}
+
+\begin{frame}
+\frametitle{Are CNEs The Explanation?}
+CNEs -- conservative non-coding elements.
+
+Located in the intergenes, may affect rearrangement rate.
+Do they?
+\vspace{12pt}
+
+\pause
+No.
+\vspace{12pt}
+
+\pause
+Added CNE rate in regression -- improved explanation rate only by 3\%
+\end{frame}
+
+\begin{frame}
+\frametitle{Inversions within Intergenes}
+OK, maybe some breakpoints are more likely than the others.
+
+\vspace{12pt}
+We work with gene markers --- see only rearrangements disrupting their order.
+
+\vspace{12pt}
+What if there are many missing rearrangements within intergenes?
+
+\vspace{12pt}
+We can try to simulate rearrangements and see what happens
+\end{frame}
+
+\begin{frame}
+\frametitle{Inversions within Intergenes}
+Rearrangements have been shown to occur between regions in close 3D proximity in the nucleus
+
+\vspace{12pt}
+Contact probability is a good proxy for rearrangement probability
+
+\vspace{12pt}
+Simulate and sample breakpoint pairs, choose detectable ones
+
+\vspace{12pt}
+Even if we restrict to detectable breakpoints only, simulation confirms the random breakpoint hypothesis
+\end{frame}
+
+\begin{frame}
+\frametitle{Open Chromatin is the Culprit}
+Stick with the simulation -- restrict rearrangements to only \textbf{open chromatin} regions
+
+\vspace{12pt}
+Voilà -- simulation coincides with the model!
+
+It implies that chromatin state and proximity of genes may explain fragility of some genomic regions
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Conclusion}
+It seems that chromatin state and proximity of genes may explain fragility of some genomic regions
+\end{frame}
+
+\begin{frame}
+\begin{center}
+\hfill \huge \\
+Thank you!
+\end{center}
+\end{frame}
+
+
+\end{document}
