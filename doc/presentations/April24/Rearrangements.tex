@@ -58,7 +58,7 @@ Rearrangements:
 \item Are a major driving force in evolution
 \item Play large role in diseases (e.g. cancer)
 \end{itemize}
-Known causes:
+Known mechanisms:
 \begin{itemize}
 \item Non-homologous end joining
 \item Non-allelic homologous recombination
@@ -73,28 +73,83 @@ Are rearrangements more likely to happen in one parts of a genome than the other
 \pause
 
 \vspace{12pt}
-Two hypothesis:
+Two hypotheses:
 \begin{enumerate}
-\item Uniform distribution of breakpoints
-\item Breakpoints get reused
+\item Rearrangements are distributed uniformly
+\item Some regions are more likely to be disrupted
 \end{enumerate}
-\pause 
+\end{frame}
+
+\begin{frame}
+\frametitle{A Short Survey}
+In 1984, Nadeau and Taylor presented first arguments in favor of random breakage
+
+\pause
+\vspace{12pt}
+Pevzner and Tesler in 2003 showed evidence of fragile regions
+
+\pause
+\vspace{12pt}
+Ma et al., 2006 argued for random model with higher resolution analysis of rearrangements 
+
+\pause
+\vspace{12pt}
+Alekseyev and Pevzner, 2010 proposed that fragile regions may born and die
+
+\pause
+\vspace{12pt}
+The story is to be continued...
+\end{frame}
+
+\begin{frame}
+\frametitle{The Study}
+Two questions:
+\begin{itemize}
+\item Do fragile regions exist?
+\item If they do, what is cause of fragility?
+\end{itemize}
 
 \vspace{12pt}
-{\color{Red} Why are some regions of a genome more "fragile" than the others?}
+A note: fragility is not "physical", it only means higher possibility of rearrangements
+\end{frame}
+
+\begin{frame}
+\frametitle{Genomes Representations}
+Genomes are sequences of gene markers that are unbreakable:
+\begin{figure}
+	\centering
+	\includegraphics[scale = 2.20]{Intergenes.pdf}
+\end{figure}
+
+\pause
+\vspace{12pt}
+Here red dashes are breakpoints:
+\begin{figure}
+	\centering
+	\includegraphics[scale = 2.20]{Breakpoint.pdf}
+\end{figure}
 \end{frame}
 
 \begin{frame}
 \frametitle{Methodology}
-Assume that genes are "unbreakable"
+Suppose that we have an ancestral genome and its successors
+\begin{figure}
+	\centering
+	\includegraphics[scale = 2.20]{Ancestor.pdf}
+\end{figure}
+
+How does ancestral intergene length affects its breakage rate?
+\end{frame}
+
+\begin{frame}
+\frametitle{Methodology}
+Null hypothesis: breakpoint density is uniform
 
 \vspace{12pt}
-Then, how does intergene length affects rearrangement rate?
+As intergene length $\Uparrow$, \# of breakpoints $\Uparrow$ as well
 
 \vspace{12pt}
-If breakpoint density is uniform, number of breakpoints should increase
-in proportion to intergene length ---  Poisson distribution
-
+It yields Poisson distribution of breakage rate
 \end{frame}
 
 \begin{frame}
@@ -102,25 +157,26 @@ in proportion to intergene length ---  Poisson distribution
 Boreoeutheria: the last common ancestor of primates, rodents, and laurasiatherians
 
 \vspace{12pt}
-Null hypothesis: breakpoints are distributed uniformly
-
-\vspace{12pt}
 Stages of the study:
 \begin{itemize}
 \item Reconstruct gene order of Boreoeutheria
-\item Identify breakpoints w.r.t human, mouse, dog, cow and horse
+\item Annotate ancestral intergenes
+\item Identify breakpoints w.r.t. human, mouse, dog, cow and horse
 \item Do Poisson regression of "breakage rate" 
-\item Expect linear law if null hypothesis is true
 \end{itemize}
+
+\vspace{12pt}
+Expect linear law if the null hypothesis is true
 \end{frame}
 
 \begin{frame}
-\frametitle{Breakpoint Identification}
+\frametitle{Intergene Annotation}
 \begin{figure}
 	\centering
-	\includegraphics[scale = .75]{Breakpoint.png}
+	\includegraphics[scale = 2.20]{Annotation.pdf}
 \end{figure}
 \end{frame}
+
 
 \begin{frame}
 \frametitle{How to Explain the Equation?}
