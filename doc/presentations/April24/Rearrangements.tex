@@ -120,7 +120,6 @@ Genomes are sequences of gene markers that are unbreakable:
 	\centering
 	\includegraphics[scale = 2.20]{Intergenes.pdf}
 \end{figure}
-
 \pause
 \vspace{12pt}
 Here red dashes are breakpoints:
@@ -170,91 +169,171 @@ Expect linear law if the null hypothesis is true
 \end{frame}
 
 \begin{frame}
-\frametitle{Intergene Annotation}
+\frametitle{The Phylogenetic Tree}
 \begin{figure}
 	\centering
-	\includegraphics[scale = 2.20]{Annotation.pdf}
+	\includegraphics[scale = 2.0]{BreakCount.pdf}
 \end{figure}
 \end{frame}
 
+\begin{frame}
+\frametitle{Intergene Annotation}
+CNEs -- conservative non-coding elements
+\begin{figure}
+	\centering
+	\includegraphics[scale = 2.50]{Annotation.pdf}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{The Result}
+\begin{figure}
+	\centering
+	\includegraphics[scale = 1.5]{Plot.pdf}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .67]{Table11.pdf}
+\end{figure}
+\end{frame}
 
 \begin{frame}
 \frametitle{How to Explain the Equation?}
-$$r = 2.4 10^{-3} \times L ^ {0.38}$$
+$$r = 2.4 10^{-3} \times L ^ {0.28}$$
 
-93\% of variation in breakpoint occurrence is explained by intergene length
-
+Intergene length explains 93\% of variation in breakpoint occurrence
 \vspace{12pt}
-Maybe GC content is the real cause?
+
+Short intergenes are more breakable than under pure random model,
+while longer ones are less
+\vspace{12pt}
+
+Why?
 \end{frame}
 
 \begin{frame}
-\frametitle{Is GC Content The Explanation?}
-No.
+\frametitle{Is GC Content has any Influence?}
+GC content strongly correlates with gene density
 \vspace{12pt}
 
+Maybe GC content can be a physical explanation?
 \pause
-Added GC content in regression -- non-significant coefficient
+
+\vspace{12pt}
+Added GC content in regression --- got a non-significant coefficient
 \end{frame}
 
 \begin{frame}
-\frametitle{Are CNEs The Explanation?}
-CNEs -- conservative non-coding elements.
+\begin{figure}
+	\centering
+	\includegraphics[scale = .67]{Table11.pdf}
+\end{figure}
+\end{frame}
 
-Located in the intergenes, may affect rearrangement rate.
+\begin{frame}
+\frametitle{Are CNEs Affect Fragility?}
+CNEs -- conservative non-coding elements
+\vspace{12pt}
+
+Logic: regulative elements may affect genes that are nearby
+
+\vspace{12pt}
+Disrupting synteny between CNEs and genes may have impact on rearrangements that we observe
+
+\vspace{12pt}
 Do they?
 \vspace{12pt}
 
 \pause
-No.
+Not that much
 \vspace{12pt}
 
-\pause
-Added CNE rate in regression -- improved explanation rate only by 3\%
+Added CNE rate in regression --- got a significant coefficient, improved explanation rate only by 3\%
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .67]{Table11.pdf}
+\end{figure}
 \end{frame}
 
 \begin{frame}
 \frametitle{Inversions within Intergenes}
-OK, maybe some breakpoints are more likely than the others.
+A reminder: we work with gene markers $\Rightarrow$ see only rearrangements disrupting their order
+\begin{figure}
+	\centering
+	\includegraphics[scale = 2.20]{Intergenes.pdf}
+\end{figure}
+\vspace{12pt}
+Regression showed that longer intergenes have smaller breaks than expected
 
 \vspace{12pt}
-We work with gene markers --- see only rearrangements disrupting their order.
-
-\vspace{12pt}
-What if there are many missing rearrangements within intergenes?
-
-\vspace{12pt}
-We can try to simulate rearrangements and see what happens
+What if really missing breakpoints within long intergenes?
 \end{frame}
 
 \begin{frame}
 \frametitle{Inversions within Intergenes}
+Solution: simulate rearrangements, select detectable ones and compare with the real data
+
+\vspace{12pt}
+If bias exists, the results should be very close
+
+\vspace{12pt}
 Rearrangements have been shown to occur between regions in close 3D proximity in the nucleus
 
 \vspace{12pt}
 Contact probability is a good proxy for rearrangement probability
+\end{frame}
 
-\vspace{12pt}
-Simulate and sample breakpoint pairs, choose detectable ones
+\begin{frame}
+\frametitle{Simulation}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .40]{Simulation.png}
+\caption{Inversions are simulated in the human genome (gray arrow) based on the probability of 3D DNA contacts experimentally derived from Hi-C studies (right inset).}
+\end{figure}
+\end{frame}
 
-\vspace{12pt}
-Even if we restrict to detectable breakpoints only, simulation confirms the random breakpoint hypothesis
+\begin{frame}
+\frametitle{Simulation Result}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .31]{SimResult.png}
+\end{figure}
+Conclusion: non-detected rearrangements do not introduce enough bias
 \end{frame}
 
 \begin{frame}
 \frametitle{Open Chromatin is the Culprit}
 Stick with the simulation -- restrict rearrangements to only \textbf{open chromatin} regions
-
 \vspace{12pt}
-Voilà -- simulation coincides with the model!
 
-It implies that chromatin state and proximity of genes may explain fragility of some genomic regions
+ENCODE published chromatin state profiles
+\vspace{12pt}
+
+The study used four different cell types
+\vspace{12pt}
+
+\pause
+Voilà -- simulation coincides with the model!
+\end{frame}
+
+\begin{frame}
+\frametitle{Simulation Result}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .38]{SimResult3.png}
+\end{figure}
 \end{frame}
 
 
 \begin{frame}
 \frametitle{Conclusion}
-It seems that chromatin state and proximity of genes may explain fragility of some genomic regions
+Here goes some take away
 \end{frame}
 
 \begin{frame}
