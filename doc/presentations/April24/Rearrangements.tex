@@ -46,7 +46,7 @@ A{\color{Red}G}T--\hspace{2.7pt}G
 \frametitle{Genome Rearrangements}
 \begin{figure}
 	\centering
-	\includegraphics[scale = 0.20]{BasicRearr.jpg}
+	\includegraphics[scale = 0.30]{BasicRearr.jpg}
 \caption{Source: \textit{Dierssen et al, 2009}}
 \end{figure}
 \end{frame}
@@ -75,8 +75,8 @@ Are rearrangements more likely to happen in one parts of a genome than the other
 \vspace{12pt}
 Two hypotheses:
 \begin{enumerate}
-\item Rearrangements are distributed uniformly
-\item Some regions are more likely to be disrupted
+\item Rearrangement rates are the same for all parts of a genome
+\item Some regions are more likely to be disrupted than the others
 \end{enumerate}
 \end{frame}
 
@@ -91,14 +91,6 @@ Pevzner and Tesler in 2003 showed evidence of fragile regions
 \pause
 \vspace{12pt}
 Ma et al., 2006 argued for random model with higher resolution analysis of rearrangements 
-
-\pause
-\vspace{12pt}
-Alekseyev and Pevzner, 2010 proposed that fragile regions may born and die
-
-\pause
-\vspace{12pt}
-The story is to be continued...
 \end{frame}
 
 \begin{frame}
@@ -106,7 +98,7 @@ The story is to be continued...
 Two questions:
 \begin{itemize}
 \item Do fragile regions exist?
-\item If they do, what is cause of fragility?
+\item If they do, what is the cause of fragility?
 \end{itemize}
 
 \vspace{12pt}
@@ -131,41 +123,29 @@ Here red dashes are breakpoints:
 
 \begin{frame}
 \frametitle{Methodology}
-Suppose that we have an ancestral genome and its successors
-\begin{figure}
-	\centering
-	\includegraphics[scale = 2.20]{Ancestor.pdf}
-\end{figure}
-
-How does ancestral intergene length affects its breakage rate?
-\end{frame}
-
-\begin{frame}
-\frametitle{Methodology}
-Null hypothesis: breakpoint density is uniform
-
-\vspace{12pt}
-As intergene length $\Uparrow$, \# of breakpoints $\Uparrow$ as well
-
-\vspace{12pt}
-It yields Poisson distribution of breakage rate
-\end{frame}
-
-\begin{frame}
-\frametitle{Methodology}
 Boreoeutheria: the last common ancestor of primates, rodents, and laurasiatherians
 
+\vspace{12pt}
+There are representations of  human, mouse, dog, cow and horse genomes as gene sequences
+
+\vspace{12pt}
+We can reconstruct the gene order of Boreoeutheria
+
+\vspace{12pt}
+Idea: if two genes are adjacent modern genomes, the adjacency is likely to be in the ancestor
+\end{frame}
+
+\begin{frame}
+\frametitle{Methodology}
 \vspace{12pt}
 Stages of the study:
 \begin{itemize}
 \item Reconstruct gene order of Boreoeutheria
 \item Annotate ancestral intergenes
 \item Identify breakpoints w.r.t. human, mouse, dog, cow and horse
-\item Do Poisson regression of "breakage rate" 
+\item Count breakpoints per intergene
+\item Do regression of breakpoint counts
 \end{itemize}
-
-\vspace{12pt}
-Expect linear law if the null hypothesis is true
 \end{frame}
 
 \begin{frame}
@@ -177,12 +157,53 @@ Expect linear law if the null hypothesis is true
 \end{frame}
 
 \begin{frame}
+\frametitle{Breakpoint Counting}
+\begin{figure}
+	\centering
+	\includegraphics[scale = 2.40]{Ancestor.pdf}
+\end{figure}
+\end{frame}
+
+\begin{frame}
 \frametitle{Intergene Annotation}
 CNEs -- conservative non-coding elements
 \begin{figure}
 	\centering
 	\includegraphics[scale = 2.50]{Annotation.pdf}
 \end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Poisson Regression}
+Put intergenes into bins according to predictors:
+\begin{enumerate}
+\item Intergene length, $L$
+\item GC content, \% 
+\item Conservative non-coding elements, \%
+\end{enumerate}
+
+\vspace{12pt}
+Response: breakpoints count / intergene count = or breakage rate $r$
+\end{frame}
+
+\begin{frame}
+\frametitle{Regression}
+Null Hypothesis: pure Poission process
+
+\vspace{12pt}	
+Breakpoints are distributed randomly, in direct proportion to
+the size of intergenes:
+
+$$r = a \cdot L \Leftrightarrow log(r) = log(L) + \alpha$$
+
+$a$ = average number of breakpoints per intergenic base pair
+
+\pause
+\vspace{12pt}
+Regression equation:
+$$log(r) = \alpha \cdot log(L) + \beta  \cdot \% GC + \gamma  \cdot CNE + \delta$$
+or 
+$$r = d  \cdot L^\alpha  \cdot e ^ {\beta  \cdot \% GC}  \cdot e ^ {\gamma  \cdot CNE}$$
 \end{frame}
 
 \begin{frame}
@@ -330,10 +351,35 @@ Voilà -- simulation coincides with the model!
 \end{figure}
 \end{frame}
 
+\begin{frame}
+\frametitle{Simulation Result}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .3]{Yeasts.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Synteny blocks}
+\begin{figure}
+	\centering
+	\includegraphics[scale = .5]{Synteny.png}
+\end{figure}
+\end{frame}
+
+
 
 \begin{frame}
 \frametitle{Conclusion}
-This slide is under construction, please visit later
+A number of interesting insights:
+\begin{itemize}
+\item Rearrangements are likely to happen in gene dense regions
+\item Rearrangement rates depend on location, not content
+\item Chromatin state and 3D proximity can be used to predict rearrangements
+\item The patterns are consistent in mammals and yeasts
+\end{itemize}
+\vspace{12pt}
+
 \end{frame}
 
 \begin{frame}
