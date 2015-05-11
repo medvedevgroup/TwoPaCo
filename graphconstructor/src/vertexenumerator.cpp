@@ -23,13 +23,19 @@ namespace Sibelia
 
 	namespace
 	{
+		uint64_t ChopHash(uint64_t hash, uint64_t filterSize)
+		{
+			return hash & ((uint64_t(1) << filterSize) - 1);
+		}
+
 		void PutInBloomFilter(ConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{			
 			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
-				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
-				filter.SetConcurrently(hvalue % filter.Size());
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);	
+	
+				filter.SetConcurrently(ChopHash(hvalue, filter.GetPower()));
 			}
 		}
 
@@ -39,7 +45,7 @@ namespace Sibelia
 			{
 				uint64_t body = item.GetBody();
 				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
-				if (!filter.Get(hvalue % filter.Size()))
+				if (!filter.Get(ChopHash(hvalue, filter.GetPower())))
 				{
 					return false;
 				}
@@ -395,7 +401,7 @@ namespace Sibelia
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			time_t mark = time(0);
 			{
-				ConcurrentBitVector bitVector(filterSize);
+				ConcurrentBitVector bitVector(size_t(1) << filterSize, filterSize);
 				std::vector<TaskQueuePtr> taskQueue;
 				std::vector<boost::thread> workerThread(threads);
 				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;

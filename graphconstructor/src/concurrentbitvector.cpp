@@ -5,7 +5,8 @@
 
 namespace Sibelia
 {
-	ConcurrentBitVector::ConcurrentBitVector(size_t size) : size_(size), realSize_(size / 64 + 1), filter_(new UInt[realSize_])
+	ConcurrentBitVector::ConcurrentBitVector(size_t size, size_t power)
+		: size_(size), realSize_(size / 64 + 1), filter_(new UInt[realSize_]), power_(power)
 	{
 		Init();
 	}
@@ -16,6 +17,11 @@ namespace Sibelia
 		{
 			filter_[i] = 0;
 		}
+	}
+
+	size_t ConcurrentBitVector::GetPower() const
+	{
+		return power_;
 	}
 
 	size_t ConcurrentBitVector::Size() const
