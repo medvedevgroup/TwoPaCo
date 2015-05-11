@@ -369,6 +369,64 @@ namespace Sibelia
 		}
 	}
 
+	void DistributeTasks(const std::vector<std::string> & fileName, size_t fragmentSize, std::vector<TaskQueuePtr> & taskQueue, std::vector<size_t> & fastaRecordsSize)
+	{
+		fastaRecordsSize.clear();
+		for (const std::string & nowFileName : fileName)
+		{
+			size_t record = 0;
+			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+			{
+				char ch;
+				fastaRecordsSize.push_back(0);
+				std::string buf;
+				uint64_t prev = 0;
+				uint64_t start = 0;
+				bool over = false;
+				do
+				{
+					over = !parser.GetChar(ch);
+					if (!over)
+					{
+						start++;
+						buf.push_back(ch);
+					}
+
+					++fastaRecordsSize.back();
+					if (buf.size() >= fragmentSize && (buf.size() == Task::TASK_SIZE || over))
+					{
+						for (bool found = false; !found;)
+						{
+							for (TaskQueuePtr & q : taskQueue)
+							{
+								if (q->write_available() > 0)
+								{
+									std::string overlap;
+									if (!over)
+									{
+										overlap.assign(buf.end() - fragmentSize + 1, buf.end());
+									}
+
+									q->push(Task(record, prev, std::move(buf)));
+									prev = start - fragmentSize + 1;
+									buf.swap(overlap);
+									found = true;
+									break;
+								}
+							}
+						}
+					}
+
+				} while (!over);
+			}
+		}
+
+		for (size_t i = 0; i < taskQueue.size(); i++)
+		{
+			taskQueue[i]->push(Task(0, Task::GAME_OVER, std::string()));			
+		}
+	}
+
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads) :
 		vertexSize_(vertexLength)
@@ -406,66 +464,15 @@ namespace Sibelia
 					workerThread[i] = boost::thread(CountingWorker, low, high, boost::cref(seed), boost::ref(bitVector), edgeLength, boost::ref(*taskQueue[i]));
 				}
 
-				for (const std::string & nowFileName : fileName)
-				{
-					size_t record = 0;
-					for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
-					{
-						char ch;
-						fastaRecordsSize.push_back(0);
-						std::string buf;
-						uint64_t prev = 0;
-						uint64_t start = 0;
-						bool over = false;
-						do
-						{
-							over = !parser.GetChar(ch);
-							if (!over)
-							{
-								start++;
-								buf.push_back(ch);
-							}
-
-							++fastaRecordsSize.back();
-							if (buf.size() >= edgeLength && (buf.size() == Task::TASK_SIZE || over))
-							{
-								for (bool found = false; !found;)
-								{
-									for (TaskQueuePtr & q : taskQueue)
-									{
-										if (q->write_available() > 0)
-										{
-											std::string overlap;
-											if (!over)
-											{
-												overlap.assign(buf.end() - edgeLength + 1, buf.end());
-											}
-
-											q->push(Task(record, prev, std::move(buf)));
-											prev = start - edgeLength + 1;
-											buf.swap(overlap);
-											found = true;
-											break;
-										}
-									}
-								}
-							}
-
-						} while (!over);
-					}
+				DistributeTasks(fileName, edgeLength, taskQueue, fastaRecordsSize);				
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{				
+					workerThread[i].join();
 				}
 
 				for (size_t sz : fastaRecordsSize)
 				{
 					isCandidBit.push_back(std::unique_ptr<ConcurrentBitVector>(new ConcurrentBitVector(sz)));
-				}
-
-				for (size_t i = 0; i < taskQueue.size(); i++)
-				{
-					TaskQueuePtr & q = taskQueue[i];
-					while (q->write_available() == 0);
-					q->push(Task(0, Task::GAME_OVER, std::string()));
-					workerThread[i].join();
 				}
 
 				std::cout << time(0) - mark << "\t";
