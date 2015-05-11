@@ -423,7 +423,12 @@ namespace Sibelia
 
 		for (size_t i = 0; i < taskQueue.size(); i++)
 		{
-			taskQueue[i]->push(Task(0, Task::GAME_OVER, std::string()));			
+			while (taskQueue[i]->write_available() == 0)
+			{
+				boost::this_thread::sleep_for(boost::chrono::nanoseconds(1000000));
+			}
+			
+			taskQueue[i]->push(Task(0, Task::GAME_OVER, std::string()));
 		}
 	}
 
