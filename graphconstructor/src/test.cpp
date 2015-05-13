@@ -215,7 +215,7 @@ namespace Sibelia
 	//	fileName.push_back("g3.fasta");
 		for (size_t k = 8; k <= 16; k++)
 		{
-			VertexEnumeratorTest(fileName, k, 1025, ss);
+			VertexEnumeratorTest(fileName, k, 16537, ss);
 		}
 
 		fileName.clear();

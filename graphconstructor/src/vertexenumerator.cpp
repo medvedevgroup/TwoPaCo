@@ -329,6 +329,7 @@ namespace Sibelia
 		VertexSet & trueBifSet,		
 		size_t & falseCount)
 	{
+		std::string tmp;
 		bool start = true;
 		size_t pos = 0;
 		size_t record = 0;
@@ -448,6 +449,8 @@ namespace Sibelia
 				}				
 			}
 		}
+
+		falseCount = candidateBifSet.size();
 	}
 
 	void DistributeTasks(const std::vector<std::string> & fileName, size_t overlapSize, std::vector<TaskQueuePtr> & taskQueue, std::vector<size_t> & fastaRecordsSize)
@@ -597,6 +600,7 @@ namespace Sibelia
 				trueBifSet[thread] = std::unique_ptr<VertexSet>(new VertexSet(1024, VertexHashFunction(vertexLength), VertexEquality(vertexLength)));
 				uint64_t threadHigh = thread == workerThread.size() - 1 ? high : ((high - low) / workerThread.size()) * (thread + 1);				
 				workerThread[thread] = boost::thread(AggregationWorker, vertexLength, boost::ref(*charQueue[thread]), threadLow, threadHigh, seed, boost::ref(isCandidBit), boost::ref(*trueBifSet[thread]), boost::ref(falseCount[thread]));
+				threadLow = threadHigh + 1;
 			}
 
 			for (const std::string & nowFileName : fileName)
@@ -605,12 +609,19 @@ namespace Sibelia
 				{										
 					char ch;
 					Propagate(charQueue, CHAR_SEQ_START);					
-					for (bool go = true; go; go = parser.GetChar(ch))
+					while (true)
 					{
-						Propagate(charQueue, ch);
+						if(parser.GetChar(ch))
+						{
+							Propagate(charQueue, ch);
+						}
+						else
+						{
+							break;
+						}
 					}
 					
-					Propagate(charQueue, ch);
+					Propagate(charQueue, CHAR_SEQ_END);
 				}
 			}
 
