@@ -74,7 +74,15 @@ int main(int argc, char * argv[])
 
 		TCLAP::ValueArg<unsigned int> threads("t",
 			"threads",
-			"Number of hash functions",
+			"Number of worker threads",
+			false,
+			1,
+			"integer",
+			cmd);
+
+		TCLAP::ValueArg<unsigned int> aggregationThreads("g",
+			"aggthreads",
+			"Number of aggregation threads",
 			false,
 			1,
 			"integer",
@@ -89,7 +97,8 @@ int main(int argc, char * argv[])
 
 		cmd.parse(argc, argv);
 		
-		Sibelia::VertexEnumerator vid(fileName.getValue(), kvalue.getValue(), filterSize.getValue(), hashFunctions.getValue(), rounds.getValue(), threads.getValue());
+		size_t aggThreads = aggregationThreads.isSet() ? aggregationThreads.getValue() : threads.getValue();
+		Sibelia::VertexEnumerator vid(fileName.getValue(), kvalue.getValue(), filterSize.getValue(), hashFunctions.getValue(), rounds.getValue(), threads.getValue(), aggThreads);
 		std::cout << "Distinct = " << vid.GetVerticesCount() << std::endl;
 
 		if (countAll.isSet())

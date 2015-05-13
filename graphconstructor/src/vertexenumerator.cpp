@@ -105,20 +105,6 @@ namespace Sibelia
 			Task(size_t recId, uint64_t start, bool isFinal, std::string && str) : recId(recId), start(start), isFinal(isFinal), str(std::move(str)) {}
 		};
 
-		struct Result
-		{
-			size_t recId;
-			uint64_t start;
-			std::vector<bool> isCandidate;
-			static const size_t GAME_OVER = SIZE_MAX;
-			Result() {}
-			Result(size_t recId, uint64_t start, std::vector<bool> && isCandidate) : recId(recId), start(start), isCandidate(std::move(isCandidate)) {}
-			bool operator < (const Result & res) const
-			{
-				return start < res.start;
-			}
-		};
-
 		const size_t QUEUE_CAPACITY = 12;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
@@ -126,7 +112,8 @@ namespace Sibelia
 		const char CHAR_GAME_OVER = 0;
 		const char CHAR_SEQ_START = 1;
 		const char CHAR_SEQ_END = 2;
-		
+		const size_t AGGREGATION_TASK_SIZE = 65536;
+
 		typedef std::shared_ptr<std::string> StringPtr;
 		typedef boost::lockfree::spsc_queue<StringPtr> StringQueue;
 		typedef std::unique_ptr<StringQueue> StringQueuePtr;
@@ -330,6 +317,7 @@ namespace Sibelia
 		VertexSet & trueBifSet,		
 		size_t & falseCount)
 	{
+		size_t wt = 0;
 		std::string tmp;
 		bool start = true;
 		size_t pos = 0;
@@ -338,7 +326,6 @@ namespace Sibelia
 		DnaString negVertex;
 		char posPrev;
 		char posExtend;
-		char negPrev;
 		char negExtend;
 		VertexSet candidateBifSet(1024, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 		StringPtr chunk;
@@ -349,7 +336,10 @@ namespace Sibelia
 			{
 				chunkPos = 0;
 				chunk.reset();				
-				while (!charQueue.pop(chunk));				
+				while (!charQueue.pop(chunk))
+				{
+					wt++;
+				}
 			}
 	
 			switch (posExtend = (*chunk)[chunkPos++])
@@ -532,10 +522,11 @@ namespace Sibelia
 		}
 	}
 
-	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads) :
+	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads, size_t aggregationThreads) :
 		vertexSize_(vertexLength)
 	{
 		std::cout << "Threads = " << threads << std::endl;
+		std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 		std::cout << "Hash functions = " << hashFunctions << std::endl;
 		std::cout << "Filter size = " << filterSize << std::endl;
 
@@ -553,14 +544,14 @@ namespace Sibelia
 		StringPtr gameOver(new std::string(1, CHAR_GAME_OVER));
 		for (size_t round = 0; round < rounds; round++)
 		{			
-			std::vector<size_t> fastaRecordsSize;
-			std::vector<boost::thread> workerThread(threads);
+			std::vector<size_t> fastaRecordsSize;			
 			std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			time_t mark = time(0);
 			{
 				std::vector<TaskQueuePtr> taskQueue;
-				ConcurrentBitVector bitVector(filterSize);				
+				ConcurrentBitVector bitVector(filterSize);
+				std::vector<boost::thread> workerThread(threads);
 				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 				std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 				for (size_t i = 0; i < workerThread.size(); i++)
@@ -596,6 +587,7 @@ namespace Sibelia
 
 			std::cout << time(0) - mark << "\t";
 			mark = time(0);
+			std::vector<boost::thread> workerThread(aggregationThreads);
 			std::vector<StringQueuePtr> charQueue;
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
@@ -637,7 +629,7 @@ namespace Sibelia
 						}
 
 						assert(chunk != 0);
-						if (chunk->size() == Task::TASK_SIZE || !go)
+						if (chunk->size() == AGGREGATION_TASK_SIZE || !go)
 						{
 							Propagate(charQueue, chunk);
 							chunk.reset();

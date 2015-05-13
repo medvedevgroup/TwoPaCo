@@ -22,7 +22,7 @@ namespace Sibelia
 				}
 			}
 
-		VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads);
+			VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads, size_t aggregationThreads);
 	private:
 		
 		size_t vertexSize_;
