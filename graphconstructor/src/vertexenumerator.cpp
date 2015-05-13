@@ -126,9 +126,10 @@ namespace Sibelia
 		const char CHAR_GAME_OVER = 0;
 		const char CHAR_SEQ_START = 1;
 		const char CHAR_SEQ_END = 2;
-		const size_t CHAR_QUEUE_CAPACITY = 65536;
-		typedef boost::lockfree::spsc_queue<char> CharQueue;
-		typedef std::unique_ptr<CharQueue> CharQueuePtr;
+		
+		typedef std::shared_ptr<std::string> StringPtr;
+		typedef boost::lockfree::spsc_queue<StringPtr> StringQueue;
+		typedef std::unique_ptr<StringQueue> StringQueuePtr;
 
 		typedef std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> VertexSet;
 
@@ -321,7 +322,7 @@ namespace Sibelia
 	}
 
 	void AggregationWorker(size_t vertexLength,
-		CharQueue & charQueue,
+		StringQueue & charQueue,
 		uint64_t low,
 		uint64_t high,
 		const std::vector<uint64_t> & seed,
@@ -340,114 +341,120 @@ namespace Sibelia
 		char negPrev;
 		char negExtend;
 		VertexSet candidateBifSet(1024, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
+		StringPtr chunk;
+		size_t chunkPos = 0;
 		for (bool go = true; go; )
-		{			
-			if (charQueue.pop(posExtend))
+		{
+			if (chunk == 0 || chunkPos == chunk->size())
 			{
-				switch (posExtend)
-				{					
-				case CHAR_GAME_OVER:
-					go = false;
-					break;
-				case CHAR_SEQ_START:
-					pos = 0;
-					start = true;
-					break;
-				case CHAR_SEQ_END:
-					if (posVertex.GetSize() == vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
+				chunkPos = 0;
+				chunk.reset();				
+				while (!charQueue.pop(chunk));				
+			}
+	
+			switch (posExtend = (*chunk)[chunkPos++])
+			{					
+			case CHAR_GAME_OVER:
+				go = false;
+				break;
+			case CHAR_SEQ_START:
+				pos = 0;
+				start = true;
+				break;
+			case CHAR_SEQ_END:
+				if (posVertex.GetSize() == vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
+				{
+					if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 					{
-						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-						{
-							trueBifSet.insert(posVertex.GetBody());
-						}
+						trueBifSet.insert(posVertex.GetBody());
 					}
-					
-					negVertex = posVertex = DnaString();
-					record++;
-					break;
-				default:
-					if (posVertex.GetSize() == vertexLength)
+				}
+				
+				negVertex = posVertex = DnaString();
+				record++;
+				break;
+			default:
+				if (posVertex.GetSize() == vertexLength)
+				{
+					if (!start)
 					{
-						if (!start)
+						if (isCandidBit[record]->Get(pos) && Within(NormHash(seed, posVertex, negVertex), low, high))
 						{
-							if (isCandidBit[record]->Get(pos) && Within(NormHash(seed, posVertex, negVertex), low, high))
+							if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 							{
-								if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
+								bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
+								bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
+								if (!posFound && !negFound)
 								{
-									bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
-									bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
-									if (!posFound && !negFound)
+									DnaString candidate(posVertex);
+									candidate.AppendBack(posExtend);
+									candidate.AppendBack(posPrev);
+									candidateBifSet.insert(candidate.GetBody());
+									if (posVertex == negVertex)
 									{
-										DnaString candidate(posVertex);
-										candidate.AppendBack(posExtend);
-										candidate.AppendBack(posPrev);
-										candidateBifSet.insert(candidate.GetBody());
-										if (posVertex == negVertex)
-										{
-											negFound = true;
-										}
+										negFound = true;
 									}
+								}
 
-									if (posFound)
+								if (posFound)
+								{
+									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
+									DnaString candidate(vertexLength + 2, *it);
+									char candExtend = candidate.GetChar(vertexLength);
+									char candPrev = candidate.GetChar(vertexLength + 1);
+									if ((candPrev != posPrev) || (candExtend != posExtend))
 									{
-										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
+										trueBifSet.insert(posVertex.GetBody());
+										candidateBifSet.erase(posVertex.GetBody());
+									}
+								}
+
+								if (negFound)
+								{
+									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
+									if (it != candidateBifSet.end())
+									{
 										DnaString candidate(vertexLength + 2, *it);
 										char candExtend = candidate.GetChar(vertexLength);
 										char candPrev = candidate.GetChar(vertexLength + 1);
-										if ((candPrev != posPrev) || (candExtend != posExtend))
+										if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
 										{
 											trueBifSet.insert(posVertex.GetBody());
 											candidateBifSet.erase(posVertex.GetBody());
 										}
 									}
-
-									if (negFound)
-									{
-										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
-										if (it != candidateBifSet.end())
-										{
-											DnaString candidate(vertexLength + 2, *it);
-											char candExtend = candidate.GetChar(vertexLength);
-											char candPrev = candidate.GetChar(vertexLength + 1);
-											if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
-											{
-												trueBifSet.insert(posVertex.GetBody());
-												candidateBifSet.erase(posVertex.GetBody());
-											}
-										}
-									}
 								}
 							}
-
-							posVertex.AppendBack(posExtend);
-							negVertex.AppendFront(DnaString::Reverse(posExtend));
-							posPrev = posVertex.PopFront();
-							negExtend = negVertex.PopBack();
-							++pos;
 						}
-						else
-						{
-							++pos;
-							start = false;
-							negVertex = posVertex.RevComp();
-							if (Within(NormHash(seed, posVertex, negVertex), low, high) && trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-							{
-								trueBifSet.insert(posVertex.GetBody());
-							}
 
-							posVertex.AppendBack(posExtend);
-							negVertex.AppendFront(DnaString::Reverse(posExtend));
-							posPrev = posVertex.PopFront();
-							negExtend = negVertex.PopBack();
-						}
+						posVertex.AppendBack(posExtend);
+						negVertex.AppendFront(DnaString::Reverse(posExtend));
+						posPrev = posVertex.PopFront();
+						negExtend = negVertex.PopBack();
+						++pos;
 					}
 					else
 					{
-						posVertex.AppendBack(posExtend);
-					}
+						++pos;
+						start = false;
+						negVertex = posVertex.RevComp();
+						if (Within(NormHash(seed, posVertex, negVertex), low, high) && trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
+						{
+							trueBifSet.insert(posVertex.GetBody());
+						}
 
-				}				
-			}
+						posVertex.AppendBack(posExtend);
+						negVertex.AppendFront(DnaString::Reverse(posExtend));
+						posPrev = posVertex.PopFront();
+						negExtend = negVertex.PopBack();
+					}
+				}
+				else
+				{
+					posVertex.AppendBack(posExtend);
+				}
+
+			}				
 		}
 
 		falseCount = candidateBifSet.size();
@@ -516,12 +523,12 @@ namespace Sibelia
 		}
 	}
 
-	void Propagate(std::vector<CharQueuePtr> & charQueue, char ch)
+	void Propagate(std::vector<StringQueuePtr> & stringQueue, StringPtr ptr)
 	{
-		for (size_t i = 0; i < charQueue.size(); i++)
+		for (size_t i = 0; i < stringQueue.size(); i++)
 		{
-			while (charQueue[i]->write_available() == 0);
-			charQueue[i]->push(ch);
+			while (stringQueue[i]->write_available() == 0);
+			stringQueue[i]->push(ptr);
 		}
 	}
 
@@ -541,6 +548,9 @@ namespace Sibelia
 		std::generate(seed.begin(), seed.end(), rand);
 		size_t edgeLength = vertexLength + 1;
 		uint64_t low = 0;
+		StringPtr seqEnd(new std::string(1, CHAR_SEQ_END));
+		StringPtr seqStart(new std::string(1, CHAR_SEQ_START));
+		StringPtr gameOver(new std::string(1, CHAR_GAME_OVER));
 		for (size_t round = 0; round < rounds; round++)
 		{			
 			std::vector<size_t> fastaRecordsSize;
@@ -586,10 +596,10 @@ namespace Sibelia
 
 			std::cout << time(0) - mark << "\t";
 			mark = time(0);
-			std::vector<CharQueuePtr> charQueue;
+			std::vector<StringQueuePtr> charQueue;
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
-				charQueue.push_back(CharQueuePtr(new CharQueue(CHAR_QUEUE_CAPACITY)));
+				charQueue.push_back(StringQueuePtr(new StringQueue(QUEUE_CAPACITY)));
 			}
 
 			uint64_t threadLow = low;
@@ -603,30 +613,43 @@ namespace Sibelia
 				threadLow = threadHigh + 1;
 			}
 
+			StringPtr chunk;
 			for (const std::string & nowFileName : fileName)
-			{				
+			{	
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); )
 				{										
 					char ch;
-					Propagate(charQueue, CHAR_SEQ_START);					
-					while (true)
+					Propagate(charQueue, seqStart);
+					for (bool go = true; go; )
 					{
 						if(parser.GetChar(ch))
 						{
-							Propagate(charQueue, ch);
+							if (chunk == 0)
+							{
+								chunk.reset(new std::string());
+							}
+
+							chunk->push_back(ch);
 						}
 						else
 						{
-							break;
+							go = false;
+						}
+
+						assert(chunk != 0);
+						if (chunk->size() == Task::TASK_SIZE || !go)
+						{
+							Propagate(charQueue, chunk);
+							chunk.reset();
 						}
 					}
 					
-					Propagate(charQueue, CHAR_SEQ_END);
+					Propagate(charQueue, seqEnd);
 				}
 			}
 
 			size_t trueCount = 0;
-			Propagate(charQueue, CHAR_GAME_OVER);			
+			Propagate(charQueue, gameOver);			
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{				
 				workerThread[i].join();
