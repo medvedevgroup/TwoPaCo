@@ -93,8 +93,9 @@ namespace Sibelia
 
 		for (const std::string & nowFileName : fileName)
 		{
-			bool start = true;
-			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); start = true)
+			boost::mutex mu;
+			bool start = true;			
+			for (StreamFastaParser parser(nowFileName, mu); parser.ReadRecord(); start = true)
 			{
 				char ch;
 				std::string edge;
@@ -126,7 +127,8 @@ namespace Sibelia
 		std::set<std::string> bif;
 		for (const std::string & nowFileName : fileName)
 		{
-			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+			boost::mutex mu;
+			for (StreamFastaParser parser(nowFileName, mu); parser.ReadRecord();)
 			{
 				char ch;
 				std::string vertex;
