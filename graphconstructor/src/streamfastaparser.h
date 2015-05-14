@@ -39,6 +39,7 @@ namespace Sibelia
 		char * buffer_;
 		size_t bufferSize_;
 		size_t bufferPos_;
+		std::vector<char> isValid_;
 	};
 }
 

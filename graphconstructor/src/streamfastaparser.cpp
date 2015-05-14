@@ -10,6 +10,7 @@ namespace Sibelia
 
 	StreamFastaParser::Exception::Exception(const std::string & msg) : std::runtime_error(msg)
 	{
+		
 	}
 
 	StreamFastaParser::~StreamFastaParser()
@@ -23,6 +24,12 @@ namespace Sibelia
 		if (!stream_ && !stream_.eof())
 		{
 			throw Exception("Can't open file " + fileName);
+		}
+
+		isValid_.assign(256, 0);
+		for (char ch : VALID_CHARS)
+		{
+			isValid_[ch] = 1;
 		}
 	}
 
@@ -78,12 +85,13 @@ namespace Sibelia
 			}
 			else
 			{
-				if (std::find(VALID_CHARS.begin(), VALID_CHARS.end(), toupper(ch)) == VALID_CHARS.end())
+				if (!isValid_[toupper(ch)])
 				{
 					throw Exception("Found an invalid character '" + std::string(1, ch) + "'");
 				}
 
 				GetCh(ch);
+				ch = toupper(ch);
 				return true;
 			}
 		}
