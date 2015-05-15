@@ -24,7 +24,7 @@ namespace Sibelia
 		bool GetChar(char & ch);		
 		std::string GetErrorMessage() const;
 		std::string GetCurrentHeader() const;
-		StreamFastaParser(const std::string & fileName, boost::mutex & mu);
+		StreamFastaParser(const std::string & fileName);
 	private:		
 		static const std::string VALID_CHARS;
 		static const size_t BUF_SIZE = 1 << 20;
@@ -32,7 +32,6 @@ namespace Sibelia
 		bool Peek(char & ch);
 		bool GetCh(char & ch);		
 
-		boost::mutex * mu_;
 		std::ifstream stream_;
 		std::string errorMessage_;
 		std::string currentHeader_;

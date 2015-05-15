@@ -104,18 +104,10 @@ namespace Sibelia
 			Task(size_t recId, uint64_t start, bool isFinal, std::string && str) : recId(recId), start(start), isFinal(isFinal), str(std::move(str)) {}
 		};
 
-		const size_t QUEUE_CAPACITY = 1024;
+		const size_t QUEUE_CAPACITY = 16;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 
-		const char CHAR_GAME_OVER = 0;
-		const char CHAR_SEQ_START = 1;
-		const char CHAR_SEQ_END = 2;
-		const size_t AGGREGATION_TASK_SIZE = 65536;
-
-		typedef std::shared_ptr<std::string> StringPtr;
-		typedef boost::lockfree::spsc_queue<StringPtr> StringQueue;
-		typedef std::unique_ptr<StringQueue> StringQueuePtr;
 
 		typedef std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> VertexSet;
 
@@ -306,267 +298,119 @@ namespace Sibelia
 	{
 		return hvalue >= low && hvalue <= high;
 	}
-	/*
-	void AggregationWorker(size_t vertexLength,
-		StringQueue & charQueue,
-		uint64_t low,
-		uint64_t high,
-		const std::vector<uint64_t> & seed,
-		std::vector<std::unique_ptr<ConcurrentBitVector> > & isCandidBit,
-		VertexSet & trueBifSet,		
-		size_t & falseCount)
-	{
-		bool start = true;
-		size_t pos = 0;
-		size_t record = 0;
-		DnaString posVertex;
-		DnaString negVertex;
-		char posPrev;
-		char posExtend;
-		char negExtend;
-		VertexSet candidateBifSet(1024, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
-		StringPtr chunk;
-		size_t chunkPos = 0;
-		for (bool go = true; go; )
-		{
-			if (chunk == 0 || chunkPos == chunk->size())
-			{
-				chunkPos = 0;
-				chunk.reset();				
-				while (true)
-				{
-					if (charQueue.pop(chunk))
-					{
-						break;
-					}
-				}
-			}
 	
-			switch (posExtend = (*chunk)[chunkPos++])
-			{					
-			case CHAR_GAME_OVER:
-				go = false;
-				break;
-			case CHAR_SEQ_START:
-				pos = 0;
-				start = true;
-				break;
-			case CHAR_SEQ_END:
-				if (posVertex.GetSize() == vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
-				{
-					if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-					{
-						trueBifSet.insert(posVertex.GetBody());
-					}
-				}
-				
-				negVertex = posVertex = DnaString();
-				record++;
-				break;
-			default:
-				if (posVertex.GetSize() == vertexLength)
-				{
-					if (!start)
-					{
-						if (isCandidBit[record]->Get(pos) && Within(NormHash(seed, posVertex, negVertex), low, high))
-						{
-							if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-							{
-								bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
-								bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
-								if (!posFound && !negFound)
-								{
-									DnaString candidate(posVertex);
-									candidate.AppendBack(posExtend);
-									candidate.AppendBack(posPrev);
-									candidateBifSet.insert(candidate.GetBody());
-									if (posVertex == negVertex)
-									{
-										negFound = true;
-									}
-								}
-
-								if (posFound)
-								{
-									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
-									DnaString candidate(vertexLength + 2, *it);
-									char candExtend = candidate.GetChar(vertexLength);
-									char candPrev = candidate.GetChar(vertexLength + 1);
-									if ((candPrev != posPrev) || (candExtend != posExtend))
-									{
-										trueBifSet.insert(posVertex.GetBody());
-										candidateBifSet.erase(posVertex.GetBody());
-									}
-								}
-
-								if (negFound)
-								{
-									std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
-									if (it != candidateBifSet.end())
-									{
-										DnaString candidate(vertexLength + 2, *it);
-										char candExtend = candidate.GetChar(vertexLength);
-										char candPrev = candidate.GetChar(vertexLength + 1);
-										if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
-										{
-											trueBifSet.insert(posVertex.GetBody());
-											candidateBifSet.erase(posVertex.GetBody());
-										}
-									}
-								}
-							}
-						}
-
-						posVertex.AppendBack(posExtend);
-						negVertex.AppendFront(DnaString::Reverse(posExtend));
-						posPrev = posVertex.PopFront();
-						negExtend = negVertex.PopBack();
-						++pos;
-					}
-					else
-					{
-						++pos;
-						start = false;
-						negVertex = posVertex.RevComp();
-						if (Within(NormHash(seed, posVertex, negVertex), low, high) && trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-						{
-							trueBifSet.insert(posVertex.GetBody());
-						}
-
-						posVertex.AppendBack(posExtend);
-						negVertex.AppendFront(DnaString::Reverse(posExtend));
-						posPrev = posVertex.PopFront();
-						negExtend = negVertex.PopBack();
-					}
-				}
-				else
-				{
-					posVertex.AppendBack(posExtend);
-				}
-
-			}				
-		}
-
-		falseCount = candidateBifSet.size();
-	}*/
-
 	void AggregationWorker(size_t vertexLength,
-		const std::vector<std::string> & fileName,
-		std::vector<boost::mutex> & mutex,
-		uint64_t low,
-		uint64_t high,
-		const std::vector<uint64_t> & seed,		
-		std::vector<std::unique_ptr<ConcurrentBitVector> > & isCandidBit,
-		VertexSet & trueBifSet,
-		size_t & falseCount)
+		TaskQueue & taskQueue,
+		const std::vector<std::unique_ptr<ConcurrentBitVector> > & isCandidBit,
+		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> & trueBifSet,
+		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> & candidateBifSet,
+		boost::mutex & bifSetMutex)		
 	{
-		std::unordered_set<uint64_t, VertexHashFunction, VertexEquality> candidateBifSet(0, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
-		for (size_t file = 0; file < fileName.size(); file++)
+		while (true)
 		{
-			size_t record = 0;
-			const std::string & nowFileName = fileName[file];
-			for (StreamFastaParser parser(nowFileName, mutex[file]); parser.ReadRecord(); record++)
+			Task task;
+			if (taskQueue.pop(task))
 			{
-				char posExtend;
-				DnaString posVertex;
-				for (size_t j = 0; j < vertexLength && parser.GetChar(posExtend); j++)
+				if (task.start == Task::GAME_OVER)
 				{
-					posVertex.AppendBack(posExtend);
+					break;
 				}
 
-				if (posVertex.GetSize() >= vertexLength)
+				if (task.str.size() < vertexLength)
 				{
-					char posPrev;
-					char negExtend;
-					size_t bitCount = 0;
-					size_t kmer = 0;
-					DnaString negVertex = posVertex.RevComp();
-					if (posVertex.GetSize() == vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
+					continue;
+				}
+
+				DnaString posVertex;
+				for (size_t j = 0; j < vertexLength; j++)
+				{
+					posVertex.AppendBack(task.str[j]);
+				}
+
+				char posPrev;
+				char negExtend;
+				DnaString negVertex = posVertex.RevComp();
+				size_t end = task.str.size() - vertexLength;
+				for (size_t j = 0; j <= end; j++)
+				{
+					char posExtend = task.str[j + vertexLength];
+					if ((j == 0 && task.start == 0) || (j == end && task.isFinal))
 					{
+						boost::lock_guard<boost::mutex> lock(bifSetMutex);
 						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 						{
 							trueBifSet.insert(posVertex.GetBody());
 						}
 					}
-
-					for (bool go = true; go; kmer++)
+					
+					if (j > 0 && j < end && isCandidBit[task.recId]->Get(task.start + j))
 					{
-						if (go = parser.GetChar(posExtend))
+						char posPrev = task.str[j - 1];
+						boost::lock_guard<boost::mutex> lock(bifSetMutex);
+						if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
 						{
-							if (isCandidBit[record]->Get(kmer) && Within(NormHash(seed, posVertex, negVertex), low, high))
+							bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
+							bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
+							if (!posFound && !negFound)
 							{
-								if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
+								DnaString candidate(posVertex);
+								candidate.AppendBack(posExtend);
+								candidate.AppendBack(posPrev);
+								candidateBifSet.insert(candidate.GetBody());
+								if (posVertex == negVertex)
 								{
-									bool posFound = candidateBifSet.count(posVertex.GetBody()) > 0;
-									bool negFound = candidateBifSet.count(negVertex.GetBody()) > 0;
-									if (!posFound && !negFound)
-									{
-										DnaString candidate(posVertex);
-										candidate.AppendBack(posExtend);
-										candidate.AppendBack(posPrev);
-										candidateBifSet.insert(candidate.GetBody());
-										if (posVertex == negVertex)
-										{
-											negFound = true;
-										}
-									}
-
-									if (posFound)
-									{
-										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
-										DnaString candidate(vertexLength + 2, *it);
-										char candExtend = candidate.GetChar(vertexLength);
-										char candPrev = candidate.GetChar(vertexLength + 1);
-										if ((candPrev != posPrev) || (candExtend != posExtend))
-										{
-											trueBifSet.insert(posVertex.GetBody());
-											candidateBifSet.erase(posVertex.GetBody());
-										}
-									}
-
-									if (negFound)
-									{
-										std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
-										if (it != candidateBifSet.end())
-										{
-											DnaString candidate(vertexLength + 2, *it);
-											char candExtend = candidate.GetChar(vertexLength);
-											char candPrev = candidate.GetChar(vertexLength + 1);
-											if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
-											{
-												trueBifSet.insert(posVertex.GetBody());
-												candidateBifSet.erase(posVertex.GetBody());
-											}
-										}
-									}
+									negFound = true;
 								}
 							}
 
-							posVertex.AppendBack(posExtend);
-							negVertex.AppendFront(DnaString::Reverse(posExtend));
-							posPrev = posVertex.PopFront();
-							negExtend = negVertex.PopBack();
-						}						
-						else if (Within(NormHash(seed, posVertex, negVertex), low, high) && trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
-						{
-							trueBifSet.insert(posVertex.GetBody());
+							if (posFound)
+							{
+								std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(posVertex.GetBody());
+								DnaString candidate(vertexLength + 2, *it);
+								char candExtend = candidate.GetChar(vertexLength);
+								char candPrev = candidate.GetChar(vertexLength + 1);
+								if ((candPrev != posPrev) || (candExtend != posExtend))
+								{
+									trueBifSet.insert(posVertex.GetBody());
+									candidateBifSet.erase(posVertex.GetBody());
+								}
+							}
+
+							if (negFound)
+							{
+								std::unordered_set<uint64_t, VertexHashFunction>::iterator it = candidateBifSet.find(negVertex.GetBody());
+								if (it != candidateBifSet.end())
+								{
+									DnaString candidate(vertexLength + 2, *it);
+									char candExtend = candidate.GetChar(vertexLength);
+									char candPrev = candidate.GetChar(vertexLength + 1);
+									if ((candPrev != DnaString::Reverse(posExtend)) || (candExtend != negExtend))
+									{
+										trueBifSet.insert(posVertex.GetBody());
+										candidateBifSet.erase(posVertex.GetBody());
+									}
+								}
+							}
 						}
 					}
+
+					posVertex.AppendBack(posExtend);
+					negVertex.AppendFront(DnaString::Reverse(posExtend));
+					posPrev = posVertex.PopFront();
+					negExtend = negVertex.PopBack();
 				}
 			}
 		}
-
-		falseCount = candidateBifSet.size();
 	}
-
-	void DistributeTasks(const std::vector<std::string> & fileName, std::vector<boost::mutex> & mutex, size_t overlapSize, std::vector<TaskQueuePtr> & taskQueue, std::vector<size_t> & fastaRecordsSize)
+	
+	void DistributeTasks(const std::vector<std::string> & fileName, size_t overlapSize, std::vector<TaskQueuePtr> & taskQueue, std::vector<size_t> & fastaRecordsSize)
 	{
 		fastaRecordsSize.clear();
 		for (size_t file = 0; file < fileName.size(); file++)
 		{
 			size_t record = 0;
 			const std::string & nowFileName = fileName[file];
-			for (StreamFastaParser parser(nowFileName, mutex[file]); parser.ReadRecord(); record++)
+			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 			{
 				char ch;
 				fastaRecordsSize.push_back(0);
@@ -638,23 +482,19 @@ namespace Sibelia
 		}
 
 		std::vector<uint64_t> seed(hashFunctions);
-		std::vector<boost::mutex> mutex(fileName.size());
 		std::generate(seed.begin(), seed.end(), rand);
 		size_t edgeLength = vertexLength + 1;
 		uint64_t low = 0;
-		StringPtr seqEnd(new std::string(1, CHAR_SEQ_END));
-		StringPtr seqStart(new std::string(1, CHAR_SEQ_START));
-		StringPtr gameOver(new std::string(1, CHAR_GAME_OVER));
 		for (size_t round = 0; round < rounds; round++)
-		{			
+		{
+			std::vector<TaskQueuePtr> taskQueue;
 			std::vector<size_t> fastaRecordsSize;			
+			std::vector<boost::thread> workerThread(threads);
 			std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
-			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
+			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);			
 			time_t mark = time(0);
-			{
-				std::vector<TaskQueuePtr> taskQueue;
-				ConcurrentBitVector bitVector(filterSize);
-				std::vector<boost::thread> workerThread(threads);
+			{				
+				ConcurrentBitVector bitVector(filterSize);				
 				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 				std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 				for (size_t i = 0; i < workerThread.size(); i++)
@@ -663,7 +503,7 @@ namespace Sibelia
 					workerThread[i] = boost::thread(CountingWorker, low, high, boost::cref(seed), boost::ref(bitVector), edgeLength, boost::ref(*taskQueue[i]));
 				}
 
-				DistributeTasks(fileName, mutex, edgeLength, taskQueue, fastaRecordsSize);				
+				DistributeTasks(fileName, edgeLength, taskQueue, fastaRecordsSize);				
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{				
 					workerThread[i].join();
@@ -681,46 +521,33 @@ namespace Sibelia
 					workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(isCandidBit));
 				}
 
-				DistributeTasks(fileName, mutex, vertexLength, taskQueue, fastaRecordsSize);
+				DistributeTasks(fileName, vertexLength, taskQueue, fastaRecordsSize);
 				for (size_t i = 0; i < taskQueue.size(); i++)
 				{
 					workerThread[i].join();
 				}
 			}
-
+			
 			std::cout << time(0) - mark << "\t";
 			mark = time(0);
-			std::vector<boost::thread> workerThread(aggregationThreads);
-			std::vector<StringQueuePtr> charQueue;
+			boost::mutex mutex;
+			VertexSet trueBifSet(1024, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
+			VertexSet candidateBifSet(1024, VertexHashFunction(vertexLength), VertexEquality(vertexLength));
 			for (size_t i = 0; i < workerThread.size(); i++)
-			{
-				charQueue.push_back(StringQueuePtr(new StringQueue(QUEUE_CAPACITY)));
+			{				
+				workerThread[i] = boost::thread(AggregationWorker, vertexLength, boost::ref(*taskQueue[i]), boost::cref(isCandidBit), boost::ref(trueBifSet), boost::ref(candidateBifSet), boost::ref(mutex));
 			}
-
-			uint64_t threadLow = low;
-			std::vector<size_t> falseCount(workerThread.size(), 0);
-			std::vector<std::unique_ptr<VertexSet> > trueBifSet(workerThread.size());
-			for (size_t thread = 0; thread < workerThread.size(); thread++)
-			{
-				trueBifSet[thread] = std::unique_ptr<VertexSet>(new VertexSet(1024, VertexHashFunction(vertexLength), VertexEquality(vertexLength)));
-				uint64_t threadHigh = thread == workerThread.size() - 1 ? high : ((high - low) / workerThread.size()) * (thread + 1);				
-				workerThread[thread] = boost::thread(AggregationWorker, vertexLength, boost::cref(fileName), boost::ref(mutex), threadLow, threadHigh, seed, boost::ref(isCandidBit), boost::ref(*trueBifSet[thread]), boost::ref(falseCount[thread]));
-				threadLow = threadHigh + 1;
-			}
-
 			
-			size_t trueCount = 0;
+			DistributeTasks(fileName, vertexLength + 1, taskQueue, fastaRecordsSize);
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{				
 				workerThread[i].join();
-				trueCount += trueBifSet[i]->size();
-				bifurcation_.insert(bifurcation_.end(), trueBifSet[i]->begin(), trueBifSet[i]->end());
-				trueBifSet[i]->clear();
+				bifurcation_.insert(bifurcation_.end(), trueBifSet.begin(), trueBifSet.end());
 			}
 
 			std::cout << time(0) - mark << std::endl;
-			std::cout << "Vertex count = " << trueCount << std::endl;
-			std::cout << "FP count = " << std::accumulate(falseCount.begin(), falseCount.end(), size_t(0)) << std::endl;
+			std::cout << "Vertex count = " << trueBifSet.size() << std::endl;
+			std::cout << "FP count = " << candidateBifSet.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			low = high + 1;
 		}

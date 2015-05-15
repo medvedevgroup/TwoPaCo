@@ -18,8 +18,8 @@ namespace Sibelia
 		delete [] buffer_;
 	}
 
-	StreamFastaParser::StreamFastaParser(const std::string & fileName, boost::mutex & mu) : stream_(fileName.c_str()),
-		buffer_(new char[BUF_SIZE]), bufferPos_(0), bufferSize_(0), mu_(&mu)
+	StreamFastaParser::StreamFastaParser(const std::string & fileName) : stream_(fileName.c_str()),
+		buffer_(new char[BUF_SIZE]), bufferPos_(0), bufferSize_(0)
 	{
 		if (!stream_ && !stream_.eof())
 		{
@@ -103,7 +103,6 @@ namespace Sibelia
 	{
 		if (bufferPos_ == bufferSize_)
 		{
-			boost::lock_guard<boost::mutex> lock(*mu_);
 			if (stream_)
 			{				
 				stream_.read(buffer_, BUF_SIZE);
@@ -124,7 +123,6 @@ namespace Sibelia
 	{
 		if (bufferPos_ == bufferSize_)
 		{
-			boost::lock_guard<boost::mutex> lock(*mu_);
 			if (stream_)
 			{
 				stream_.read(buffer_, BUF_SIZE);

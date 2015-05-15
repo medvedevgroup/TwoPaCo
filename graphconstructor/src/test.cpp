@@ -89,13 +89,12 @@ namespace Sibelia
 	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
-		VertexEnumerator vid(fileName, vertexLength, filterSize, 5, 1, 2, 2);
+		VertexEnumerator vid(fileName, vertexLength, filterSize, 5, 1, 2, 1);
 
 		for (const std::string & nowFileName : fileName)
 		{
-			boost::mutex mu;
 			bool start = true;			
-			for (StreamFastaParser parser(nowFileName, mu); parser.ReadRecord(); start = true)
+			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); start = true)
 			{
 				char ch;
 				std::string edge;
@@ -128,7 +127,7 @@ namespace Sibelia
 		for (const std::string & nowFileName : fileName)
 		{
 			boost::mutex mu;
-			for (StreamFastaParser parser(nowFileName, mu); parser.ReadRecord();)
+			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
 			{
 				char ch;
 				std::string vertex;
