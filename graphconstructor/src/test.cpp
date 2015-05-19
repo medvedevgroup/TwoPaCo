@@ -163,7 +163,7 @@ namespace Sibelia
 									check.AppendBack(cand[i]);
 								}
 
-								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX);
+								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.RevComp()) != VertexEnumerator::INVALID_VERTEX);
 								bif.insert(cand);
 							}
 						}						
