@@ -1,13 +1,13 @@
 #ifndef CHARACTERHASH
 #define CHARACTERHASH
 
-typedef uint64_t uint64;
+typedef unsigned long long uint64;
 typedef unsigned int uint32;
 typedef unsigned int uint;
 
 #include <cassert>
 #include <iostream>
-
+#include <stdexcept>
 #include "mersennetwister.h"
 
 using namespace std;

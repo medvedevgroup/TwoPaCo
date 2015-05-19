@@ -61,11 +61,12 @@ namespace Sibelia
 			{
 				DnaString str(vertexSize_, a);
 				uint64_t body = str.GetBody();
-				uint64_t hash = SpookyHash::Hash64(&body, sizeof(body), 0);
+				uint64_t hash = SpookyHash::Hash64(&body, sizeof(body), 0) % MOD;
 				return hash;
 			}
-		private:
+		private:			
 			size_t vertexSize_;
+			const uint64_t MOD = 9223372036854775783;
 		};
 
 		class VertexEquality
@@ -311,7 +312,7 @@ namespace Sibelia
 					size_t end = task.str.size() - vertexLength;
 					for (size_t j = 0; j <= end; j++)
 					{
-						char posExtend = task.str[j + vertexLength];/*
+						char posExtend = task.str[j + vertexLength];
 						if ((j == 0 && task.start == 0) || (j == end && task.isFinal))
 						{
 							if (trueBifSet.count(posVertex.GetBody()) == 0 && trueBifSet.count(negVertex.GetBody()) == 0)
@@ -366,7 +367,7 @@ namespace Sibelia
 									}
 								}
 							}
-						}*/
+						}
 
 						posVertex.AppendBack(posExtend);
 						negVertex.AppendFront(DnaString::Reverse(posExtend));
