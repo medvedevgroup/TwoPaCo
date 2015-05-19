@@ -368,10 +368,10 @@ namespace Sibelia
 							}
 						}*/
 
-				//		posVertex.AppendBack(posExtend);
-				//		negVertex.AppendFront(DnaString::Reverse(posExtend));
-				//		posPrev = posVertex.PopFront();
-				//		negExtend = negVertex.PopBack();
+						posVertex.AppendBack(posExtend);
+						negVertex.AppendFront(DnaString::Reverse(posExtend));
+						posPrev = posVertex.PopFront();
+						negExtend = negVertex.PopBack();
 					}
 				}
 			}
