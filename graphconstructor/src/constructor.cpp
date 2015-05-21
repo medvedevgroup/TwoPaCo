@@ -80,6 +80,14 @@ int main(int argc, char * argv[])
 			"integer",
 			cmd);
 
+		TCLAP::ValueArg<std::string> tmpFileName("",
+			"tmpfile",
+			"Temporary file name",
+			false,
+			"graphconstructor.tmp",
+			"file name",
+			cmd);
+
 		TCLAP::ValueArg<unsigned int> aggregationThreads("g",
 			"aggthreads",
 			"Number of aggregation threads",
@@ -98,7 +106,14 @@ int main(int argc, char * argv[])
 		cmd.parse(argc, argv);
 		
 		size_t aggThreads = aggregationThreads.isSet() ? aggregationThreads.getValue() : threads.getValue();
-		Sibelia::VertexEnumerator vid(fileName.getValue(), kvalue.getValue(), filterSize.getValue(), hashFunctions.getValue(), rounds.getValue(), threads.getValue(), aggThreads);
+		Sibelia::VertexEnumerator vid(fileName.getValue(),
+			kvalue.getValue(), filterSize.getValue(),
+			hashFunctions.getValue(),
+			rounds.getValue(),
+			threads.getValue(),
+			aggThreads,
+			tmpFileName.getValue());
+
 		std::cout << "Distinct = " << vid.GetVerticesCount() << std::endl;
 
 		if (countAll.isSet())

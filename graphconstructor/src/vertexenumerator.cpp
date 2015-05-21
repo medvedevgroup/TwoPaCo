@@ -481,7 +481,14 @@ namespace Sibelia
 
 	}
 
-	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads, size_t aggregationThreads) :
+	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName,
+		size_t vertexLength,
+		size_t filterSize,
+		size_t hashFunctions,
+		size_t rounds,
+		size_t threads,
+		size_t aggregationThreads,
+		const std::string & tmpFileName) :
 		vertexSize_(vertexLength)
 	{		
 		std::cout << "Threads = " << threads << std::endl;
@@ -494,7 +501,6 @@ namespace Sibelia
 			throw std::runtime_error("The vertex size is too large");
 		}
 
-		std::string tmpFileName = "xtmp";
 		std::vector<uint64_t> seed(hashFunctions);
 		std::generate(seed.begin(), seed.end(), rand);
 		size_t edgeLength = vertexLength + 1;
