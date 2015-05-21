@@ -61,14 +61,26 @@ namespace Sibelia
 
 	uint64_t DnaString::MakeUp(char ch)
 	{
-		ch = toupper(ch);
-		size_t idx = std::find(LITERAL.begin(), LITERAL.end(), ch) - LITERAL.begin();
-		if (idx != LITERAL.size())
+		size_t idx;
+		switch (ch)
 		{
-			return idx;
+		case 'A':
+			idx = 0;
+			break;
+		case 'C':
+			idx = 1;
+			break;
+		case 'G':
+			idx = 2;
+			break;
+		case 'T':
+			idx = 3;
+			break;			
+		default:
+			idx = rand() % 4;
 		}
 
-		return rand() % LITERAL.size();
+		return idx;
 	}
 
 	char DnaString::PopBack()

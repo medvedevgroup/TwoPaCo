@@ -56,21 +56,13 @@ namespace Sibelia
 
 			bool operator () (const uint64_t & a, const uint64_t & b) const
 			{
-				return CanonicalKmer(a) < CanonicalKmer(b);
+				DnaString stra(vertexSize_, a);
+				DnaString strb(vertexSize_, b);
+				return stra.GetBody() < strb.GetBody();
 			}
 
-			bool Equal(const uint64_t & a, const uint64_t & b)
-			{
-				return CanonicalKmer(a) == CanonicalKmer(b);
-			}
 
 		private:			
-			uint64_t CanonicalKmer(uint64_t kmer) const
-			{
-				DnaString str(vertexSize_, kmer);
-				return std::min(str.GetBody(), str.RevComp().GetBody());
-			}
-
 			size_t vertexSize_;
 		};
 
@@ -347,11 +339,18 @@ namespace Sibelia
 			}
 		}
 
-		DnaString MakeRecord(DnaString kmer, char extend, char prev)
+		DnaString MakeCanonicalRecord(DnaString posVertex, DnaString negVertex, char posExtend, char posPrev)
 		{
-			kmer.AppendBack(extend);
-			kmer.AppendBack(prev);
-			return kmer;
+			if (posVertex.GetBody() < negVertex.GetBody())
+			{
+				posVertex.AppendBack(posExtend);
+				posVertex.AppendBack(posPrev);
+				return posVertex;
+			}
+
+			negVertex.AppendBack(DnaString::Reverse(posPrev));
+			negVertex.AppendBack(DnaString::Reverse(posExtend));
+			return negVertex;
 		}
 
 		void ParseRecord(size_t vertexSize, uint64_t kmer, char & extend, char & prev)
@@ -511,8 +510,8 @@ namespace Sibelia
 							DnaString negVertex = posVertex.RevComp();
 							if (Within(NormHash(seed, posVertex, negVertex), low, high))
 							{
-								candidate.push_back(MakeRecord(posVertex, 'A', 'A').GetBody());
-								candidate.push_back(MakeRecord(posVertex, 'C', 'A').GetBody());
+								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
+								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
 							}
 
 							for (bool go = true; go; kmer++)
@@ -521,7 +520,7 @@ namespace Sibelia
 								{
 									if (kmer > 0 && isCandidBit[record]->Get(kmer))
 									{
-										candidate.push_back(MakeRecord(posVertex, posExtend, posPrev).GetBody());
+										candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
 									}
 
 									posVertex.AppendBack(posExtend);
@@ -533,8 +532,8 @@ namespace Sibelia
 
 							if (Within(NormHash(seed, posVertex, negVertex), low, high))
 							{
-								candidate.push_back(MakeRecord(posVertex, 'A', 'A').GetBody());
-								candidate.push_back(MakeRecord(posVertex, 'C', 'A').GetBody());
+								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
+								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
 							}
 						}
 					}
