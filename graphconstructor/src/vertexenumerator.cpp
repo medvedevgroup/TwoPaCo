@@ -11,6 +11,11 @@
 
 #include <boost/ref.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
+
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_sort.h>
+
 #include "lib/SpookyV2.h"
 
 #include "vertexenumerator.h"
@@ -384,40 +389,63 @@ namespace Sibelia
 			}
 		};
 
-		void DetectTrueBifurcations(std::vector<uint64_t> & candidate, std::vector<uint64_t> & bifurcations, size_t vertexSize)
-		{			
-			for (size_t i = 0; i < candidate.size(); )
+		boost::mutex mtx;
+
+		struct TrueBifurcations
+		{
+			size_t vertexSize;
+			std::vector<uint64_t> * candidate;
+			tbb::concurrent_vector<uint64_t> * out;
+			TrueBifurcations(std::vector<uint64_t> * candidate, tbb::concurrent_vector<uint64_t> * out, size_t vertexSize) :
+				candidate(candidate), out(out), vertexSize(vertexSize) {}
+
+			void operator()(const tbb::blocked_range<size_t> & range) const
 			{
-				size_t j = i + 1;
-				bool bif = false;				
-				Candidate icand(vertexSize, candidate[i]);
-				if (icand.base == icand.base.RevComp())
+				size_t i = range.begin();
+				if (i > 0)
 				{
-					Candidate rcand = icand.Reverse();
-					bif = icand.prev != rcand.prev || icand.extend != rcand.extend;
+					DnaString istr(vertexSize, (*candidate)[i]);
+					if (istr == DnaString(vertexSize, (*candidate)[i - 1]))
+					{
+						for (++i; i < range.end() && istr == DnaString(vertexSize, (*candidate)[i]); ++i);
+					}					
 				}
 
-				for (; j < candidate.size(); j++)
-				{
-					Candidate jcand(vertexSize, candidate[j]);
-					if (jcand.base != icand.base)
-					{
-						break;
-					}
-					else if (!bif)
-					{
-						bif = icand.prev != jcand.prev || icand.extend != jcand.extend;
-					}
-				}
-				
-				if (bif)
-				{
-					bifurcations.push_back(icand.base.GetBody());
-				}
 
-				i = j;
+				for (; i < range.end(); )
+				{
+					size_t j = i + 1;
+					bool bif = false;
+					Candidate icand(vertexSize, (*candidate)[i]);
+					if (icand.base == icand.base.RevComp())
+					{
+						Candidate rcand = icand.Reverse();
+						bif = icand.prev != rcand.prev || icand.extend != rcand.extend;
+					}
+
+					for (; j < candidate->size(); j++)
+					{
+						Candidate jcand(vertexSize, (*candidate)[j]);
+						if (jcand.base != icand.base)
+						{
+							break;
+						}
+						else if (!bif)
+						{
+							bif = icand.prev != jcand.prev || icand.extend != jcand.extend;
+						}
+					}
+
+					if (bif)
+					{
+						out->push_back(icand.base.GetBody());
+					}
+
+					i = j;
+				}
 			}
-		}
+		};
+
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t hashFunctions, size_t rounds, size_t threads, size_t aggregationThreads) :
@@ -433,7 +461,6 @@ namespace Sibelia
 			throw std::runtime_error("The vertex size is too large");
 		}
 
-		std::vector<DnaString> border;
 		std::vector<uint64_t> seed(hashFunctions);
 		std::generate(seed.begin(), seed.end(), rand);
 		size_t edgeLength = vertexLength + 1;
@@ -535,8 +562,9 @@ namespace Sibelia
 				}
 			}
 
-			std::sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
-			DetectTrueBifurcations(candidate, bifurcation_, vertexSize_);
+						
+			tbb::parallel_sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
+			tbb::parallel_for(tbb::blocked_range<size_t>(0, candidate.size()), TrueBifurcations(&candidate, &bifurcation_, vertexSize_));
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "FP count = " << candidate.size() << std::endl;
@@ -557,7 +585,7 @@ namespace Sibelia
 		DnaString check[2] = { vertex, vertex.RevComp() };
 		for (DnaString str : check)
 		{
-			std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str.GetBody());
+			tbb::concurrent_vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str.GetBody());
 			if (it != bifurcation_.end() && *it == str.GetBody())
 			{
 				return it - bifurcation_.begin();

@@ -1,6 +1,8 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
+#include <tbb/concurrent_vector.h>
+
 #include "streamfastaparser.h"
 #include "concurrentbitvector.h"
 
@@ -26,7 +28,7 @@ namespace Sibelia
 	private:
 		
 		size_t vertexSize_;
-		std::vector<uint64_t> bifurcation_;
+		tbb::concurrent_vector<uint64_t> bifurcation_;
 	};
 }
 
