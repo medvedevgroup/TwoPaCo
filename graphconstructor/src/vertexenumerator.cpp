@@ -5,6 +5,7 @@
 #include <bitset>
 #include <numeric>
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
@@ -79,13 +80,12 @@ namespace Sibelia
 		struct Task
 		{
 			bool isFinal;
-			size_t recId;
 			uint64_t start;
 			std::string str;
 			static const size_t TASK_SIZE = 65536;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
-			Task(size_t recId, uint64_t start, bool isFinal, std::string && str) : recId(recId), start(start), isFinal(isFinal), str(std::move(str)) {}
+			Task(uint64_t start, bool isFinal, std::string && str) :  start(start), isFinal(isFinal), str(std::move(str)) {}
 		};
 
 		DnaString kmer;			
@@ -119,14 +119,38 @@ namespace Sibelia
 			return hvalue >= low && hvalue <= high;
 		}
 
-		void CandidateCheckingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, const ConcurrentBitVector & bitVector, size_t vertexLength, TaskQueue & taskQueue, std::vector<std::unique_ptr<ConcurrentBitVector> > & isCandidBit)
+		DnaString MakeCanonicalRecord(DnaString posVertex, DnaString negVertex, char posExtend, char posPrev)
+		{
+			if (posVertex.GetBody() < negVertex.GetBody())
+			{
+				posVertex.AppendBack(posExtend);
+				posVertex.AppendBack(posPrev);
+				return posVertex;
+			}
+
+			negVertex.AppendBack(DnaString::Reverse(posPrev));
+			negVertex.AppendBack(DnaString::Reverse(posExtend));
+			return negVertex;
+		}
+
+		void CandidateCheckingWorker(uint64_t low,
+			uint64_t high,
+			const std::vector<uint64_t> & seed,
+			const ConcurrentBitVector & bitVector,
+			size_t vertexLength,
+			TaskQueue & taskQueue,
+			std::ofstream & outFile,
+			boost::mutex & outMutex,
+			size_t & total)
 		{
 			std::vector<size_t> hf(seed.size());
+			std::vector<uint64_t> output;
 			while (true)
 			{
 				Task task;
 				if (taskQueue.pop(task))
 				{
+					output.clear();
 					if (task.start == Task::GAME_OVER)
 					{
 						break;
@@ -146,12 +170,23 @@ namespace Sibelia
 
 					char negExtend;
 					char posPrev = 0;
-					DnaString negVertex = posVertex.RevComp();
-					for (size_t pos = 0; pos + vertexLength - 1 < task.str.size(); pos++)
+					DnaString negVertex = posVertex.RevComp();					
+					for (size_t pos = 0; ; pos++)
 					{
 						posVertex.AppendBack(task.str[pos + vertexLength - 1]);
 						negVertex.AppendFront(DnaString::Reverse(task.str[pos + vertexLength - 1]));
-						posExtend = pos + vertexLength < task.str.size() ? task.str[pos + vertexLength] : 0;
+						if (pos == 0 && task.start == 0 && posVertex.GetSize() >= vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
+						{
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+						}
+
+						if (pos + vertexLength >= task.str.size())
+						{
+							break;
+						}
+
+						posExtend = task.str[pos + vertexLength];
 						assert(posVertex.RevComp() == negVertex);
 
 						size_t hit = 0;
@@ -206,12 +241,26 @@ namespace Sibelia
 
 							if (inCount > 1 || outCount > 1)
 							{
-								isCandidBit[task.recId]->SetConcurrently(task.start + pos);
+								output.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
 							}
 						}
 
 						posPrev = posVertex.PopFront();
 						negExtend = negVertex.PopBack();
+					}
+
+					if (task.isFinal && posVertex.GetSize() >= vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
+					{
+						std::string t = posVertex.ToString();
+						output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
+						output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+					}
+
+					if (output.size() > 0)
+					{
+						total += output.size();
+						boost::lock_guard<boost::mutex> guard(outMutex);
+						outFile.write(reinterpret_cast<const char*>(&output[0]), output.size() * sizeof(output[0]));
 					}
 				}
 			}
@@ -319,7 +368,7 @@ namespace Sibelia
 											overlap.assign(buf.end() - overlapSize + 1, buf.end());
 										}
 
-										q->push(Task(record, prev, over, std::move(buf)));
+										q->push(Task(prev, over, std::move(buf)));
 										prev = start - overlapSize + 1;
 										buf.swap(overlap);
 										found = true;
@@ -340,23 +389,9 @@ namespace Sibelia
 					boost::this_thread::sleep_for(boost::chrono::nanoseconds(1000000));
 				}
 
-				taskQueue[i]->push(Task(0, Task::GAME_OVER, true, std::string()));
+				taskQueue[i]->push(Task(Task::GAME_OVER, true, std::string()));
 			}
-		}
-
-		DnaString MakeCanonicalRecord(DnaString posVertex, DnaString negVertex, char posExtend, char posPrev)
-		{
-			if (posVertex.GetBody() < negVertex.GetBody())
-			{
-				posVertex.AppendBack(posExtend);
-				posVertex.AppendBack(posPrev);
-				return posVertex;
-			}
-
-			negVertex.AppendBack(DnaString::Reverse(posPrev));
-			negVertex.AppendBack(DnaString::Reverse(posExtend));
-			return negVertex;
-		}
+		}		
 
 		void ParseRecord(size_t vertexSize, uint64_t kmer, char & extend, char & prev)
 		{
@@ -388,8 +423,6 @@ namespace Sibelia
 				return ret;
 			}
 		};
-
-		boost::mutex mtx;
 
 		struct TrueBifurcations
 		{
@@ -461,28 +494,35 @@ namespace Sibelia
 			throw std::runtime_error("The vertex size is too large");
 		}
 
+		std::string tmpFileName = "xtmp";
 		std::vector<uint64_t> seed(hashFunctions);
 		std::generate(seed.begin(), seed.end(), rand);
 		size_t edgeLength = vertexLength + 1;
-		uint64_t low = 0;
+		uint64_t low = 0;		
 		for (size_t round = 0; round < rounds; round++)
-		{
+		{			
 			time_t mark = time(0);
-			std::vector<uint64_t> candidate;
+			size_t totalRecords = 0;
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
 				std::vector<size_t> fastaRecordsSize;
 				std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
 				{
 					std::vector<TaskQueuePtr> taskQueue;
-					ConcurrentBitVector bitVector(filterSize);				
+					ConcurrentBitVector bitVector(filterSize);		
 					std::vector<boost::thread> workerThread(threads);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
 						taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
-						workerThread[i] = boost::thread(CountingWorker, low, high, boost::cref(seed), boost::ref(bitVector), edgeLength, boost::ref(*taskQueue[i]));
+						workerThread[i] = boost::thread(CountingWorker,
+							low,
+							high,
+							boost::cref(seed),
+							boost::ref(bitVector),
+							edgeLength,
+							boost::ref(*taskQueue[i]));
 					}
 
 					DistributeTasks(fileName, edgeLength, taskQueue, fastaRecordsSize);				
@@ -490,17 +530,28 @@ namespace Sibelia
 					{				
 						workerThread[i].join();
 					}
-
-					for (size_t sz : fastaRecordsSize)
+					
+					std::cout << time(0) - mark << "\t";
+					mark = time(0);					
+					boost::mutex tmpFileMutex;
+					std::ofstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
+					if (!tmpFile)
 					{
-						isCandidBit.push_back(std::unique_ptr<ConcurrentBitVector>(new ConcurrentBitVector(sz)));
+						throw StreamFastaParser::Exception("Can't open the temporary file");
 					}
 
-					std::cout << time(0) - mark << "\t";
-					mark = time(0);
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						workerThread[i] = boost::thread(CandidateCheckingWorker, low, high, boost::cref(seed), boost::cref(bitVector), vertexLength, boost::ref(*taskQueue[i]), boost::ref(isCandidBit));
+						workerThread[i] = boost::thread(CandidateCheckingWorker,
+							low,
+							high,
+							boost::cref(seed),
+							boost::cref(bitVector),
+							vertexLength,
+							boost::ref(*taskQueue[i]),
+							boost::ref(tmpFile),
+							boost::ref(tmpFileMutex),
+							boost::ref(totalRecords));
 					}
 
 					DistributeTasks(fileName, vertexLength, taskQueue, fastaRecordsSize);
@@ -510,59 +561,18 @@ namespace Sibelia
 					}
 				}
 			
-				std::cout << time(0) - mark << "\t";
-				mark = time(0);
-				for (const std::string & nowFileName : fileName)
-				{
-					size_t record = 0;
-					for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
-					{
-						char posExtend;
-						DnaString posVertex;
-						for (size_t j = 0; j < vertexLength && parser.GetChar(posExtend); j++)
-						{
-							posVertex.AppendBack(posExtend);
-						}
-
-						if (posVertex.GetSize() >= vertexLength)
-						{
-							char posPrev;
-							char negExtend;
-							size_t kmer = 0;						
-							DnaString negVertex = posVertex.RevComp();
-							if (Within(NormHash(seed, posVertex, negVertex), low, high))
-							{
-								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
-								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
-							}
-
-							for (bool go = true; go; kmer++)
-							{
-								if (go = parser.GetChar(posExtend))
-								{
-									if (kmer > 0 && isCandidBit[record]->Get(kmer))
-									{
-										candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
-									}
-
-									posVertex.AppendBack(posExtend);
-									negVertex.AppendFront(DnaString::Reverse(posExtend));
-									posPrev = posVertex.PopFront();
-									negExtend = negVertex.PopBack();
-								}
-							}
-
-							if (Within(NormHash(seed, posVertex, negVertex), low, high))
-							{
-								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
-								candidate.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
-							}
-						}
-					}
-				}
+				std::cout << time(0) - mark << "\t";				
 			}
 
-						
+			mark = time(0);
+			std::vector<uint64_t> candidate(totalRecords);
+			std::ifstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
+			if (!tmpFile)
+			{
+				throw StreamFastaParser::Exception("Can't open the temporary file");
+			}
+
+			tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
 			tbb::parallel_sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
 			tbb::parallel_for(tbb::blocked_range<size_t>(0, candidate.size()), TrueBifurcations(&candidate, &bifurcation_, vertexSize_));
 			std::cout << time(0) - mark << std::endl;
