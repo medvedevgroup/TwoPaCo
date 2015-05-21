@@ -400,17 +400,12 @@ namespace Sibelia
 				for (; j < candidate.size(); j++)
 				{
 					Candidate jcand(vertexSize, candidate[j]);
-					if (jcand.base != icand.base && jcand.base != icand.base.RevComp())
+					if (jcand.base != icand.base)
 					{
 						break;
 					}
 					else if (!bif)
 					{
-						if (jcand.base != icand.base)
-						{
-							jcand = jcand.Reverse();
-						}
-
 						bif = icand.prev != jcand.prev || icand.extend != jcand.extend;
 					}
 				}
