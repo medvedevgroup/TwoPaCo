@@ -82,7 +82,7 @@ namespace Sibelia
 			bool isFinal;
 			uint64_t start;
 			std::string str;
-			static const size_t TASK_SIZE = 65536;
+			static const size_t TASK_SIZE = 24;
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
 			Task(uint64_t start, bool isFinal, std::string && str) :  start(start), isFinal(isFinal), str(std::move(str)) {}
@@ -133,6 +133,17 @@ namespace Sibelia
 			return negVertex;
 		}
 
+		DnaString Generate(std::string::const_iterator it, size_t size)
+		{
+			DnaString str;
+			for (size_t i = 0; i < size; i++)
+			{
+				str.AppendBack(*(it + i));
+			}
+
+			return str;
+		}
+
 		void CandidateCheckingWorker(uint64_t low,
 			uint64_t high,
 			const std::vector<uint64_t> & seed,
@@ -150,7 +161,7 @@ namespace Sibelia
 				Task task;
 				if (taskQueue.pop(task))
 				{
-					output.clear();
+ 					output.clear();
 					if (task.start == Task::GAME_OVER)
 					{
 						break;
@@ -161,99 +172,105 @@ namespace Sibelia
 						continue;
 					}
 
-					char posExtend;
-					DnaString posVertex;
-					for (size_t j = 0; j < vertexLength - 1; j++)
+					if (task.start == 0)
 					{
-						posVertex.AppendBack(task.str[j]);
-					}
-
-					char negExtend;
-					char posPrev = 0;
-					DnaString negVertex = posVertex.RevComp();					
-					for (size_t pos = 0; ; pos++)
-					{
-						posVertex.AppendBack(task.str[pos + vertexLength - 1]);
-						negVertex.AppendFront(DnaString::Reverse(task.str[pos + vertexLength - 1]));
-						if (pos == 0 && task.start == 0 && posVertex.GetSize() >= vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
+						DnaString posVertex = Generate(task.str.begin(), vertexLength);
+						DnaString negVertex = posVertex.RevComp();
+						if (Within(NormHash(seed, posVertex, negVertex), low, high))
 						{
 							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
 							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
 						}
-
-						if (pos + vertexLength >= task.str.size())
-						{
-							break;
-						}
-
-						posExtend = task.str[pos + vertexLength];
-						assert(posVertex.RevComp() == negVertex);
-
-						size_t hit = 0;
-						uint64_t hvalue = UINT64_MAX;
-						DnaString kmer[] = { posVertex, negVertex };
-						for (size_t i = 0; i < 2; i++)
-						{
-							uint64_t body = kmer[i].GetBody();
-							hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
-						}
-
-						if (hvalue >= low && hvalue <= high)
-						{
-							size_t inCount = 0;
-							size_t outCount = 0;
-							for (int i = 0; i < DnaString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
-							{
-								char nextCh = DnaString::LITERAL[i];
-								char revNextCh = DnaString::Reverse(nextCh);
-								if (posPrev != 0 && nextCh == posPrev)
-								{
-									++inCount;
-								}
-								else
-								{
-									DnaString posInEdge = posVertex;
-									DnaString negInEdge = negVertex;
-									posInEdge.AppendFront(nextCh);
-									negInEdge.AppendBack(DnaString::Reverse(nextCh));
-									if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
-									{
-										inCount++;
-									}
-								}
-
-								if (posExtend != 0 && nextCh == posExtend)
-								{
-									++outCount;
-								}
-								else
-								{
-									DnaString posOutEdge = posVertex;
-									DnaString negOutEdge = negVertex;
-									posOutEdge.AppendBack(nextCh);
-									negOutEdge.AppendFront(DnaString::Reverse(nextCh));
-									if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
-									{
-										outCount++;
-									}
-								}
-							}
-
-							if (inCount > 1 || outCount > 1)
-							{
-								output.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
-							}
-						}
-
-						posPrev = posVertex.PopFront();
-						negExtend = negVertex.PopBack();
 					}
 
-					if (task.isFinal && posVertex.GetSize() >= vertexLength && Within(NormHash(seed, posVertex, negVertex), low, high))
+					if (task.isFinal)
 					{
-						std::string t = posVertex.ToString();
-						output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
-						output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+						DnaString posVertex = Generate(task.str.end() - vertexLength, vertexLength);
+						DnaString negVertex = posVertex.RevComp();
+						if (Within(NormHash(seed, posVertex, negVertex), low, high))
+						{
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+						}
+					}
+
+					if (task.str.size() >= vertexLength + 2)
+					{
+						DnaString posVertex = Generate(task.str.begin() + 1, vertexLength);	
+						DnaString negVertex = posVertex.RevComp();
+						for (size_t pos = 1;; ++pos)
+						{
+							char posPrev = task.str[pos - 1];
+							char posExtend = task.str[pos + vertexLength];
+							assert(posVertex.RevComp() == negVertex);
+							uint64_t hvalue = UINT64_MAX;
+							DnaString kmer[] = { posVertex, negVertex };
+							for (size_t i = 0; i < 2; i++)
+							{
+								uint64_t body = kmer[i].GetBody();
+								hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
+							}
+
+							if (hvalue >= low && hvalue <= high)
+							{
+								size_t inCount = 0;
+								size_t outCount = 0;
+								for (int i = 0; i < DnaString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
+								{
+									char nextCh = DnaString::LITERAL[i];
+									char revNextCh = DnaString::Reverse(nextCh);
+									if (nextCh == posPrev)
+									{
+										++inCount;
+									}
+									else
+									{
+										DnaString posInEdge = posVertex;
+										DnaString negInEdge = negVertex;
+										posInEdge.AppendFront(nextCh);
+										negInEdge.AppendBack(DnaString::Reverse(nextCh));
+										if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
+										{
+											inCount++;
+										}
+									}
+
+									if (nextCh == posExtend)
+									{
+										++outCount;
+									}
+									else
+									{
+										DnaString posOutEdge = posVertex;
+										DnaString negOutEdge = negVertex;
+										posOutEdge.AppendBack(nextCh);
+										negOutEdge.AppendFront(DnaString::Reverse(nextCh));
+										if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
+										{
+											outCount++;
+										}
+									}
+								}
+
+								if (inCount > 1 || outCount > 1)
+								{
+									output.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
+								}
+							}
+
+							if (pos + vertexLength + 1 < task.str.size())
+							{
+								posVertex.AppendBack(posExtend);								
+								negVertex.AppendFront(DnaString::Reverse(posExtend));
+								posVertex.PopFront();
+								negVertex.PopBack();
+							}
+							else
+							{
+								break;
+							}
+						}
+						
 					}
 
 					if (output.size() > 0)
@@ -329,9 +346,8 @@ namespace Sibelia
 			}
 		}
 
-		void DistributeTasks(const std::vector<std::string> & fileName, size_t overlapSize, std::vector<TaskQueuePtr> & taskQueue, std::vector<size_t> & fastaRecordsSize)
+		void DistributeTasks(const std::vector<std::string> & fileName, size_t overlapSize, std::vector<TaskQueuePtr> & taskQueue)
 		{
-			fastaRecordsSize.clear();
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
 				size_t record = 0;
@@ -339,7 +355,6 @@ namespace Sibelia
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
 					char ch;
-					fastaRecordsSize.push_back(0);
 					std::string buf;
 					uint64_t prev = 0;
 					uint64_t start = 0;
@@ -353,7 +368,6 @@ namespace Sibelia
 							buf.push_back(ch);
 						}
 
-						++fastaRecordsSize.back();
 						if (buf.size() >= overlapSize && (buf.size() == Task::TASK_SIZE || over))
 						{
 							for (bool found = false; !found;)
@@ -365,7 +379,7 @@ namespace Sibelia
 										std::string overlap;
 										if (!over)
 										{
-											overlap.assign(buf.end() - overlapSize + 1, buf.end());
+											overlap.assign(buf.end() - overlapSize, buf.end());
 										}
 
 										q->push(Task(prev, over, std::move(buf)));
@@ -392,13 +406,6 @@ namespace Sibelia
 				taskQueue[i]->push(Task(Task::GAME_OVER, true, std::string()));
 			}
 		}		
-
-		void ParseRecord(size_t vertexSize, uint64_t kmer, char & extend, char & prev)
-		{
-			DnaString str(vertexSize, kmer);
-			extend = str.GetChar(vertexSize);
-			prev = str.GetChar(vertexSize + 1);
-		}
 
 		struct Candidate
 		{
@@ -511,7 +518,6 @@ namespace Sibelia
 			size_t totalRecords = 0;
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
-				std::vector<size_t> fastaRecordsSize;
 				std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
 				{
 					std::vector<TaskQueuePtr> taskQueue;
@@ -531,7 +537,7 @@ namespace Sibelia
 							boost::ref(*taskQueue[i]));
 					}
 
-					DistributeTasks(fileName, edgeLength, taskQueue, fastaRecordsSize);				
+					DistributeTasks(fileName, edgeLength, taskQueue);				
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{				
 						workerThread[i].join();
@@ -560,7 +566,7 @@ namespace Sibelia
 							boost::ref(totalRecords));
 					}
 
-					DistributeTasks(fileName, vertexLength, taskQueue, fastaRecordsSize);
+					DistributeTasks(fileName, vertexLength + 1, taskQueue);
 					for (size_t i = 0; i < taskQueue.size(); i++)
 					{
 						workerThread[i].join();

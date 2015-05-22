@@ -126,7 +126,6 @@ namespace Sibelia
 		std::set<std::string> bif;
 		for (const std::string & nowFileName : fileName)
 		{
-			boost::mutex mu;
 			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
 			{
 				char ch;
@@ -203,7 +202,7 @@ namespace Sibelia
 		std::stringstream ss;
 		std::vector<std::string> fileName;
 		fileName.push_back("teste.fasta");
-		VertexEnumeratorTest(fileName, 3, 1025, ss);
+	//	VertexEnumeratorTest(fileName, 3, 1025, ss);
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
@@ -214,7 +213,7 @@ namespace Sibelia
 	//	fileName.push_back("g1.fasta");
 	//	fileName.push_back("g2.fasta");
 	//	fileName.push_back("g3.fasta");
-		for (size_t k = 6; k <= 16; k++)
+		for (size_t k = 6 + 1; k <= 16; k++)
 		{
 			VertexEnumeratorTest(fileName, k, (1 << 20) + 1, ss);
 		}
