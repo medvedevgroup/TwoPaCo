@@ -11,7 +11,7 @@ namespace Sibelia
 	{
 	public:
 		~ConcurrentBitVector();
-		ConcurrentBitVector(size_t size, size_t power = -1);
+		ConcurrentBitVector(size_t size);
 		void Init();
 		size_t Size() const;
 		size_t GetPower() const;
@@ -21,11 +21,11 @@ namespace Sibelia
 		static const size_t SUCCESS = -1;		
 		typedef std::atomic<uint64_t> UInt;
 		size_t size_;
-		size_t power_;
 		size_t realSize_;
 		UInt * filter_;
 		void GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const;
 	};
+
 }
 
 #endif

@@ -5,8 +5,8 @@
 
 namespace Sibelia
 {
-	ConcurrentBitVector::ConcurrentBitVector(size_t size, size_t power)
-		: size_(size), realSize_(size / 64 + 1), filter_(new UInt[realSize_]), power_(power)
+	ConcurrentBitVector::ConcurrentBitVector(size_t size)
+		: size_(size), realSize_(size / 64 + 1), filter_(new UInt[realSize_])
 	{
 		Init();
 	}
@@ -19,11 +19,6 @@ namespace Sibelia
 		}
 	}
 
-	size_t ConcurrentBitVector::GetPower() const
-	{
-		return power_;
-	}
-
 	size_t ConcurrentBitVector::Size() const
 	{
 		return size_;
@@ -34,13 +29,11 @@ namespace Sibelia
 		uint64_t bit;
 		uint64_t element;
 		uint64_t oldValue;
-		uint64_t newValue;
 		GetCoord(idx, element, bit);
 		do
 		{
-			oldValue = filter_[element].load();
-			newValue = oldValue | (uint64_t(1) << uint64_t(bit));
-		} while (!filter_[element].compare_exchange_strong(oldValue, newValue));
+			oldValue = filter_[element].load();			
+		} while (!filter_[element].compare_exchange_strong(oldValue, oldValue | (uint64_t(1) << uint64_t(bit))));
 	}
 
 	bool ConcurrentBitVector::Get(size_t idx) const

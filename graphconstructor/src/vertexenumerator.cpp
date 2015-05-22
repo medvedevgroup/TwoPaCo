@@ -32,8 +32,8 @@ namespace Sibelia
 			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
-				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
-				filter.SetConcurrently(hvalue % filter.Size());
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]) % filter.Size();
+				filter.SetConcurrently(hvalue);
 			}
 		}
 
@@ -42,8 +42,8 @@ namespace Sibelia
 			for (size_t i = 0; i < seed.size(); i++)
 			{
 				uint64_t body = item.GetBody();
-				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]);
-				if (!filter.Get(hvalue % filter.Size()))
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]) % filter.Size();
+				if (!filter.Get(hvalue))
 				{
 					return false;
 				}
@@ -82,7 +82,11 @@ namespace Sibelia
 			bool isFinal;
 			uint64_t start;
 			std::string str;
-			static const size_t TASK_SIZE = 24;
+#ifdef _DEBUG
+			static const size_t TASK_SIZE = 36;
+#else
+			static const size_t TASK_SIZE = 1 << 18;
+#endif			
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
 			Task(uint64_t start, bool isFinal, std::string && str) :  start(start), isFinal(isFinal), str(std::move(str)) {}
