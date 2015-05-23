@@ -26,9 +26,10 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
+#include <boost/atomic.hpp>
+
 int main(int argc, char * argv[])
 {
-	
 	assert(Sibelia::Runtests());
 	
 	try
