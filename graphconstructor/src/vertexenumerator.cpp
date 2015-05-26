@@ -27,13 +27,21 @@ namespace Sibelia
 
 	namespace
 	{
+		uint64_t filterPower;
+
+		uint64_t MOD(uint64_t idx)
+		{
+			const uint64_t ONE = 1;
+			return idx & ((ONE << filterPower) - ONE);
+		}
+
 		typedef std::unique_ptr<CyclicHash<uint64_t> > HashFunction;
 		
 		void PutInBloomFilter(ConcurrentBitVector & filter, std::vector<HashFunction> & seed, const DnaString & item)
 		{
 			for (size_t i = 0; i < seed.size(); i++)
 			{				
-				uint64_t hvalue = seed[i]->hash(item) % filter.Size();
+				uint64_t hvalue = seed[i]->hash(item);
 				filter.SetConcurrently(hvalue);
 			}
 		}
@@ -42,7 +50,7 @@ namespace Sibelia
 		{
 			for (size_t i = 0; i < seed.size(); i++)
 			{
-				uint64_t hvalue = seed[i]->hash(item) % filter.Size();
+				uint64_t hvalue = seed[i]->hash(item);
 				if (!filter.Get(hvalue))
 				{
 					return false;
@@ -508,12 +516,14 @@ namespace Sibelia
 		size_t aggregationThreads,
 		const std::string & tmpFileName) :
 		vertexSize_(vertexLength)
-	{		
+	{	
+		filterPower = filterSize;
+		filterSize = (size_t(1) << filterSize);
 		std::cout << "Threads = " << threads << std::endl;
 		std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 		std::cout << "Hash functions = " << hashFunctions << std::endl;
 		std::cout << "Filter size = " << filterSize << std::endl;
-
+		
 		if (vertexLength > 30)
 		{
 			throw std::runtime_error("The vertex size is too large");
@@ -522,7 +532,7 @@ namespace Sibelia
 		std::vector<HashFunction> seed;
 		for (size_t i = 0; i < hashFunctions; i++)
 		{
-			seed.push_back(HashFunction(new CyclicHash<uint64_t>(vertexLength, 64)));
+			seed.push_back(HashFunction(new CyclicHash<uint64_t>(vertexLength, filterPower)));
 		}
 
 		size_t edgeLength = vertexLength + 1;
