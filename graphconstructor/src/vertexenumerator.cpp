@@ -33,11 +33,11 @@ namespace Sibelia
 			{
 				uint64_t body = item.GetBody();
 				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]) % filter.Size();
-				filter.Set(hvalue);
+				filter.SetConcurrently(hvalue);
 			}
 		}
 
-		bool IsInBloomFilter(const NonConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & item)
+		bool IsInBloomFilter(const ConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
 			for (size_t i = 0; i < seed.size(); i++)
 			{
@@ -151,7 +151,7 @@ namespace Sibelia
 		void CandidateCheckingWorker(uint64_t low,
 			uint64_t high,
 			const std::vector<uint64_t> & seed,
-			const NonConcurrentBitVector & bitVector,
+			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
 			std::ofstream & outFile,
@@ -233,7 +233,8 @@ namespace Sibelia
 										DnaString negInEdge = negVertex;
 										posInEdge.AppendFront(nextCh);
 										negInEdge.AppendBack(DnaString::Reverse(nextCh));
-										if (IsInBloomFilter(bitVector, seed, posInEdge) || IsInBloomFilter(bitVector, seed, negInEdge))
+										if ((posInEdge.GetBody() <= negInEdge.GetBody() && IsInBloomFilter(bitVector, seed, posInEdge)) ||
+											(negInEdge.GetBody() < posInEdge.GetBody() && IsInBloomFilter(bitVector, seed, negInEdge)))
 										{
 											inCount++;
 										}
@@ -249,7 +250,8 @@ namespace Sibelia
 										DnaString negOutEdge = negVertex;
 										posOutEdge.AppendBack(nextCh);
 										negOutEdge.AppendFront(DnaString::Reverse(nextCh));
-										if (IsInBloomFilter(bitVector, seed, posOutEdge) || IsInBloomFilter(bitVector, seed, negOutEdge))
+										if ((posOutEdge.GetBody() <= negOutEdge.GetBody() && IsInBloomFilter(bitVector, seed, posOutEdge)) ||
+											(negOutEdge.GetBody() < posOutEdge.GetBody() && IsInBloomFilter(bitVector, seed, negOutEdge)))
 										{
 											outCount++;
 										}
@@ -340,7 +342,15 @@ namespace Sibelia
 
 						if (hit)
 						{
-							PutInBloomFilter(bitVector, seed, posEdge);
+							if (posEdge.GetBody() < negEdge.GetBody())
+							{
+								PutInBloomFilter(bitVector, seed, posEdge);
+							}
+							else
+							{
+								PutInBloomFilter(bitVector, seed, negEdge);
+							}
+							
 						}
 
 						posEdge.PopFront();
@@ -522,36 +532,31 @@ namespace Sibelia
 			size_t totalRecords = 0;
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
-				std::vector<TaskQueuePtr> taskQueue;					
-				std::vector<boost::thread> workerThread(threads);
-				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
-				std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
+				std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
 				{
+					std::vector<TaskQueuePtr> taskQueue;
+					ConcurrentBitVector bitVector(filterSize);		
+					std::vector<boost::thread> workerThread(threads);
+					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
+					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
+					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						ConcurrentBitVector bitVector(filterSize);
-						for (size_t i = 0; i < workerThread.size(); i++)
-						{
-							taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
-								workerThread[i] = boost::thread(CountingWorker,
-								low,
-								high,
-								boost::cref(seed),
-								boost::ref(bitVector),
-								edgeLength,
-								boost::ref(*taskQueue[i]));
-						}
-
-						DistributeTasks(fileName, edgeLength, taskQueue);				
-						for (size_t i = 0; i < workerThread.size(); i++)
-						{				
-							workerThread[i].join();
-						}
-
-						bitVector.DumpToStream(tmpFileName);
+						taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+						workerThread[i] = boost::thread(CountingWorker,
+							low,
+							high,
+							boost::cref(seed),
+							boost::ref(bitVector),
+							edgeLength,
+							boost::ref(*taskQueue[i]));
 					}
 
-					NonConcurrentBitVector bitVector(filterSize);
-					bitVector.ReadFromStream(tmpFileName);
+					DistributeTasks(fileName, edgeLength, taskQueue);				
+					for (size_t i = 0; i < workerThread.size(); i++)
+					{				
+						workerThread[i].join();
+					}
+					
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);					
 					boost::mutex tmpFileMutex;
@@ -590,7 +595,7 @@ namespace Sibelia
 			std::ifstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
 			if (!tmpFile)
 			{
-				throw std::runtime_error("Can't open the temporary file");
+				throw StreamFastaParser::Exception("Can't open the temporary file");
 			}
 
 			tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
