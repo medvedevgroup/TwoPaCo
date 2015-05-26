@@ -18,6 +18,7 @@
 #include "test.h"
 #include "vertexenumerator.h"
 
+
 size_t Atoi(const char * str)
 {
 	size_t ret;
@@ -26,9 +27,9 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
+
 int main(int argc, char * argv[])
 {
-	
 	assert(Sibelia::Runtests());
 	
 	try
