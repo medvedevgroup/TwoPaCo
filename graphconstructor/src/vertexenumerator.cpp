@@ -17,7 +17,7 @@
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 
-#include "ngramhashing/cyclichash.h"
+#include "lib/SpookyV2.h"
 
 #include "vertexenumerator.h"
 
@@ -27,30 +27,22 @@ namespace Sibelia
 
 	namespace
 	{
-		uint64_t filterPower;
-
-		uint64_t MOD(uint64_t idx)
-		{
-			const uint64_t ONE = 1;
-			return idx & ((ONE << filterPower) - ONE);
-		}
-
-		typedef std::unique_ptr<CyclicHash<uint64_t> > HashFunction;
-		
-		void PutInBloomFilter(ConcurrentBitVector & filter, std::vector<HashFunction> & seed, const DnaString & item)
+		void PutInBloomFilter(ConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
 			for (size_t i = 0; i < seed.size(); i++)
-			{				
-				uint64_t hvalue = seed[i]->hash(item);
+			{
+				uint64_t body = item.GetBody();
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]) % filter.Size();
 				filter.SetConcurrently(hvalue);
 			}
 		}
 
-		bool IsInBloomFilter(const ConcurrentBitVector & filter, std::vector<HashFunction> & seed, const DnaString & item)
+		bool IsInBloomFilter(const ConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & item)
 		{
 			for (size_t i = 0; i < seed.size(); i++)
 			{
-				uint64_t hvalue = seed[i]->hash(item);
+				uint64_t body = item.GetBody();
+				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body), seed[i]) % filter.Size();
 				if (!filter.Get(hvalue))
 				{
 					return false;
@@ -113,13 +105,14 @@ namespace Sibelia
 			return ss.str();
 		}
 
-		uint64_t NormHash(std::vector<HashFunction> & seed, DnaString posVertex, DnaString negVertex)
+		uint64_t NormHash(const std::vector<uint64_t> & seed, DnaString posVertex, DnaString negVertex)
 		{
 			uint64_t hvalue = UINT64_MAX;
 			DnaString kmer[] = { posVertex, negVertex };
 			for (size_t i = 0; i < 2; i++)
 			{
-				hvalue = std::min(hvalue, seed[0]->hash(kmer[i]));
+				uint64_t body = kmer[i].GetBody();
+				hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
 			}
 
 			return hvalue;
@@ -157,7 +150,7 @@ namespace Sibelia
 
 		void CandidateCheckingWorker(uint64_t low,
 			uint64_t high,
-			std::vector<HashFunction> & seed,
+			const std::vector<uint64_t> & seed,
 			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
@@ -218,7 +211,8 @@ namespace Sibelia
 							DnaString kmer[] = { posVertex, negVertex };
 							for (size_t i = 0; i < 2; i++)
 							{
-								hvalue = seed[0]->hash(kmer[i]);
+								uint64_t body = kmer[i].GetBody();
+								hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
 							}
 
 							if (hvalue >= low && hvalue <= high)
@@ -295,7 +289,7 @@ namespace Sibelia
 			}
 		}
 
-		void CountingWorker(uint64_t low, uint64_t high, std::vector<HashFunction> & seed, ConcurrentBitVector & bitVector, size_t edgeLength, TaskQueue & taskQueue)
+		void CountingWorker(uint64_t low, uint64_t high, const std::vector<uint64_t> & seed, ConcurrentBitVector & bitVector, size_t edgeLength, TaskQueue & taskQueue)
 		{
 			std::vector<size_t> hf(seed.size());
 			while (true)
@@ -338,8 +332,9 @@ namespace Sibelia
 							uint64_t hvalue = UINT64_MAX;
 							assert(kmer[i][0] == kmer[i][1].RevComp());
 							for (size_t j = 0; j < 2 && !hit; j++)
-							{								
-								hvalue = seed[0]->hash(kmer[i][j]);
+							{
+								uint64_t body = kmer[i][j].GetBody();
+								hvalue = std::min(hvalue, SpookyHash::Hash64(&body, sizeof(body), seed[0]));
 							}
 
 							hit += (hvalue >= low && hvalue <= high) ? 1 : 0;
@@ -516,25 +511,19 @@ namespace Sibelia
 		size_t aggregationThreads,
 		const std::string & tmpFileName) :
 		vertexSize_(vertexLength)
-	{	
-		filterPower = filterSize;
-		filterSize = (size_t(1) << filterSize);
+	{		
 		std::cout << "Threads = " << threads << std::endl;
 		std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 		std::cout << "Hash functions = " << hashFunctions << std::endl;
 		std::cout << "Filter size = " << filterSize << std::endl;
-		
+
 		if (vertexLength > 30)
 		{
 			throw std::runtime_error("The vertex size is too large");
 		}
 
-		std::vector<HashFunction> seed;
-		for (size_t i = 0; i < hashFunctions; i++)
-		{
-			seed.push_back(HashFunction(new CyclicHash<uint64_t>(vertexLength, filterPower)));
-		}
-
+		std::vector<uint64_t> seed(hashFunctions);
+		std::generate(seed.begin(), seed.end(), rand);
 		size_t edgeLength = vertexLength + 1;
 		uint64_t low = 0;		
 		for (size_t round = 0; round < rounds; round++)
@@ -556,7 +545,7 @@ namespace Sibelia
 						workerThread[i] = boost::thread(CountingWorker,
 							low,
 							high,
-							boost::ref(seed),
+							boost::cref(seed),
 							boost::ref(bitVector),
 							edgeLength,
 							boost::ref(*taskQueue[i]));
@@ -582,7 +571,7 @@ namespace Sibelia
 						workerThread[i] = boost::thread(CandidateCheckingWorker,
 							low,
 							high,
-							boost::ref(seed),
+							boost::cref(seed),
 							boost::cref(bitVector),
 							vertexLength,
 							boost::ref(*taskQueue[i]),
