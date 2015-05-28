@@ -13,7 +13,7 @@
 #include <boost/ref.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
-#include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 
@@ -281,8 +281,8 @@ namespace Sibelia
 
 					if (output.size() > 0)
 					{
-						total += output.size();
 						boost::lock_guard<boost::mutex> guard(outMutex);
+						total += output.size();						
 						outFile.write(reinterpret_cast<const char*>(&output[0]), output.size() * sizeof(output[0]));
 					}
 				}
@@ -448,12 +448,13 @@ namespace Sibelia
 		struct TrueBifurcations
 		{
 			size_t vertexSize;
+			uint64_t falsePositives;
 			std::vector<uint64_t> * candidate;
 			tbb::concurrent_vector<uint64_t> * out;
 			TrueBifurcations(std::vector<uint64_t> * candidate, tbb::concurrent_vector<uint64_t> * out, size_t vertexSize) :
-				candidate(candidate), out(out), vertexSize(vertexSize) {}
+				candidate(candidate), out(out), vertexSize(vertexSize), falsePositives(0) {}
 
-			void operator()(const tbb::blocked_range<size_t> & range) const
+			uint64_t operator()(const tbb::blocked_range<size_t> & range, uint64_t init) const
 			{
 				size_t i = range.begin();
 				if (i > 0)
@@ -465,7 +466,7 @@ namespace Sibelia
 					}					
 				}
 
-
+				uint64_t falsePositives = init;
 				for (; i < range.end(); )
 				{
 					size_t j = i + 1;
@@ -494,9 +495,15 @@ namespace Sibelia
 					{
 						out->push_back(icand.base.GetBody());
 					}
+					else
+					{
+						falsePositives++;
+					}
 
 					i = j;
 				}
+
+				return falsePositives;
 			}
 		};
 
@@ -516,6 +523,13 @@ namespace Sibelia
 		std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 		std::cout << "Hash functions = " << hashFunctions << std::endl;
 		std::cout << "Filter size = " << filterSize << std::endl;
+		std::cout << "Files: " << std::endl;
+		for (const std::string & fn : fileName)
+		{
+			std::cout << fn << std::endl;
+		}
+
+		std::cout << std::string(80, '-') << std::endl;
 
 		if (vertexLength > 30)
 		{
@@ -598,12 +612,21 @@ namespace Sibelia
 				throw StreamFastaParser::Exception("Can't open the temporary file");
 			}
 
-			tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
+			if (totalRecords > 0)
+			{ 
+				tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
+			}
+
 			tbb::parallel_sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
-			tbb::parallel_for(tbb::blocked_range<size_t>(0, candidate.size()), TrueBifurcations(&candidate, &bifurcation_, vertexSize_));
+			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<size_t>(0, candidate.size()),
+				uint64_t(0),
+				TrueBifurcations(&candidate, &bifurcation_, vertexSize_),
+				std::plus<uint64_t>());
+
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
-			std::cout << "FP count = " << candidate.size() << std::endl;
+			std::cout << "FP count = " << falsePositives << std::endl;
+			std::cout << "Records = " << candidate.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			low = high + 1;
 		}
