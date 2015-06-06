@@ -472,7 +472,8 @@ namespace Sibelia
 						if (oldRecord.GetStatus() == Record::CANDIDATE && (oldRecord.GetPrev() != record.GetPrev() || oldRecord.GetNext() != record.GetNext()))
 						{						
 							records.erase(it);
-							records.insert(Record(oldRecord.GetBody(), oldRecord.GetPrev(), oldRecord.GetNext(), Record::BIFURCATION).GetBody());
+							records.insert(Record(record.GetVertex(), record.GetPrev(), record.GetNext(), Record::BIFURCATION).GetBody());
+							assert(Record(*records.find(record.GetVertex().GetBody()), vertexLength).GetStatus() == Record::BIFURCATION);
 						}
 					}
 				}
@@ -622,6 +623,7 @@ namespace Sibelia
 					}
 
 					RecordSet records(1 << 20, RecordHashFunction(vertexLength), RecordEquality(vertexLength));
+					records.set_deleted_key(Record::Deleted().GetBody());
 					boost::thread aggregator(AggregationWorker, boost::ref(records), boost::ref(recordQueue), boost::ref(mutex), vertexLength);
 					DistributeTasks(fileName, vertexLength + 1, taskQueue);
 					for (size_t i = 0; i < taskQueue.size(); i++)
@@ -629,10 +631,12 @@ namespace Sibelia
 						workerThread[i].join();
 					}
 
-					boost::lock_guard<boost::mutex> guard(mutex);
-					recordQueue.push(std::vector<Record>());
-					aggregator.join();
+					{
+						boost::lock_guard<boost::mutex> guard(mutex);
+						recordQueue.push(std::vector<Record>());					
+					}
 
+					aggregator.join();
 					for (uint64_t rec : records)
 					{
 						Record record(rec, vertexLength);
