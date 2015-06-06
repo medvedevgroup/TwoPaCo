@@ -7,3 +7,13 @@
 -------------------------------
 
 6) Parallelizing FP removal -- can subdivide k-mers even further, and each thread can have its own hashtable
+
+9 mammals:
+k=26, kmers=19 903 050 417
+k=25, kmers=19 602 007 135
+
+BF size = 160 000 000 003
+
+7 humans:
+
+k=26, kmers=3 779 052 675
