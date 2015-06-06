@@ -115,33 +115,43 @@ namespace Sibelia
 		class Record
 		{
 		public:
-
-			enum Status
-			{
-				candidate,
-				bifurcation,
-				deleted,
-			};
+			
+			static const char DELETED = 'G';
+			static const char CANDIDATE = 'A';
+			static const char BIFURCATION = 'C';			
 
 			Record() {}
-			Record(DnaString posVertex, DnaString negVertex, char posPrev, char posNext, Status status = candidate)
+			Record(DnaString posVertex, DnaString negVertex, char posPrev, char posNext, char status = CANDIDATE)
+			{
+				if (posVertex.GetBody() < negVertex.GetBody())
+				{
+					*this = Record(posVertex, posPrev, posNext, status);
+				}
+				else
+				{
+					*this = Record(negVertex, DnaString::Reverse(posNext), DnaString::Reverse(posPrev), status);
+				}
+			}
+
+			Record(DnaString canVertex, char prev, char next, char status = CANDIDATE) : vertex_(canVertex), prev_(prev), next_(next), status_(status)
 			{
 
 			}
 
-			Record(DnaString canVertex, char prev, char next, Status status = candidate)
+			Record(uint64_t body, size_t vertexLength) : vertex_(body, vertexLength)
 			{
-
-			}
-
-			Record(uint64_t body, size_t vertexLength)
-			{
-
+				status_ = vertex_.PopBack();
+				next_ = vertex_.PopBack();
+				prev_ = vertex_.PopBack();
 			}
 
 			uint64_t GetBody() const
 			{
-				return 0;
+				DnaString record(vertex_);
+				record.AppendBack(prev_);
+				record.AppendBack(next_);
+				record.AppendBack(status_);
+				return record.GetBody();
 			}
 
 			DnaString GetVertex() const
@@ -159,14 +169,14 @@ namespace Sibelia
 				return next_;
 			}
 
-			Status GetStatus() const
+			char GetStatus() const
 			{
-				return candidate;
+				return status_;
 			}
 
 			static Record Deleted()
 			{
-				return Record(DnaString(), 'A', 'C', deleted);
+				return Record(DnaString(), 'A', 'C', DELETED);
 			}
 
 		private:
@@ -179,23 +189,44 @@ namespace Sibelia
 		class RecordHashFunction
 		{
 		public:
-			RecordHashFunction(size_t vertexLength)
+			RecordHashFunction(size_t vertexLength) : vertexLength_(vertexLength)
 			{
 
 			}
 
+			uint64_t operator()(const uint64_t & body) const
+			{
+				Record record(body, vertexLength_);
+				uint64_t vertexBody = record.GetVertex().GetBody();
+				return SpookyHash::Hash64(&vertexBody, sizeof(vertexBody), 0);
+			}
+
 		private:
+			size_t vertexLength_;
 		};
 
 		class RecordEquality
 		{
 		public:
-			RecordEquality(size_t vertexLength)
+			RecordEquality(size_t vertexLength) : vertexLength_(vertexLength)
 			{
 
 			}
 
+			bool operator() (const uint64_t & body1, const uint64_t & body2) const
+			{
+				Record record1(body1, vertexLength_);
+				Record record2(body2, vertexLength_);
+				if (record1.GetStatus() == Record::DELETED || record2.GetStatus() == Record::DELETED)
+				{
+					return record1.GetStatus() == record2.GetStatus();
+				}
+
+				return record1.GetVertex() == record2.GetVertex();
+			}
+
 		private:
+			size_t vertexLength_;
 		};
 
 		typedef google::sparse_hash_set<uint64_t, RecordHashFunction, RecordEquality> RecordSet;
@@ -437,7 +468,12 @@ namespace Sibelia
 					}
 					else
 					{
-						Record oldRecord(*it, )
+						Record oldRecord(*it, vertexLength);
+						if (oldRecord.GetStatus() == Record::CANDIDATE && (oldRecord.GetPrev() != record.GetPrev() || oldRecord.GetNext() != record.GetNext()))
+						{						
+							records.erase(it);
+							records.insert(Record(oldRecord.GetBody(), oldRecord.GetPrev(), oldRecord.GetNext(), Record::BIFURCATION).GetBody());
+						}
 					}
 				}
 			}
@@ -600,7 +636,7 @@ namespace Sibelia
 					for (uint64_t rec : records)
 					{
 						Record record(rec, vertexLength);
-						if (record.GetStatus() == Record::bifurcation)
+						if (record.GetStatus() == Record::BIFURCATION)
 						{
 							bifurcation_.push_back(record.GetVertex().GetBody());
 						}
