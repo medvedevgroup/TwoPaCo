@@ -231,7 +231,10 @@ namespace Sibelia
 		};
 
 		typedef google::sparse_hash_set<uint64_t, RecordHashFunction, RecordEquality> RecordSet;
-		typedef std::queue<std::vector<Record> > RecordQueue;
+		typedef std::queue<std::vector<uint64_t> > RecordQueue;
+
+		size_t queueNowSize;
+		size_t queueMaxSize;
 
 		void CandidateCheckingWorker(uint64_t low,
 			uint64_t high,
@@ -243,7 +246,7 @@ namespace Sibelia
 			boost::mutex & outMutex)
 		{
 			std::vector<size_t> hf(seed.size());
-			std::vector<Record> output;
+			std::vector<uint64_t> output;
 			while (true)
 			{
 				Task task;
@@ -265,8 +268,8 @@ namespace Sibelia
 						DnaString negVertex = posVertex.RevComp();
 						if (Within(NormHash(seed, posVertex, negVertex), low, high))
 						{
-							output.push_back(Record(posVertex, negVertex, 'A', 'A'));
-							output.push_back(Record(posVertex, negVertex, 'C', 'A'));
+							output.push_back(Record(posVertex, negVertex, 'A', 'A').GetBody());
+							output.push_back(Record(posVertex, negVertex, 'C', 'A').GetBody());
 						}
 					}
 
@@ -276,8 +279,8 @@ namespace Sibelia
 						DnaString negVertex = posVertex.RevComp();
 						if (Within(NormHash(seed, posVertex, negVertex), low, high))
 						{
-							output.push_back(Record(posVertex, negVertex, 'A', 'A'));
-							output.push_back(Record(posVertex, negVertex, 'C', 'A'));
+							output.push_back(Record(posVertex, negVertex, 'A', 'A').GetBody());
+							output.push_back(Record(posVertex, negVertex, 'C', 'A').GetBody());
 						}
 					}
 
@@ -343,10 +346,10 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									output.push_back(Record(posVertex, negVertex, posExtend, posPrev));
+									output.push_back(Record(posVertex, negVertex, posExtend, posPrev).GetBody());
 									if (posVertex == negVertex)
 									{
-										output.push_back(Record(posVertex, negVertex, DnaString::Reverse(posPrev), DnaString::Reverse(posExtend)));
+										output.push_back(Record(posVertex, negVertex, DnaString::Reverse(posPrev), DnaString::Reverse(posExtend)).GetBody());
 									}
 								}
 							}
@@ -369,6 +372,7 @@ namespace Sibelia
 					if (output.size() > 0)
 					{
 						boost::lock_guard<boost::mutex> guard(outMutex);
+						queueNowSize += output.size();
 						recordQueue.push(std::move(output));
 					}
 				}
@@ -450,12 +454,15 @@ namespace Sibelia
 		{
 			while (true)
 			{
-				std::vector<Record> candidate;
+				std::vector<uint64_t> candidate;
 				{
 					boost::lock_guard<boost::mutex> guard(queueMutex);
 					if (recordQueue.size() > 0)
 					{
+						queueMaxSize = std::max(queueMaxSize, queueNowSize);
 						candidate = std::move(recordQueue.front());
+						queueNowSize -= candidate.size();
+
 						recordQueue.pop();
 						if (candidate.empty())
 						{
@@ -464,8 +471,9 @@ namespace Sibelia
 					}
 				}
 
-				for (Record & record : candidate)
+				for (uint64_t & body : candidate)
 				{
+					Record record(vertexLength, body);
 					RecordSet::iterator it = records.find(record.GetVertex().GetBody());
 					if (it == records.end())
 					{
@@ -583,81 +591,81 @@ namespace Sibelia
 		{			
 			time_t mark = time(0);
 			size_t totalRecords = 0;
+			queueMaxSize = queueNowSize = 0;
+			RecordSet records(1 << 20, RecordHashFunction(vertexLength), RecordEquality(vertexLength));
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
-				std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
+				std::vector<TaskQueuePtr> taskQueue;
+				ConcurrentBitVector bitVector(filterSize);		
+				std::vector<boost::thread> workerThread(threads);
+				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
+				std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
+				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					std::vector<TaskQueuePtr> taskQueue;
-					ConcurrentBitVector bitVector(filterSize);		
-					std::vector<boost::thread> workerThread(threads);
-					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
-					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
-					for (size_t i = 0; i < workerThread.size(); i++)
-					{
-						taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
-						workerThread[i] = boost::thread(CountingWorker,
-							low,
-							high,
-							boost::cref(seed),
-							boost::ref(bitVector),
-							edgeLength,
-							boost::ref(*taskQueue[i]));
-					}
-
-					DistributeTasks(fileName, edgeLength, taskQueue);				
-					for (size_t i = 0; i < workerThread.size(); i++)
-					{				
-						workerThread[i].join();
-					}
-					
-					std::cout << time(0) - mark << "\t";
-					mark = time(0);					
-					boost::mutex mutex;
-					RecordQueue recordQueue;
-					for (size_t i = 0; i < workerThread.size(); i++)
-					{
-						workerThread[i] = boost::thread(CandidateCheckingWorker,
-							low,
-							high,
-							boost::cref(seed),
-							boost::cref(bitVector),
-							vertexLength,
-							boost::ref(*taskQueue[i]),
-							boost::ref(recordQueue),
-							boost::ref(mutex));
-					}
-
-					RecordSet records(1 << 20, RecordHashFunction(vertexLength), RecordEquality(vertexLength));
-					records.set_deleted_key(Record::Deleted(vertexLength).GetBody());
-					boost::thread aggregator(AggregationWorker, boost::ref(records), boost::ref(recordQueue), boost::ref(mutex), vertexLength);
-					DistributeTasks(fileName, vertexLength + 1, taskQueue);
-					for (size_t i = 0; i < taskQueue.size(); i++)
-					{
-						workerThread[i].join();
-					}
-
-					{
-						boost::lock_guard<boost::mutex> guard(mutex);
-						recordQueue.push(std::vector<Record>());					
-					}
-
-					aggregator.join();
-					for (uint64_t rec : records)
-					{
-						Record record(vertexLength, rec);
-						if (record.GetStatus() == Record::BIFURCATION)
-						{
-							bifurcation_.push_back(record.GetVertex().GetBody());
-						}
-					}
+					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+					workerThread[i] = boost::thread(CountingWorker,
+						low,
+						high,
+						boost::cref(seed),
+						boost::ref(bitVector),
+						edgeLength,
+						boost::ref(*taskQueue[i]));
 				}
-			
+
+				DistributeTasks(fileName, edgeLength, taskQueue);				
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{				
+					workerThread[i].join();
+				}
+					
+				std::cout << time(0) - mark << "\t";
+				mark = time(0);					
+				boost::mutex mutex;
+				RecordQueue recordQueue;
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					workerThread[i] = boost::thread(CandidateCheckingWorker,
+						low,
+						high,
+						boost::cref(seed),
+						boost::cref(bitVector),
+						vertexLength,
+						boost::ref(*taskQueue[i]),
+						boost::ref(recordQueue),
+						boost::ref(mutex));
+				}
+
+				records.set_deleted_key(Record::Deleted(vertexLength).GetBody());
+				boost::thread aggregator(AggregationWorker, boost::ref(records), boost::ref(recordQueue), boost::ref(mutex), vertexLength);
+				DistributeTasks(fileName, vertexLength + 1, taskQueue);
+				for (size_t i = 0; i < taskQueue.size(); i++)
+				{
+					workerThread[i].join();
+				}
+
+				{
+					boost::lock_guard<boost::mutex> guard(mutex);
+					recordQueue.push(std::vector<uint64_t>());					
+				}
+
+				aggregator.join();					
 				std::cout << time(0) - mark << std::endl;				
 			}
 
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
+			std::cout << "Queue max size = " << queueMaxSize << std::endl;
+			std::cout << "Ht size = " << records.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			low = high + 1;
+
+			for (uint64_t rec : records)
+			{
+				Record record(vertexLength, rec);
+				if (record.GetStatus() == Record::BIFURCATION)
+				{
+					bifurcation_.push_back(record.GetVertex().GetBody());
+				}
+			}
 		}
 		
 		std::sort(bifurcation_.begin(), bifurcation_.end());
