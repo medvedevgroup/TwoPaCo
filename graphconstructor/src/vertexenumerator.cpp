@@ -652,7 +652,7 @@ namespace Sibelia
 					}
 				}
 			
-				std::cout << time(0) - mark << "\t";				
+				std::cout << time(0) - mark << std::endl;				
 			}
 
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
