@@ -115,10 +115,10 @@ namespace Sibelia
 		class Record
 		{
 		public:
-			
+
 			static const char DELETED = 'G';
 			static const char CANDIDATE = 'A';
-			static const char BIFURCATION = 'C';			
+			static const char BIFURCATION = 'C';
 
 			Record() {}
 			Record(DnaString posVertex, DnaString negVertex, char posPrev, char posNext, char status = CANDIDATE)
@@ -133,41 +133,46 @@ namespace Sibelia
 				}
 			}
 
-			Record(DnaString canVertex, char prev, char next, char status = CANDIDATE) : vertex_(canVertex)
+			Record(DnaString canVertex, char prev, char next, char status = CANDIDATE) : vertex_(canVertex), prev_(prev), next_(next), status_(status)
 			{
-				vertex_.AppendBack(prev);
-				vertex_.AppendBack(next);
-				vertex_.AppendBack(status);
+
 			}
 
 			Record(size_t vertexLength, uint64_t body) : vertex_(vertexLength + 3, body)
 			{
 				assert(vertexLength <= 29);
+				status_ = vertex_.PopBack();
+				next_ = vertex_.PopBack();
+				prev_ = vertex_.PopBack();
 			}
 
 			uint64_t GetBody() const
 			{
-				return vertex_.GetBody();
+				DnaString record(vertex_);
+				record.AppendBack(prev_);
+				record.AppendBack(next_);
+				record.AppendBack(status_);
+				return record.GetBody();
 			}
 
 			DnaString GetVertex() const
 			{
-				return vertex_.Prefix(vertex_.GetSize() - 3);
+				return vertex_;
 			}
 
 			char GetPrev() const
 			{
-				return vertex_.GetChar(vertex_.GetSize() - 3);
+				return prev_;
 			}
 
 			char GetNext() const
 			{
-				return vertex_.GetChar(vertex_.GetSize() - 2);
+				return next_;
 			}
 
 			char GetStatus() const
 			{
-				return vertex_.GetChar(vertex_.GetSize() - 1);
+				return status_;
 			}
 
 			static Record Deleted(size_t vertexLength)
@@ -177,7 +182,10 @@ namespace Sibelia
 
 		private:
 			DnaString vertex_;
-		};		
+			char prev_;
+			char next_;
+			char status_;
+		};
 
 		class RecordHashFunction
 		{
@@ -228,6 +236,7 @@ namespace Sibelia
 		size_t queueNowSize;
 		size_t queueMaxSize;
 		std::vector<size_t> chunkSize;
+
 
 		void CheckCandidate(size_t vertexLength, RecordSet & records, boost::mutex & outMutex, const Record & record)
 		{
