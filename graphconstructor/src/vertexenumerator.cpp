@@ -138,8 +138,9 @@ namespace Sibelia
 
 			}
 
-			Record(uint64_t body, size_t vertexLength) : vertex_(body, vertexLength)
+			Record(size_t vertexLength, uint64_t body) : vertex_(vertexLength + 3, body)
 			{
+				assert(vertexLength <= 29);
 				status_ = vertex_.PopBack();
 				next_ = vertex_.PopBack();
 				prev_ = vertex_.PopBack();
@@ -174,9 +175,9 @@ namespace Sibelia
 				return status_;
 			}
 
-			static Record Deleted()
+			static Record Deleted(size_t vertexLength)
 			{
-				return Record(DnaString(), 'A', 'C', DELETED);
+				return Record(DnaString(vertexLength), 'A', 'C', DELETED);
 			}
 
 		private:
@@ -196,7 +197,7 @@ namespace Sibelia
 
 			uint64_t operator()(const uint64_t & body) const
 			{
-				Record record(body, vertexLength_);
+				Record record(vertexLength_, body);
 				uint64_t vertexBody = record.GetVertex().GetBody();
 				return SpookyHash::Hash64(&vertexBody, sizeof(vertexBody), 0);
 			}
@@ -215,8 +216,8 @@ namespace Sibelia
 
 			bool operator() (const uint64_t & body1, const uint64_t & body2) const
 			{
-				Record record1(body1, vertexLength_);
-				Record record2(body2, vertexLength_);
+				Record record1(vertexLength_, body1);
+				Record record2(vertexLength_, body2);
 				if (record1.GetStatus() == Record::DELETED || record2.GetStatus() == Record::DELETED)
 				{
 					return record1.GetStatus() == record2.GetStatus();
@@ -343,6 +344,10 @@ namespace Sibelia
 								if (inCount > 1 || outCount > 1)
 								{
 									output.push_back(Record(posVertex, negVertex, posExtend, posPrev));
+									if (posVertex == negVertex)
+									{
+										output.push_back(Record(posVertex, negVertex, DnaString::Reverse(posPrev), DnaString::Reverse(posExtend)));
+									}
 								}
 							}
 
@@ -468,12 +473,12 @@ namespace Sibelia
 					}
 					else
 					{
-						Record oldRecord(*it, vertexLength);
+						Record oldRecord(vertexLength, *it);
 						if (oldRecord.GetStatus() == Record::CANDIDATE && (oldRecord.GetPrev() != record.GetPrev() || oldRecord.GetNext() != record.GetNext()))
 						{						
 							records.erase(it);
 							records.insert(Record(record.GetVertex(), record.GetPrev(), record.GetNext(), Record::BIFURCATION).GetBody());
-							assert(Record(*records.find(record.GetVertex().GetBody()), vertexLength).GetStatus() == Record::BIFURCATION);
+							assert(Record(vertexLength, *records.find(record.GetVertex().GetBody())).GetStatus() == Record::BIFURCATION);
 						}
 					}
 				}
@@ -565,7 +570,7 @@ namespace Sibelia
 
 		std::cout << std::string(80, '-') << std::endl;
 
-		if (vertexLength > 30)
+		if (vertexLength > 29)
 		{
 			throw std::runtime_error("The vertex size is too large");
 		}
@@ -623,7 +628,7 @@ namespace Sibelia
 					}
 
 					RecordSet records(1 << 20, RecordHashFunction(vertexLength), RecordEquality(vertexLength));
-					records.set_deleted_key(Record::Deleted().GetBody());
+					records.set_deleted_key(Record::Deleted(vertexLength).GetBody());
 					boost::thread aggregator(AggregationWorker, boost::ref(records), boost::ref(recordQueue), boost::ref(mutex), vertexLength);
 					DistributeTasks(fileName, vertexLength + 1, taskQueue);
 					for (size_t i = 0; i < taskQueue.size(); i++)
@@ -639,7 +644,7 @@ namespace Sibelia
 					aggregator.join();
 					for (uint64_t rec : records)
 					{
-						Record record(rec, vertexLength);
+						Record record(vertexLength, rec);
 						if (record.GetStatus() == Record::BIFURCATION)
 						{
 							bifurcation_.push_back(record.GetVertex().GetBody());
@@ -650,7 +655,6 @@ namespace Sibelia
 				std::cout << time(0) - mark << "\t";				
 			}
 
-			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			low = high + 1;
