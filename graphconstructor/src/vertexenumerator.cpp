@@ -133,46 +133,41 @@ namespace Sibelia
 				}
 			}
 
-			Record(DnaString canVertex, char prev, char next, char status = CANDIDATE) : vertex_(canVertex), prev_(prev), next_(next), status_(status)
+			Record(DnaString canVertex, char prev, char next, char status = CANDIDATE) : vertex_(canVertex)
 			{
-
+				vertex_.AppendBack(prev);
+				vertex_.AppendBack(next);
+				vertex_.AppendBack(status);
 			}
 
 			Record(size_t vertexLength, uint64_t body) : vertex_(vertexLength + 3, body)
 			{
 				assert(vertexLength <= 29);
-				status_ = vertex_.PopBack();
-				next_ = vertex_.PopBack();
-				prev_ = vertex_.PopBack();
 			}
 
 			uint64_t GetBody() const
 			{
-				DnaString record(vertex_);
-				record.AppendBack(prev_);
-				record.AppendBack(next_);
-				record.AppendBack(status_);
-				return record.GetBody();
+				return vertex_.GetBody();
 			}
 
 			DnaString GetVertex() const
 			{
-				return vertex_;
+				return vertex_.Prefix(vertex_.GetSize() - 3);
 			}
 
 			char GetPrev() const
 			{
-				return prev_;
+				return vertex_.GetChar(vertex_.GetSize() - 3);
 			}
 
 			char GetNext() const
 			{
-				return next_;
+				return vertex_.GetChar(vertex_.GetSize() - 2);
 			}
 
 			char GetStatus() const
 			{
-				return status_;
+				return vertex_.GetChar(vertex_.GetSize() - 1);
 			}
 
 			static Record Deleted(size_t vertexLength)
@@ -182,9 +177,6 @@ namespace Sibelia
 
 		private:
 			DnaString vertex_;
-			char prev_;
-			char next_;
-			char status_;
 		};		
 
 		class RecordHashFunction
@@ -237,17 +229,36 @@ namespace Sibelia
 		size_t queueMaxSize;
 		std::vector<size_t> chunkSize;
 
+		void CheckCandidate(size_t vertexLength, RecordSet & records, boost::mutex & outMutex, const Record & record)
+		{
+			boost::lock_guard<boost::mutex> guard(outMutex);
+			RecordSet::iterator it = records.find(record.GetVertex().GetBody());
+			if (it == records.end())
+			{
+				records.insert(record.GetBody());
+			}
+			else
+			{
+				Record oldRecord(vertexLength, *it);
+				if (oldRecord.GetStatus() == Record::CANDIDATE && (oldRecord.GetPrev() != record.GetPrev() || oldRecord.GetNext() != record.GetNext()))
+				{
+					records.erase(it);
+					records.insert(Record(record.GetVertex(), record.GetPrev(), record.GetNext(), Record::BIFURCATION).GetBody());
+					assert(Record(vertexLength, *records.find(record.GetVertex().GetBody())).GetStatus() == Record::BIFURCATION);
+				}
+			}
+		}
+
 		void CandidateCheckingWorker(uint64_t low,
 			uint64_t high,
 			const std::vector<uint64_t> & seed,
 			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
-			RecordQueue & recordQueue,
+			RecordSet & records,
 			boost::mutex & outMutex)
 		{
 			std::vector<size_t> hf(seed.size());
-			std::vector<uint64_t> output;
 			while (true)
 			{
 				Task task;
@@ -269,8 +280,8 @@ namespace Sibelia
 						DnaString negVertex = posVertex.RevComp();
 						if (Within(NormHash(seed, posVertex, negVertex), low, high))
 						{
-							output.push_back(Record(posVertex, negVertex, 'A', 'A').GetBody());
-							output.push_back(Record(posVertex, negVertex, 'C', 'A').GetBody());
+							CheckCandidate(vertexLength, records, outMutex, Record(posVertex, negVertex, 'A', 'A'));
+							CheckCandidate(vertexLength, records, outMutex, Record(posVertex, negVertex, 'C', 'A'));
 						}
 					}
 
@@ -280,8 +291,8 @@ namespace Sibelia
 						DnaString negVertex = posVertex.RevComp();
 						if (Within(NormHash(seed, posVertex, negVertex), low, high))
 						{
-							output.push_back(Record(posVertex, negVertex, 'A', 'A').GetBody());
-							output.push_back(Record(posVertex, negVertex, 'C', 'A').GetBody());
+							CheckCandidate(vertexLength, records, outMutex, Record(posVertex, negVertex, 'A', 'A'));
+							CheckCandidate(vertexLength, records, outMutex, Record(posVertex, negVertex, 'C', 'A'));
 						}
 					}
 
@@ -347,10 +358,10 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									output.push_back(Record(posVertex, negVertex, posExtend, posPrev).GetBody());
+									CheckCandidate(vertexLength, records, outMutex, Record(posVertex, negVertex, posExtend, posPrev));
 									if (posVertex == negVertex)
 									{
-										output.push_back(Record(posVertex, negVertex, DnaString::Reverse(posPrev), DnaString::Reverse(posExtend)).GetBody());
+										CheckCandidate(vertexLength, records, outMutex, Record(posVertex, negVertex, DnaString::Reverse(posPrev), DnaString::Reverse(posExtend)));
 									}
 								}
 							}
@@ -368,14 +379,6 @@ namespace Sibelia
 							}
 						}
 						
-					}
-
-					if (output.size() > 0)
-					{
-						boost::lock_guard<boost::mutex> guard(outMutex);
-						queueNowSize += output.size();
-						chunkSize.push_back(output.size());
-						recordQueue.push(std::move(output));
 					}
 				}
 			}
@@ -447,49 +450,6 @@ namespace Sibelia
 
 						posEdge.PopFront();
 						negEdge.PopBack();
-					}
-				}
-			}
-		}
-
-		void AggregationWorker(RecordSet & records, RecordQueue & recordQueue, boost::mutex & queueMutex, size_t vertexLength)
-		{
-			while (true)
-			{
-				std::vector<uint64_t> candidate;
-				{
-					boost::lock_guard<boost::mutex> guard(queueMutex);
-					if (recordQueue.size() > 0)
-					{
-						queueMaxSize = std::max(queueMaxSize, queueNowSize);
-						candidate = std::move(recordQueue.front());
-						queueNowSize -= candidate.size();
-
-						recordQueue.pop();
-						if (candidate.empty())
-						{
-							return;
-						}
-					}
-				}
-
-				for (uint64_t & body : candidate)
-				{
-					Record record(vertexLength, body);
-					RecordSet::iterator it = records.find(record.GetVertex().GetBody());
-					if (it == records.end())
-					{
-						records.insert(record.GetBody());
-					}
-					else
-					{
-						Record oldRecord(vertexLength, *it);
-						if (oldRecord.GetStatus() == Record::CANDIDATE && (oldRecord.GetPrev() != record.GetPrev() || oldRecord.GetNext() != record.GetNext()))
-						{						
-							records.erase(it);
-							records.insert(Record(record.GetVertex(), record.GetPrev(), record.GetNext(), Record::BIFURCATION).GetBody());
-							assert(Record(vertexLength, *records.find(record.GetVertex().GetBody())).GetStatus() == Record::BIFURCATION);
-						}
 					}
 				}
 			}
@@ -624,7 +584,6 @@ namespace Sibelia
 				std::cout << time(0) - mark << "\t";
 				mark = time(0);					
 				boost::mutex mutex;
-				RecordQueue recordQueue;
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(CandidateCheckingWorker,
@@ -634,33 +593,19 @@ namespace Sibelia
 						boost::cref(bitVector),
 						vertexLength,
 						boost::ref(*taskQueue[i]),
-						boost::ref(recordQueue),
+						boost::ref(records),
 						boost::ref(mutex));
 				}
 
 				records.set_deleted_key(Record::Deleted(vertexLength).GetBody());
-				boost::thread aggregator(AggregationWorker, boost::ref(records), boost::ref(recordQueue), boost::ref(mutex), vertexLength);
 				DistributeTasks(fileName, vertexLength + 1, taskQueue);
 				for (size_t i = 0; i < taskQueue.size(); i++)
 				{
 					workerThread[i].join();
 				}
 
-				{
-					boost::lock_guard<boost::mutex> guard(mutex);
-					recordQueue.push(std::vector<uint64_t>());					
-				}
-
-				aggregator.join();					
 				std::cout << time(0) - mark << std::endl;				
-			}
-
-			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
-			std::cout << "Queue max size = " << queueMaxSize << std::endl;
-			std::cout << "Ht size = " << records.size() << std::endl;
-			std::cout << "Average chunk size = " << double(std::accumulate(chunkSize.begin(), chunkSize.end(), size_t(0))) / chunkSize.size() << std::endl;
-			std::cout << std::string(80, '-') << std::endl;
-			low = high + 1;
+			}			
 
 			for (uint64_t rec : records)
 			{
@@ -670,6 +615,11 @@ namespace Sibelia
 					bifurcation_.push_back(record.GetVertex().GetBody());
 				}
 			}
+
+			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
+			std::cout << "Ht size = " << records.size() << std::endl;
+			std::cout << std::string(80, '-') << std::endl;
+			low = high + 1;
 		}
 		
 		std::sort(bifurcation_.begin(), bifurcation_.end());
