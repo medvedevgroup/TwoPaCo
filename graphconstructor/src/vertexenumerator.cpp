@@ -235,6 +235,7 @@ namespace Sibelia
 
 		size_t queueNowSize;
 		size_t queueMaxSize;
+		std::vector<size_t> chunkSize;
 
 		void CandidateCheckingWorker(uint64_t low,
 			uint64_t high,
@@ -373,6 +374,7 @@ namespace Sibelia
 					{
 						boost::lock_guard<boost::mutex> guard(outMutex);
 						queueNowSize += output.size();
+						chunkSize.push_back(output.size());
 						recordQueue.push(std::move(output));
 					}
 				}
@@ -591,7 +593,8 @@ namespace Sibelia
 		{			
 			time_t mark = time(0);
 			size_t totalRecords = 0;
-			queueMaxSize = queueNowSize = 0;
+			chunkSize.clear();
+			queueMaxSize = queueNowSize = 0;			
 			RecordSet records(1 << 20, RecordHashFunction(vertexLength), RecordEquality(vertexLength));
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
@@ -655,6 +658,7 @@ namespace Sibelia
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "Queue max size = " << queueMaxSize << std::endl;
 			std::cout << "Ht size = " << records.size() << std::endl;
+			std::cout << "Average chunk size = " << double(std::accumulate(chunkSize.begin(), chunkSize.end(), size_t(0))) / chunkSize.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			low = high + 1;
 
