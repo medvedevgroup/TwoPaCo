@@ -35,7 +35,7 @@ namespace Sibelia
 	private:
 		
 		size_t vertexSize_;
-		tbb::concurrent_vector<uint64_t> bifurcation_;
+		std::vector<uint64_t> bifurcation_;
 	};
 }
 

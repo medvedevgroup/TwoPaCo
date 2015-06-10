@@ -448,11 +448,12 @@ namespace Sibelia
 		struct TrueBifurcations
 		{
 			size_t vertexSize;
-			uint64_t falsePositives;
+			uint64_t falsePositives;			
 			std::vector<uint64_t> * candidate;
-			tbb::concurrent_vector<uint64_t> * out;
-			TrueBifurcations(std::vector<uint64_t> * candidate, tbb::concurrent_vector<uint64_t> * out, size_t vertexSize) :
-				candidate(candidate), out(out), vertexSize(vertexSize), falsePositives(0) {}
+			std::vector<uint64_t> * out;
+			boost::mutex * outMutex;
+			TrueBifurcations(std::vector<uint64_t> * candidate, std::vector<uint64_t> * out, boost::mutex * outMutex, size_t vertexSize) :
+				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
 
 			uint64_t operator()(const tbb::blocked_range<size_t> & range, uint64_t init) const
 			{
@@ -493,6 +494,7 @@ namespace Sibelia
 
 					if (bif)
 					{
+						boost::lock_guard<boost::mutex> guard(*outMutex);
 						out->push_back(icand.base.GetBody());
 					}
 					else
@@ -617,12 +619,12 @@ namespace Sibelia
 				tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
 			}
 
+			boost::mutex outMutex;
 			tbb::parallel_sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
 			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<size_t>(0, candidate.size()),
 				uint64_t(0),
-				TrueBifurcations(&candidate, &bifurcation_, vertexSize_),
+				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
 				std::plus<uint64_t>());
-
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "FP count = " << falsePositives << std::endl;
@@ -631,7 +633,7 @@ namespace Sibelia
 			low = high + 1;
 		}
 
-		std::sort(bifurcation_.begin(), bifurcation_.end());
+		tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end());
 	}
 
 	size_t VertexEnumerator::GetVerticesCount() const
@@ -644,7 +646,7 @@ namespace Sibelia
 		DnaString check[2] = { vertex, vertex.RevComp() };
 		for (DnaString str : check)
 		{
-			tbb::concurrent_vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str.GetBody());
+			std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str.GetBody());
 			if (it != bifurcation_.end() && *it == str.GetBody())
 			{
 				return it - bifurcation_.begin();
