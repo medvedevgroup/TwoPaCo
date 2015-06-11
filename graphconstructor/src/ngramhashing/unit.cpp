@@ -11,6 +11,44 @@
 using namespace std;
 
 template<class hashfunction>
+bool testExtendAndPrepend(uint L = 19) {
+	const uint n(4);//n-grams
+	hashfunction  hf(n, L);
+    string input = "XABCDY";
+    string base(input.begin() + 1, input.end() - 1);
+    assert(base.size() == n);
+    string extend(input.begin() + 1, input.end());
+    string prepend(input.begin(), input.end() - 1);
+
+    for (string::const_iterator j = base.begin(); j != base.end(); ++j)
+    {
+    	hf.eat(*j);
+    }
+    if(hf.hashvalue != hf.hash(base)) {
+       std::cout <<"bug!"<< std::endl;
+       std::cout << base << " "  << hf.hash(base) << std::endl;
+       return false;
+    }
+    if(hf.hash_prepend(input[0]) != hf.hash(prepend)) {
+       std::cout <<"bug!"<< std::endl;
+       std::cout << prepend << " " << hf.hash_prepend(input[0]) << " " << hf.hash(prepend) << std::endl;
+       return false;
+    }
+    if(hf.hash_extend(input.back()) != hf.hash(extend)) {
+       std::cout <<"bug!"<< std::endl;
+       std::cout << extend << " " << hf.hash_extend(input.back()) << " " << hf.hash(extend) << std::endl;
+       return false;
+    }
+
+    assert(hf.hashvalue == hf.hash(base));
+    assert(hf.hash_prepend(input[0]) == hf.hash(prepend));
+    assert(hf.hash_extend(input.back()) == hf.hash(extend));
+
+    return true;
+
+}
+
+template<class hashfunction>
 bool isItAFunction(uint L = 7) {
 	mersenneRNG generator(5);
 	const uint n(3);//n-grams
@@ -43,7 +81,31 @@ bool isItAFunction(uint L = 7) {
 }
 
 
-
+template<class hashfunction>
+bool doesReverseUpdateWorks(uint L = 7) {
+	mersenneRNG generator(5);
+	const uint n(3);//n-grams
+	hashfunction hf(n,L );
+	deque<unsigned char> s;
+	for(uint32 k = 0; k<n;++k) {
+	  unsigned char c = static_cast<unsigned char>(generator()+65);
+	  s.push_back(c);
+	  hf.eat(c);
+	}
+	for(uint32 k = 0; k<100000;++k) {
+		unsigned char out = s.front();
+		 s.pop_front();
+		char c (generator()+65);
+		s.push_back(c);
+		hf.update(out,c);
+		hf.reverse_update(out,c);
+		hf.update(out,c);
+		if(hf.hash(s) != hf.hashvalue) {
+		  	return false;
+		}
+	}
+	return true;
+}
 
 
 
@@ -89,11 +151,14 @@ bool test() {
 	cout<<"cyclic"<<endl;
 	for(uint L = 2; L<=32;++L) {
 	  if(!ok) return false;
+	  ok&=testExtendAndPrepend<CyclicHash<> >(L);
  	  ok&=isItAFunction<CyclicHash<> >(L);
+ 	  ok&=doesReverseUpdateWorks<CyclicHash<> >(L);
 	}
 	for(uint L = 2; L<=64;++L) { 
 	  if(!ok) return false;
- 	  ok&=isItAFunction<CyclicHash<uint64> >(L);
+	  ok&=testExtendAndPrepend<CyclicHash<uint64> >(L);
+	  ok&=isItAFunction<CyclicHash<uint64> >(L);
 	}
 	ok&=isItRandom<CyclicHash<> >();
 	ok&=isItRandom<CyclicHash<uint64> >();
