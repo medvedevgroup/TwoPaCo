@@ -29,7 +29,8 @@ namespace Sibelia
 	{
 		typedef CyclicHash<uint64_t> HashFunction;
 		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
-		
+
+
 		template<class F>
 			bool PutInBloomFilter(ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
 			{
@@ -231,7 +232,6 @@ namespace Sibelia
 							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
 						}
 					}
-					
 
 					if (task.str.size() >= vertexLength + 2)
 					{
@@ -260,11 +260,11 @@ namespace Sibelia
 									else
 									{
 										uint64_t posHash0 = posVertexHash[0]->hash_prepend(nextCh);
-										uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
+										uint64_t negHash0 = negVertexHash[0]->hash_extend(revNextCh);
 										assert(posHash0 == posVertexHash[0]->hash(std::string(1, nextCh) + task.str.substr(pos, vertexLength)));
-										assert(negHash0 == negVertexHash[0]->hash(std::string(1, revNextCh) + RevComp(task.str.substr(pos, vertexLength))));
+										assert(negHash0 == negVertexHash[0]->hash(RevComp(std::string(1, nextCh) + task.str.substr(pos, vertexLength))));
 										if ((posHash0 <= negHash0 && IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_prepend, nextCh, posHash0)) ||
-											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0)))
+											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_extend, revNextCh, negHash0)))
 										{
 											outCount++;
 										}
@@ -277,11 +277,11 @@ namespace Sibelia
 									else
 									{
 										uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
-										uint64_t negHash0 = negVertexHash[0]->hash_extend(revNextCh);
+										uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 										assert(posHash0 == posVertexHash[0]->hash(task.str.substr(pos, vertexLength) + nextCh));
-										assert(negHash0 == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength)) + revNextCh));
+										assert(negHash0 == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength) + nextCh)));
 										if ((posHash0 <= negHash0 && IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_extend, nextCh, posHash0)) ||
-											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_extend, revNextCh, negHash0)))
+											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0)))
 										{
 											outCount++;
 										}
@@ -489,7 +489,7 @@ namespace Sibelia
 					bool bif = false;
 					Candidate icand(vertexSize, (*candidate)[i]);
 					bool x = icand.base.ToString() == "AGAT" || icand.base.ToString() == "AGAT";
-					if (icand.base == icand.base.RevComp())
+					if (icand.base == icand.base.RevComp()) //LOOKS SUSPICIOUS!
 					{
 						Candidate rcand = icand.Reverse();
 						bif = icand.prev != rcand.prev || icand.extend != rcand.extend;
