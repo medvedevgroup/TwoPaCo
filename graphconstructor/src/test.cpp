@@ -89,7 +89,7 @@ namespace Sibelia
 	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
-		VertexEnumerator vid(fileName, vertexLength, filterSize, 5, 1, 4, 1, "graphconstructor.tmp");
+		VertexEnumerator vid(fileName, vertexLength, filterSize, 5, 1, 1, 1, "graphconstructor.tmp");
 
 		for (const std::string & nowFileName : fileName)
 		{
@@ -202,11 +202,11 @@ namespace Sibelia
 		std::stringstream ss;
 		std::vector<std::string> fileName;
 		fileName.push_back("teste.fasta");
-	//	VertexEnumeratorTest(fileName, 3, 1025, ss);
+//		VertexEnumeratorTest(fileName, 3, 10, ss);
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 4, 1025, ss);
+		VertexEnumeratorTest(fileName, 4, 10, ss);
 	
 		fileName.clear();
 		fileName.push_back("g00.fasta");
@@ -215,7 +215,7 @@ namespace Sibelia
 	//	fileName.push_back("g3.fasta");
 		for (size_t k = 6; k <= 16; k++)
 		{
-			VertexEnumeratorTest(fileName, k, (1 << 12) + 1, ss);
+			VertexEnumeratorTest(fileName, k, 12, ss);
 		}
 
 		fileName.clear();
