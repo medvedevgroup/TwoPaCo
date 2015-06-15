@@ -488,7 +488,6 @@ namespace Sibelia
 					size_t j = i + 1;
 					bool bif = false;
 					Candidate icand(vertexSize, (*candidate)[i]);
-					bool x = icand.base.ToString() == "AGAT" || icand.base.ToString() == "AGAT";
 					if (icand.base == icand.base.RevComp()) //LOOKS SUSPICIOUS!
 					{
 						Candidate rcand = icand.Reverse();
@@ -537,10 +536,11 @@ namespace Sibelia
 		const std::string & tmpFileName) :
 		vertexSize_(vertexLength)
 	{
+		uint64_t realSize = uint64_t(1) << filterSize;
 		std::cout << "Threads = " << threads << std::endl;
 		std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 		std::cout << "Hash functions = " << hashFunctions << std::endl;
-		std::cout << "Filter size = " << filterSize << std::endl;
+		std::cout << "Filter size = " << realSize << std::endl;
 		std::cout << "Files: " << std::endl;
 		for (const std::string & fn : fileName)
 		{
@@ -571,7 +571,7 @@ namespace Sibelia
 				std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
 				{
 					std::vector<TaskQueuePtr> taskQueue;
-					ConcurrentBitVector bitVector(uint64_t(1) << filterSize);
+					ConcurrentBitVector bitVector(realSize);
 					std::vector<boost::thread> workerThread(threads);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;

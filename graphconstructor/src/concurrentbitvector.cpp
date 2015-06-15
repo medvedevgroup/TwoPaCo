@@ -6,7 +6,7 @@
 namespace Sibelia
 {
 	ConcurrentBitVector::ConcurrentBitVector(size_t size)
-		: size_(size), realSize_(size / 64 + 1), filter_(new UInt[realSize_])
+		: size_(size), realSize_(size / 32 + 1), filter_(new UInt[realSize_])
 	{
 		Init();
 	}
@@ -29,7 +29,7 @@ namespace Sibelia
 		uint64_t bit;
 		uint64_t element;
 		GetCoord(idx, element, bit);
-		filter_[element].fetch_or(uint64_t(1) << uint64_t(bit));
+		filter_[element].fetch_or(uint32_t(1) << uint32_t(bit));
 	}
 
 	bool ConcurrentBitVector::Get(size_t idx) const
@@ -37,14 +37,14 @@ namespace Sibelia
 		uint64_t bit;
 		uint64_t element;
 		GetCoord(idx, element, bit);
-		return (filter_[element] & (uint64_t(1) << uint64_t(bit))) != 0;
+		return (filter_[element] & (uint32_t(1) << uint32_t(bit))) != 0;
 	}
 
 	void ConcurrentBitVector::GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const
 	{
-		bit = idx & ((uint64_t(1) << uint64_t(6)) - 1);
-		element = idx >> 6;
-		assert(element < size_ / 64 + 1);
+		bit = idx & ((uint32_t(1) << uint64_t(5)) - 1);
+		element = idx >> 5;
+		assert(element < size_ / 32 + 1);
 	}
 
 	ConcurrentBitVector::~ConcurrentBitVector()

@@ -19,7 +19,7 @@ namespace Sibelia
 		bool Get(size_t idx) const;
 	private:
 		static const size_t SUCCESS = -1;		
-		typedef std::atomic<uint64_t> UInt;
+		typedef std::atomic<uint32_t> UInt;
 		size_t size_;
 		size_t realSize_;
 		UInt * filter_;
