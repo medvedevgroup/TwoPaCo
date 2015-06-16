@@ -16,40 +16,49 @@ namespace Sibelia
 		ConcurrentBitVector(size_t size);		
 
 		template<class HfPtr, class F>
-			bool PutInBloomFilter(std::vector<HfPtr> & hf, F f, char farg, uint64_t hash0)
+			void PutInBloomFilter(std::vector<HfPtr> & hf, F f, char farg, uint64_t hash0)
 			{
-				for (size_t i = 1; i < hf.size(); i++)
+				size_t hashFunctions = hf.size() / BLOCKS;
+				for (size_t b = 0; b < BLOCKS; b++)
 				{
-					uint64_t idx = ((*hf[i]).*f)(farg);
-					uint64_t bit;
-					uint64_t element;
-					GetCoord(idx, element, bit);
-					filter_[hash0 + element].fetch_or(uint32_t(1) << uint32_t(bit));
-				}
-
-				return true;
+					uint64_t base = b == 0 ? hash0 : ((*hf[b * hashFunctions]).*f)(farg);
+					for (size_t h = 1; h < hashFunctions; h++)
+					{
+						uint64_t idx = ((*hf[b * hashFunctions + h]).*f)(farg);
+						uint64_t bit;
+						uint64_t element;
+						GetCoord(idx, element, bit);
+						filter_[base + element].fetch_or(uint32_t(1) << uint32_t(bit));
+					}
+				}				
 			}
 
 		template<class HfPtr, class F>
 			bool IsInBloomFilter(const std::vector<HfPtr> & hf, F f, char farg, uint64_t hash0) const
 			{
-				for (size_t i = 1; i < hf.size(); i++)
+				size_t hashFunctions = hf.size() / BLOCKS;
+				for (size_t b = 0; b < BLOCKS; b++)
 				{
-					uint64_t idx = ((*hf[i]).*f)(farg);
-					uint64_t bit;
-					uint64_t element;
-					GetCoord(idx, element, bit);
-					if ((filter_[hash0 + element] & (uint32_t(1) << uint32_t(bit))) == 0)
+					uint64_t base = b == 0 ? hash0 : ((*hf[b * hashFunctions]).*f)(farg);
+					for (size_t h = 1; h < hashFunctions; h++)
 					{
-						return false;
+						uint64_t idx = ((*hf[b * hashFunctions + h]).*f)(farg);
+						uint64_t bit;
+						uint64_t element;
+						GetCoord(idx, element, bit);
+						if ((filter_[base + element] & (uint32_t(1) << uint32_t(bit))) == 0)
+						{
+							return false;
+						}
 					}
 				}
-
+				
 				return true;
 		}
 		
+		static const size_t BLOCKS = 3;
 		static const size_t MINOR_BITS = 9;
-
+		
 	private:
 
 		void Init();

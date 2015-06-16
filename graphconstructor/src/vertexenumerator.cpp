@@ -524,11 +524,16 @@ namespace Sibelia
 			throw std::runtime_error("The vertex size is too large");
 		}
 
-		std::vector<HashFunctionPtr> hashFunction(hashFunctions);
-		for (size_t i = 0; i < hashFunctions; i++)
+		size_t blocks = ConcurrentBitVector::BLOCKS;
+		std::vector<HashFunctionPtr> hashFunction(hashFunctions * blocks);
+		for (size_t i = 0; i < blocks; i++)
 		{
-			hashFunction[i] = HashFunctionPtr(new HashFunction(vertexLength, i == 0 ? filterSize - ConcurrentBitVector::MINOR_BITS : ConcurrentBitVector::MINOR_BITS));
-		}
+			hashFunction[i * hashFunctions] = HashFunctionPtr(new HashFunction(vertexLength, filterSize - ConcurrentBitVector::MINOR_BITS));
+			for (size_t j = 1; j < hashFunctions; j++)
+			{
+				hashFunction[i * hashFunctions + j] = HashFunctionPtr(new HashFunction(vertexLength, ConcurrentBitVector::MINOR_BITS));
+			}
+		}		
 
 		size_t edgeLength = vertexLength + 1;
 		uint64_t low = 0;
