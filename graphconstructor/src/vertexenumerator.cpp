@@ -1,12 +1,10 @@
 #include <set>
 #include <deque>
 #include <ctime>
-#include <memory>
 #include <bitset>
 #include <numeric>
 #include <cassert>
 #include <fstream>
-#include <iostream>
 #include <algorithm>
 #include <unordered_set>
 
@@ -25,39 +23,11 @@ namespace Sibelia
 {
 	const size_t VertexEnumerator::INVALID_VERTEX = -1;
 
+	typedef CyclicHash<uint64_t> HashFunction;
+	typedef std::unique_ptr<HashFunction> HashFunctionPtr;
+
 	namespace
 	{
-		typedef CyclicHash<uint64_t> HashFunction;
-		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
-
-
-		template<class F>
-			bool PutInBloomFilter(ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
-			{
-				for (size_t i = 0; i < hf.size(); i++)
-				{
-					uint64_t hvalue = i == 0 ? hash0 : ((*hf[i]).*f)(farg);
-					filter.SetConcurrently(hvalue);
-				}
-
-				return true;
-			}
-
-		template<class F>
-			bool IsInBloomFilter(const ConcurrentBitVector & filter,  std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
-			{
-				for (size_t i = 0; i < hf.size(); i++)
-				{
-					uint64_t hvalue = i == 0 ? hash0 : ((*hf[i]).*f)(farg);
-					if (!filter.Get(hvalue))
-					{
-						return false;
-					}
-				}
-
-				return true;
-			}
-
 		class VertexLess
 		{
 		public:
@@ -263,8 +233,8 @@ namespace Sibelia
 										uint64_t negHash0 = negVertexHash[0]->hash_extend(revNextCh);
 										assert(posHash0 == posVertexHash[0]->hash(std::string(1, nextCh) + task.str.substr(pos, vertexLength)));
 										assert(negHash0 == negVertexHash[0]->hash(RevComp(std::string(1, nextCh) + task.str.substr(pos, vertexLength))));
-										if ((posHash0 <= negHash0 && IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_prepend, nextCh, posHash0)) ||
-											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_extend, revNextCh, negHash0)))
+										if ((posHash0 <= negHash0 && bitVector.IsInBloomFilter(posVertexHash, &HashFunction::hash_prepend, nextCh, posHash0)) ||
+											(posHash0 > negHash0 && bitVector.IsInBloomFilter(negVertexHash, &HashFunction::hash_extend, revNextCh, negHash0)))
 										{
 											outCount++;
 										}
@@ -280,8 +250,8 @@ namespace Sibelia
 										uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 										assert(posHash0 == posVertexHash[0]->hash(task.str.substr(pos, vertexLength) + nextCh));
 										assert(negHash0 == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength) + nextCh)));
-										if ((posHash0 <= negHash0 && IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_extend, nextCh, posHash0)) ||
-											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0)))
+										if ((posHash0 <= negHash0 && bitVector.IsInBloomFilter(posVertexHash, &HashFunction::hash_extend, nextCh, posHash0)) ||
+											(posHash0 > negHash0 && bitVector.IsInBloomFilter(negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0)))
 										{
 											outCount++;
 										}
@@ -355,11 +325,11 @@ namespace Sibelia
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 						if (posHash0 < negHash0)
 						{
-							PutInBloomFilter(filter, posVertexHash, &HashFunction::hash_extend, nextCh, posHash0);
+							filter.PutInBloomFilter(posVertexHash, &HashFunction::hash_extend, nextCh, posHash0);
 						}
 						else
 						{
-							PutInBloomFilter(filter, negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0);
+							filter.PutInBloomFilter(negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0);
 						}
 
 						char prevCh = task.str[pos];
@@ -555,9 +525,9 @@ namespace Sibelia
 		}
 
 		std::vector<HashFunctionPtr> hashFunction(hashFunctions);
-		for (HashFunctionPtr & ptr : hashFunction)
+		for (size_t i = 0; i < hashFunctions; i++)
 		{
-			ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
+			hashFunction[i] = HashFunctionPtr(new HashFunction(vertexLength, i == 0 ? filterSize - ConcurrentBitVector::MINOR_BITS : ConcurrentBitVector::MINOR_BITS));
 		}
 
 		size_t edgeLength = vertexLength + 1;
@@ -568,10 +538,9 @@ namespace Sibelia
 			size_t totalRecords = 0;
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
-				std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
 				{
 					std::vector<TaskQueuePtr> taskQueue;
-					ConcurrentBitVector bitVector(realSize);
+					ConcurrentBitVector bitVector(filterSize);
 					std::vector<boost::thread> workerThread(threads);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;

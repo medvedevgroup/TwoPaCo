@@ -220,7 +220,7 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, 1, ss);
+		VertexEnumeratorTest(fileName, 25, 24, ss);
 		
 		return true;
 	}
