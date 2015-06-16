@@ -7,7 +7,6 @@
 #include <cstdlib>
 
 
-
 namespace Sibelia
 {
 	class ConcurrentBitVector
@@ -49,7 +48,7 @@ namespace Sibelia
 				return true;
 		}
 		
-		static const size_t MINOR_BITS = 8;
+		static const size_t MINOR_BITS = 9;
 
 	private:
 
