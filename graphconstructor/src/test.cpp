@@ -89,7 +89,7 @@ namespace Sibelia
 	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
-		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 1, 4, 1, "graphconstructor.tmp");
+		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 1, 1, 1, "graphconstructor.tmp");
 
 		for (const std::string & nowFileName : fileName)
 		{

@@ -456,7 +456,7 @@ namespace Sibelia
 		{
 			time_t mark = time(0);
 			size_t totalRecords = 0;
-			FastSet candidate(vertexLength, 1 << 4);
+			FastSet candidate(vertexLength, 1 << 16);
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
 				std::vector<TaskQueuePtr> taskQueue;
@@ -532,6 +532,7 @@ namespace Sibelia
 		}
 
 		tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end());
+		assert(std::unique(bifurcation_.begin(), bifurcation_.end()) == bifurcation_.end());
 	}
 
 	size_t VertexEnumerator::GetVerticesCount() const

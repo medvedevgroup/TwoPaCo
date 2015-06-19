@@ -21,13 +21,14 @@ namespace Sibelia
 			if (it != a.end())
 			{
 				Record cand(vertexLength_, *it);
-				if (cand.GetStatus() == Record::CANDIDATE && (cand.GetPrev() != record.GetPrev() || cand.GetNext() != record.GetNext()))
+				if (cand.GetVertex() == record.GetVertex())
 				{
-					cand.ChangeStatus(Record::BIFURCATION);
-					*it = cand.GetBody();
-				}
-				else
-				{
+					if (cand.GetStatus() == Record::CANDIDATE && (cand.GetPrev() != record.GetPrev() || cand.GetNext() != record.GetNext()))
+					{
+						cand.ChangeStatus(Record::BIFURCATION);
+						*it = cand.GetBody();
+					}
+				
 					return;
 				}
 			}
@@ -41,12 +42,10 @@ namespace Sibelia
 			{
 				cand.ChangeStatus(Record::BIFURCATION);
 				hashTable_.erase(it);
-				hashTable_.insert(record.GetBody());
+				hashTable_.insert(cand.GetBody());
 			}
-			else
-			{
-				return;
-			}
+			
+			return;
 		}
 
 		hashTable_.insert(record.GetBody());
@@ -67,11 +66,12 @@ namespace Sibelia
 
 				array_.front().insert(array_.front().end(), hashTable_.begin(), hashTable_.end());
 				std::sort(array_.front().begin(), array_.front().end(), less);
+				assert(std::unique(array_.front().begin(), array_.front().end(), RecordEquality(vertexLength_)) == array_.front().end());
 			}
 			else
 			{
 				array_.push_back(std::vector<uint64_t>(hashTable_.begin(), hashTable_.end()));
-				std::sort(array_.front().begin(), array_.front().end(), less);
+				std::sort(array_.back().begin(), array_.back().end(), less);
 			}
 
 			hashTable_.erase(hashTable_.begin(), hashTable_.end());
