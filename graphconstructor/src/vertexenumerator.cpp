@@ -1,21 +1,18 @@
-#include <set>
 #include <deque>
 #include <ctime>
 #include <memory>
-#include <bitset>
 #include <numeric>
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-#include <unordered_set>
 
 #include <boost/ref.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
-#include <tbb/parallel_reduce.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
 
 #include "ngramhashing/cyclichash.h"
 
@@ -120,20 +117,6 @@ namespace Sibelia
 			return hvalue >= low && hvalue <= high;
 		}
 
-		DnaString MakeCanonicalRecord(DnaString posVertex, DnaString negVertex, char posExtend, char posPrev)
-		{
-			if (posVertex.GetBody() < negVertex.GetBody())
-			{
-				posVertex.AppendBack(posExtend);
-				posVertex.AppendBack(posPrev);
-				return posVertex;
-			}
-
-			negVertex.AppendBack(DnaString::Reverse(posPrev));
-			negVertex.AppendBack(DnaString::Reverse(posExtend));
-			return negVertex;
-		}
-
 		DnaString Generate(std::string::const_iterator it, size_t size)
 		{
 			DnaString str;
@@ -189,7 +172,7 @@ namespace Sibelia
 			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
-			std::ofstream & outFile,
+			FastSet & fastSet,
 			boost::mutex & outMutex,
 			size_t & total)
 		{
@@ -216,8 +199,8 @@ namespace Sibelia
 						DnaString negVertex = posVertex.RevComp();
 						//	if (Within(NormHash(posVertexHash, negVertexHash), low, high))
 						{
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+							fastSet.Insert(FastSet::Record(posVertex, negVertex, 'A', 'A'));
+							fastSet.Insert(FastSet::Record(posVertex, negVertex, 'C', 'A'));
 						}
 					}
 
@@ -227,8 +210,8 @@ namespace Sibelia
 						DnaString negVertex = posVertex.RevComp();
 						//	if (Within(NormHash(seed, posVertex, negVertex), low, high))
 						{
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+							fastSet.Insert(FastSet::Record(posVertex, negVertex, 'A', 'A'));
+							fastSet.Insert(FastSet::Record(posVertex, negVertex, 'C', 'A'));
 						}
 					}
 
@@ -289,7 +272,11 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									output.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
+									fastSet.Insert(FastSet::Record(posVertex, negVertex, posExtend, posPrev));
+									if (posVertex == negVertex)
+									{
+										fastSet.Insert(FastSet::Record(posVertex, negVertex, DnaString::Reverse(posPrev), DnaString::Reverse(posExtend)));
+									}
 								}
 							}
 
@@ -313,13 +300,6 @@ namespace Sibelia
 								break;
 							}
 						}
-					}
-
-					if (output.size() > 0)
-					{
-						boost::lock_guard<boost::mutex> guard(outMutex);
-						total += output.size();
-						outFile.write(reinterpret_cast<const char*>(&output[0]), output.size() * sizeof(output[0]));
 					}
 				}
 			}
@@ -434,95 +414,6 @@ namespace Sibelia
 				taskQueue[i]->push(Task(Task::GAME_OVER, true, std::string()));
 			}
 		}
-
-		struct Candidate
-		{
-			char prev;
-			char extend;
-			DnaString base;
-
-			Candidate(size_t vertexSize, uint64_t record) : base(vertexSize + 2, record)
-			{
-				extend = base.GetChar(vertexSize);
-				prev = base.GetChar(vertexSize + 1);
-				base.PopBack();
-				base.PopBack();
-			}
-
-			Candidate Reverse() const
-			{
-				Candidate ret(*this);
-				ret.base = ret.base.RevComp();
-				ret.extend = DnaString::Reverse(prev);
-				ret.prev = DnaString::Reverse(extend);
-				return ret;
-			}
-		};
-
-		struct TrueBifurcations
-		{
-			size_t vertexSize;
-			uint64_t falsePositives;
-			std::vector<uint64_t> * candidate;
-			std::vector<uint64_t> * out;
-			boost::mutex * outMutex;
-			TrueBifurcations(std::vector<uint64_t> * candidate, std::vector<uint64_t> * out, boost::mutex * outMutex, size_t vertexSize) :
-				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
-
-			uint64_t operator()(const tbb::blocked_range<size_t> & range, uint64_t init) const
-			{
-				size_t i = range.begin();
-				if (i > 0)
-				{
-					DnaString istr(vertexSize, (*candidate)[i]);
-					if (istr == DnaString(vertexSize, (*candidate)[i - 1]))
-					{
-						for (++i; i < range.end() && istr == DnaString(vertexSize, (*candidate)[i]); ++i);
-					}
-				}
-
-				uint64_t falsePositives = init;
-				for (; i < range.end();)
-				{
-					size_t j = i + 1;
-					bool bif = false;
-					Candidate icand(vertexSize, (*candidate)[i]);
-					if (icand.base == icand.base.RevComp()) //LOOKS SUSPICIOUS!
-					{
-						Candidate rcand = icand.Reverse();
-						bif = icand.prev != rcand.prev || icand.extend != rcand.extend;
-					}
-
-					for (; j < candidate->size(); j++)
-					{
-						Candidate jcand(vertexSize, (*candidate)[j]);
-						if (jcand.base != icand.base)
-						{
-							break;
-						}
-						else if (!bif)
-						{
-							bif = icand.prev != jcand.prev || icand.extend != jcand.extend;
-						}
-					}
-
-					if (bif)
-					{
-						boost::lock_guard<boost::mutex> guard(*outMutex);
-						out->push_back(icand.base.GetBody());
-					}
-					else
-					{
-						falsePositives++;
-					}
-
-					i = j;
-				}
-
-				return falsePositives;
-			}
-		};
-
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName,
@@ -565,89 +456,77 @@ namespace Sibelia
 		{
 			time_t mark = time(0);
 			size_t totalRecords = 0;
+			FastSet candidate(vertexLength, 1 << 4);
 			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
 			{
-				std::vector<std::unique_ptr<ConcurrentBitVector> > isCandidBit;
+				std::vector<TaskQueuePtr> taskQueue;
+				ConcurrentBitVector bitVector(realSize);
+				std::vector<boost::thread> workerThread(threads);
+				std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
+				std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
+				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					std::vector<TaskQueuePtr> taskQueue;
-					ConcurrentBitVector bitVector(realSize);
-					std::vector<boost::thread> workerThread(threads);
-					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
-					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
-					for (size_t i = 0; i < workerThread.size(); i++)
-					{
-						taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
-						workerThread[i] = boost::thread(CountingWorkerOneRound,
-							low,
-							high,
-							boost::cref(hashFunction),
-							boost::ref(bitVector),
-							edgeLength,
-							boost::ref(*taskQueue[i]));
-					}
-
-					DistributeTasks(fileName, edgeLength, taskQueue);
-					for (size_t i = 0; i < workerThread.size(); i++)
-					{
-						workerThread[i].join();
-					}
-
-					std::cout << time(0) - mark << "\t";
-					mark = time(0);
-					boost::mutex tmpFileMutex;
-					std::ofstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
-					if (!tmpFile)
-					{
-						throw StreamFastaParser::Exception("Can't open the temporary file");
-					}
-
-					for (size_t i = 0; i < workerThread.size(); i++)
-					{
-						workerThread[i] = boost::thread(CandidateCheckingWorker,
-							low,
-							high,
-							boost::cref(hashFunction),
-							boost::cref(bitVector),
-							vertexLength,
-							boost::ref(*taskQueue[i]),
-							boost::ref(tmpFile),
-							boost::ref(tmpFileMutex),
-							boost::ref(totalRecords));
-					}
-
-					DistributeTasks(fileName, vertexLength + 1, taskQueue);
-					for (size_t i = 0; i < taskQueue.size(); i++)
-					{
-						workerThread[i].join();
-					}
+					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+					workerThread[i] = boost::thread(CountingWorkerOneRound,
+						low,
+						high,
+						boost::cref(hashFunction),
+						boost::ref(bitVector),
+						edgeLength,
+						boost::ref(*taskQueue[i]));
 				}
+
+				DistributeTasks(fileName, edgeLength, taskQueue);
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					workerThread[i].join();
+				}
+
+				std::cout << time(0) - mark << "\t";
+				mark = time(0);
+				boost::mutex tmpFileMutex;
+				std::ofstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
+				if (!tmpFile)
+				{
+					throw StreamFastaParser::Exception("Can't open the temporary file");
+				}
+
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					workerThread[i] = boost::thread(CandidateCheckingWorker,
+						low,
+						high,
+						boost::cref(hashFunction),
+						boost::cref(bitVector),
+						vertexLength,
+						boost::ref(*taskQueue[i]),
+						boost::ref(candidate),
+						boost::ref(tmpFileMutex),
+						boost::ref(totalRecords));
+				}
+
+				DistributeTasks(fileName, vertexLength + 1, taskQueue);
+				for (size_t i = 0; i < taskQueue.size(); i++)
+				{
+					workerThread[i].join();
+				}
+				
 
 				std::cout << time(0) - mark << "\t";
 			}
 
 			mark = time(0);
-			std::vector<uint64_t> candidate(totalRecords);
 			std::ifstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
 			if (!tmpFile)
 			{
 				throw StreamFastaParser::Exception("Can't open the temporary file");
 			}
 
-			if (totalRecords > 0)
-			{
-				tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
-			}
-
-			boost::mutex outMutex;
-			tbb::parallel_sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
-			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<size_t>(0, candidate.size()),
-				uint64_t(0),
-				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
-				std::plus<uint64_t>());
+			uint64_t falsePositives;
+			candidate.DumpBifurcations(std::back_inserter(bifurcation_), falsePositives);
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "FP count = " << falsePositives << std::endl;
-			std::cout << "Records = " << candidate.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			low = high + 1;
 		}

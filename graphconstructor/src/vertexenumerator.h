@@ -3,6 +3,7 @@
 
 #include <tbb/concurrent_vector.h>
 
+#include "fastset.h"
 #include "streamfastaparser.h"
 #include "concurrentbitvector.h"
 
@@ -33,7 +34,6 @@ namespace Sibelia
 			size_t aggregationThreads,
 			const std::string & tmpFileName);
 	private:
-		
 		size_t vertexSize_;
 		std::vector<uint64_t> bifurcation_;
 	};
