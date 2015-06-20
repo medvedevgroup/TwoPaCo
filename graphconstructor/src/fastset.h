@@ -165,9 +165,8 @@ namespace Sibelia
 
 			bool operator() (const uint64_t & body1, const uint64_t & body2) const
 			{
-				Record record1(vertexLength_, body1);
-				Record record2(vertexLength_, body2);
-				return record1.GetVertex().GetBody() < record2.GetVertex().GetBody();
+				
+				return DnaString::Prefix(body1, vertexLength_) < DnaString::Prefix(body2, vertexLength_);
 			}
 
 		private:

@@ -122,6 +122,12 @@ namespace Sibelia
 		return body_;
 	}
 
+	uint64_t DnaString::Prefix(uint64_t body, uint64_t size)
+	{
+		uint64_t mask = (uint64_t(1) << (size * 2));
+		return body & (mask - 1);
+	}
+
 	DnaString DnaString::Prefix(uint64_t size) const
 	{
 		if (size == 0)

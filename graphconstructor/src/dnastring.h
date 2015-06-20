@@ -19,6 +19,8 @@ namespace Sibelia
 		char GetChar(uint64_t idx) const;
 		void SetChar(uint64_t idx, char ch);
 		DnaString Prefix(uint64_t size) const;
+		static uint64_t Prefix(uint64_t body, uint64_t size);
+
 		size_t GetSize() const;
 		uint64_t GetBody() const;
 		std::string ToString() const;
