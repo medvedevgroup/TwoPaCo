@@ -3,7 +3,6 @@
 
 #include <tbb/concurrent_vector.h>
 
-#include "fastset.h"
 #include "streamfastaparser.h"
 #include "concurrentbitvector.h"
 
