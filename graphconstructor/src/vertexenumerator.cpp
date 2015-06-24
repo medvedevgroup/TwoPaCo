@@ -31,18 +31,6 @@ namespace Sibelia
 		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
 
 		template<class F>
-		bool PutInBloomFilter(ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
-		{
-			for (size_t i = 0; i < hf.size(); i++)
-			{
-				uint64_t hvalue = i == 0 ? hash0 : ((*hf[i]).*f)(farg);
-				filter.SetConcurrently(hvalue);
-			}
-
-			return true;
-		}
-
-		template<class F>
 		bool IsInBloomFilter(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
 		{
 			for (size_t i = 0; i < hf.size(); i++)
@@ -335,6 +323,7 @@ namespace Sibelia
 
 		void CountingWorkerOneRound(uint64_t low, uint64_t high, const std::vector<HashFunctionPtr> & hashFunction, ConcurrentBitVector & filter, size_t edgeLength, TaskQueue & taskQueue)
 		{
+			std::vector<uint64_t> hvalue(hashFunction.size());
 			while (true)
 			{
 				Task task;
@@ -351,14 +340,8 @@ namespace Sibelia
 					}
 
 					size_t vertexLength = edgeLength - 1;
-					std::vector<HashFunctionPtr> reserved(hashFunction.size());
 					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
 					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-					for (size_t i = 0; i < hashFunction.size(); i++)
-					{
-						reserved[i].reset(new HashFunction(*hashFunction[i]));
-					}
-
 					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
@@ -373,11 +356,11 @@ namespace Sibelia
 						{
 							if (posHash0 < negHash0)
 							{
-								*reserved[i] = *posVertexHash[i];
+								hvalue[i] = posVertexHash[i]->hash_extend(nextCh);
 							}
 							else
 							{
-								*reserved[i] = *negVertexHash[i];
+								hvalue[i] = negVertexHash[i]->hash_prepend(revNextCh);
 							}
 						}
 
@@ -392,13 +375,9 @@ namespace Sibelia
 						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						if (Within(fistMinHash0, low, high) || Within(secondMinHash0, low, high))
 						{
-							if (posHash0 < negHash0)
+							for (uint64_t hv : hvalue)
 							{
-								PutInBloomFilter(filter, reserved, &HashFunction::hash_extend, nextCh, posHash0);
-							}
-							else
-							{
-								PutInBloomFilter(filter, reserved, &HashFunction::hash_prepend, revNextCh, negHash0);
+								filter.SetConcurrently(hv);
 							}
 						}						
 					}

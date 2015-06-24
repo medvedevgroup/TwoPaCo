@@ -123,11 +123,11 @@ class CyclicHash {
   
     hashvaluetype hashvalue;
     int n;
-    int wordsize;
+    const int wordsize;
     CharacterHash<hashvaluetype,chartype> hasher;
-    hashvaluetype mask1;
-    int myr;
-    hashvaluetype maskn;
+    const hashvaluetype mask1;
+    const int myr;
+    const hashvaluetype maskn;
 
 };
 
