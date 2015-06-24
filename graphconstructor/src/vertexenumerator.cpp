@@ -171,16 +171,18 @@ namespace Sibelia
 			}
 		}
 
-		void CandidateCheckingWorker(uint64_t low,
-			uint64_t high,
+		void CandidateCheckingWorker(std::pair<uint64_t, uint64_t> bound,
 			const std::vector<HashFunctionPtr> & hashFunction,
 			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
 			std::ofstream & outFile,
 			boost::mutex & outMutex,
-			size_t & total)
+			size_t & total,
+			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
+			uint64_t low = bound.first;
+			uint64_t high = bound.second;
 			std::vector<uint64_t> output;
 			while (true)
 			{
@@ -284,10 +286,6 @@ namespace Sibelia
 									output.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
 								}
 							}
-							else
-							{
-								bool x = true;
-							}
 
 							if (pos + vertexLength + 1 < task.str.size())
 							{
@@ -316,12 +314,22 @@ namespace Sibelia
 						boost::lock_guard<boost::mutex> guard(outMutex);
 						total += output.size();
 						outFile.write(reinterpret_cast<const char*>(&output[0]), output.size() * sizeof(output[0]));
+						if (error != 0)
+						{
+							return;
+						}
+
+						if (!outFile)
+						{
+							error.reset(new StreamFastaParser::Exception("Can't write to the temporary file"));
+							return;
+						}
 					}
 				}
 			}
 		}
 
-		void CountingWorkerOneRound(uint64_t low, uint64_t high, const std::vector<HashFunctionPtr> & hashFunction, ConcurrentBitVector & filter, size_t edgeLength, TaskQueue & taskQueue)
+		void FilterFillerWorker(uint64_t low, uint64_t high, const std::vector<HashFunctionPtr> & hashFunction, ConcurrentBitVector & filter, size_t edgeLength, TaskQueue & taskQueue)
 		{
 			std::vector<uint64_t> hvalue(hashFunction.size());
 			while (true)
@@ -494,16 +502,11 @@ namespace Sibelia
 
 				uint64_t falsePositives = init;
 				for (; i < range.end();)
-				{
-					size_t j = i + 1;
+				{					
 					bool bif = false;
 					Candidate icand(vertexSize, (*candidate)[i]);
-					if (icand.base == icand.base.RevComp()) //LOOKS SUSPICIOUS!
-					{
-						Candidate rcand = icand.Reverse();
-						bif = icand.prev != rcand.prev || icand.extend != rcand.extend;
-					}
-
+					bool selfRevComp = icand.base == icand.base.RevComp();					
+					size_t j = i;
 					for (; j < candidate->size(); j++)
 					{
 						Candidate jcand(vertexSize, (*candidate)[j]);
@@ -514,6 +517,10 @@ namespace Sibelia
 						else if (!bif)
 						{
 							bif = icand.prev != jcand.prev || icand.extend != jcand.extend;
+							if (selfRevComp)
+							{
+								bif = bif || icand.prev != DnaString::Reverse(jcand.extend) || icand.extend != DnaString::Reverse(jcand.prev);
+							}
 						}
 					}
 
@@ -586,7 +593,7 @@ namespace Sibelia
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
-					workerThread[i] = boost::thread(CountingWorkerOneRound,
+					workerThread[i] = boost::thread(FilterFillerWorker,
 						low,
 						high,
 						boost::cref(hashFunction),
@@ -610,18 +617,24 @@ namespace Sibelia
 					throw StreamFastaParser::Exception("Can't open the temporary file");
 				}
 
+				std::unique_ptr<StreamFastaParser::Exception> error;
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(CandidateCheckingWorker,
-						low,
-						high,
+						std::make_pair(low, high),
 						boost::cref(hashFunction),
 						boost::cref(bitVector),
 						vertexLength,
 						boost::ref(*taskQueue[i]),
 						boost::ref(tmpFile),
 						boost::ref(tmpFileMutex),
-						boost::ref(totalRecords));
+						boost::ref(totalRecords),
+						boost::ref(error));
+				}
+
+				if (error != 0)
+				{
+					throw StreamFastaParser::Exception(*error);
 				}
 
 				DistributeTasks(fileName, vertexLength + 1, taskQueue);
@@ -644,6 +657,10 @@ namespace Sibelia
 			if (totalRecords > 0)
 			{
 				tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
+				if (!tmpFile)
+				{
+					throw StreamFastaParser::Exception("The temporary file is corrupted");
+				}
 			}
 
 			boost::mutex outMutex;
