@@ -1,21 +1,22 @@
+#include <set>
 #include <deque>
 #include <ctime>
 #include <memory>
+#include <bitset>
 #include <numeric>
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <unordered_set>
 
 #include <boost/ref.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
+#include <tbb/parallel_reduce.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
-#include <tbb/parallel_reduce.h>
-#include <tbb/concurrent_unordered_set.h>
 
-#include "lib/SpookyV2.h"
 #include "ngramhashing/cyclichash.h"
 
 #include "vertexenumerator.h"
@@ -56,6 +57,31 @@ namespace Sibelia
 			return true;
 		}
 
+		class VertexLess
+		{
+		public:
+			VertexLess(size_t vertexSize) : vertexSize_(vertexSize)
+			{
+
+			}
+
+			bool operator () (const uint64_t & a, const uint64_t & b) const
+			{
+				DnaString stra(vertexSize_, a);
+				DnaString strb(vertexSize_, b);
+				return stra.GetBody() < strb.GetBody();
+			}
+
+
+		private:
+			size_t vertexSize_;
+		};
+
+		size_t CharIndex(char ch)
+		{
+			return std::find(DnaString::LITERAL.begin(), DnaString::LITERAL.end(), ch) - DnaString::LITERAL.begin();
+		}
+
 		struct Task
 		{
 			bool isFinal;
@@ -71,6 +97,7 @@ namespace Sibelia
 			Task(uint64_t start, bool isFinal, std::string && str) : start(start), isFinal(isFinal), str(std::move(str)) {}
 		};
 
+		DnaString kmer;
 
 		const size_t QUEUE_CAPACITY = 16;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
@@ -91,6 +118,20 @@ namespace Sibelia
 		bool Within(uint64_t hvalue, uint64_t low, uint64_t high)
 		{
 			return hvalue >= low && hvalue <= high;
+		}
+
+		DnaString MakeCanonicalRecord(DnaString posVertex, DnaString negVertex, char posExtend, char posPrev)
+		{
+			if (posVertex.GetBody() < negVertex.GetBody())
+			{
+				posVertex.AppendBack(posExtend);
+				posVertex.AppendBack(posPrev);
+				return posVertex;
+			}
+
+			negVertex.AppendBack(DnaString::Reverse(posPrev));
+			negVertex.AppendBack(DnaString::Reverse(posExtend));
+			return negVertex;
 		}
 
 		DnaString Generate(std::string::const_iterator it, size_t size)
@@ -142,124 +183,13 @@ namespace Sibelia
 			}
 		}
 
-		class Record
-		{
-		public:
-			static const char CANDIDATE = 'A';
-			static const char BIFURCATION = 'C';
-
-			Record() {}
-			Record(DnaString posVertex, DnaString negVertex, char posPrev, char posNext, char status = CANDIDATE)
-			{
-				if (posVertex.GetBody() < negVertex.GetBody())
-				{
-					*this = Record(posVertex, posPrev, posNext, status);
-				}
-				else
-				{
-					*this = Record(negVertex, DnaString::Reverse(posNext), DnaString::Reverse(posPrev), status);
-				}
-			}
-
-			Record(DnaString canVertex, char prev, char next, char status = CANDIDATE) : vertex_(canVertex)
-			{
-				vertex_.AppendBack(prev);
-				vertex_.AppendBack(next);
-				vertex_.AppendBack(status);
-			}
-
-			Record(size_t vertexLength, uint64_t body) : vertex_(vertexLength + 3, body)
-			{
-				assert(vertexLength <= 29);
-			}
-
-			uint64_t GetBody() const
-			{
-				return vertex_.GetBody();
-			}
-
-			void ChangeStatus(char newStatus)
-			{
-				vertex_.SetChar(vertex_.GetSize() - 1, newStatus);
-			}
-
-			DnaString GetVertex() const
-			{
-				return vertex_.Prefix(vertex_.GetSize() - 3);
-			}
-
-			char GetPrev() const
-			{
-				return vertex_.GetChar(vertex_.GetSize() - 3);
-			}
-
-			char GetNext() const
-			{
-				return vertex_.GetChar(vertex_.GetSize() - 2);
-			}
-
-			char GetStatus() const
-			{
-				return vertex_.GetChar(vertex_.GetSize() - 1);
-			}
-
-		private:
-			DnaString vertex_;
-		};
-
-		class RecordHashFunction
-		{
-		public:
-			RecordHashFunction(size_t vertexLength) : vertexLength_(vertexLength)
-			{
-
-			}
-
-			uint64_t operator()(const uint64_t & body) const
-			{
-				uint64_t vertex = DnaString::Prefix(body, vertexLength_);
-				return SpookyHash::Hash64(&vertex, sizeof(vertex), 0);
-			}
-
-		private:
-			size_t vertexLength_;
-		};
-
-		class RecordEquality
-		{
-		public:
-			RecordEquality(size_t vertexLength) : vertexLength_(vertexLength)
-			{
-
-			}
-
-			bool operator() (const uint64_t & body1, const uint64_t & body2) const
-			{
-				return DnaString::Prefix(body1, vertexLength_) == DnaString::Prefix(body2, vertexLength_);
-			}
-		private:
-			size_t vertexLength_;
-		};
-
-		typedef tbb::concurrent_unordered_multiset<uint64_t, RecordHashFunction, RecordEquality> HashSet;
-
-
-		void Insert(HashSet & fastSet, const Record & record)
-		{
-			uint64_t body = record.GetBody();
-			if (fastSet.count(body) <= 1)
-			{
-				fastSet.insert(body);
-			}
-		}
-
 		void CandidateCheckingWorker(uint64_t low,
 			uint64_t high,
 			const std::vector<HashFunctionPtr> & hashFunction,
 			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
-			HashSet & fastSet,
+			std::ofstream & outFile,
 			boost::mutex & outMutex,
 			size_t & total)
 		{
@@ -284,10 +214,12 @@ namespace Sibelia
 					{
 						DnaString posVertex = Generate(task.str.begin(), vertexLength);
 						DnaString negVertex = posVertex.RevComp();
-						//	if (Within(NormHash(posVertexHash, negVertexHash), low, high))
+						uint64_t posHash0 = hashFunction[0]->hash(posVertex.ToString());
+						uint64_t negHash0 = hashFunction[0]->hash(negVertex.ToString());
+						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							Insert(fastSet, Record(posVertex, negVertex, 'A', 'A'));
-							Insert(fastSet, Record(posVertex, negVertex, 'C', 'A'));
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
 						}
 					}
 
@@ -295,10 +227,12 @@ namespace Sibelia
 					{
 						DnaString posVertex = Generate(task.str.end() - vertexLength, vertexLength);
 						DnaString negVertex = posVertex.RevComp();
-						//	if (Within(NormHash(seed, posVertex, negVertex), low, high))
+						uint64_t posHash0 = hashFunction[0]->hash(posVertex.ToString());
+						uint64_t negHash0 = hashFunction[0]->hash(negVertex.ToString());
+						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							Insert(fastSet, Record(posVertex, negVertex, 'A', 'A'));
-							Insert(fastSet, Record(posVertex, negVertex, 'C', 'A'));
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
+							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
 						}
 					}
 
@@ -314,7 +248,7 @@ namespace Sibelia
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];
 							assert(posVertex.RevComp() == negVertex);
-							//		if (Within(NormHash(posVertexHash, negVertexHash), low, high))
+							if (Within(std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high))
 							{
 								size_t inCount = 0;
 								size_t outCount = 0;
@@ -359,12 +293,12 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									Insert(fastSet, Record(posVertex, negVertex, posExtend, posPrev));
-									if (posVertex == negVertex)
-									{
-										Insert(fastSet, Record(posVertex, negVertex, DnaString::Reverse(posPrev), DnaString::Reverse(posExtend)));
-									}
+									output.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
 								}
+							}
+							else
+							{
+								bool x = true;
 							}
 
 							if (pos + vertexLength + 1 < task.str.size())
@@ -388,6 +322,13 @@ namespace Sibelia
 							}
 						}
 					}
+
+					if (output.size() > 0)
+					{
+						boost::lock_guard<boost::mutex> guard(outMutex);
+						total += output.size();
+						outFile.write(reinterpret_cast<const char*>(&output[0]), output.size() * sizeof(output[0]));
+					}
 				}
 			}
 		}
@@ -410,8 +351,14 @@ namespace Sibelia
 					}
 
 					size_t vertexLength = edgeLength - 1;
+					std::vector<HashFunctionPtr> reserved(hashFunction.size());
 					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
 					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+					for (size_t i = 0; i < hashFunction.size(); i++)
+					{
+						reserved[i].reset(new HashFunction(*hashFunction[i]));
+					}
+
 					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
@@ -419,16 +366,21 @@ namespace Sibelia
 						char revNextCh = DnaString::Reverse(nextCh);
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
-						if (posHash0 < negHash0)
+						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);						
+						char prevCh = task.str[pos];
+						
+						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
-							PutInBloomFilter(filter, posVertexHash, &HashFunction::hash_extend, nextCh, posHash0);
-						}
-						else
-						{
-							PutInBloomFilter(filter, negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0);
+							if (posHash0 < negHash0)
+							{
+								*reserved[i] = *posVertexHash[i];
+							}
+							else
+							{
+								*reserved[i] = *negVertexHash[i];
+							}
 						}
 
-						char prevCh = task.str[pos];
 						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
 							posVertexHash[i]->update(prevCh, nextCh);
@@ -436,7 +388,20 @@ namespace Sibelia
 							negVertexHash[i]->reverse_update(DnaString::Reverse(nextCh), DnaString::Reverse(prevCh));
 							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
-					};
+
+						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+						if (Within(fistMinHash0, low, high) || Within(secondMinHash0, low, high))
+						{
+							if (posHash0 < negHash0)
+							{
+								PutInBloomFilter(filter, reserved, &HashFunction::hash_extend, nextCh, posHash0);
+							}
+							else
+							{
+								PutInBloomFilter(filter, reserved, &HashFunction::hash_prepend, revNextCh, negHash0);
+							}
+						}						
+					}
 				}
 			}
 		}
@@ -501,6 +466,95 @@ namespace Sibelia
 				taskQueue[i]->push(Task(Task::GAME_OVER, true, std::string()));
 			}
 		}
+
+		struct Candidate
+		{
+			char prev;
+			char extend;
+			DnaString base;
+
+			Candidate(size_t vertexSize, uint64_t record) : base(vertexSize + 2, record)
+			{
+				extend = base.GetChar(vertexSize);
+				prev = base.GetChar(vertexSize + 1);
+				base.PopBack();
+				base.PopBack();
+			}
+
+			Candidate Reverse() const
+			{
+				Candidate ret(*this);
+				ret.base = ret.base.RevComp();
+				ret.extend = DnaString::Reverse(prev);
+				ret.prev = DnaString::Reverse(extend);
+				return ret;
+			}
+		};
+
+		struct TrueBifurcations
+		{
+			size_t vertexSize;
+			uint64_t falsePositives;
+			std::vector<uint64_t> * candidate;
+			std::vector<uint64_t> * out;
+			boost::mutex * outMutex;
+			TrueBifurcations(std::vector<uint64_t> * candidate, std::vector<uint64_t> * out, boost::mutex * outMutex, size_t vertexSize) :
+				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
+
+			uint64_t operator()(const tbb::blocked_range<size_t> & range, uint64_t init) const
+			{
+				size_t i = range.begin();
+				if (i > 0)
+				{
+					DnaString istr(vertexSize, (*candidate)[i]);
+					if (istr == DnaString(vertexSize, (*candidate)[i - 1]))
+					{
+						for (++i; i < range.end() && istr == DnaString(vertexSize, (*candidate)[i]); ++i);
+					}
+				}
+
+				uint64_t falsePositives = init;
+				for (; i < range.end();)
+				{
+					size_t j = i + 1;
+					bool bif = false;
+					Candidate icand(vertexSize, (*candidate)[i]);
+					if (icand.base == icand.base.RevComp()) //LOOKS SUSPICIOUS!
+					{
+						Candidate rcand = icand.Reverse();
+						bif = icand.prev != rcand.prev || icand.extend != rcand.extend;
+					}
+
+					for (; j < candidate->size(); j++)
+					{
+						Candidate jcand(vertexSize, (*candidate)[j]);
+						if (jcand.base != icand.base)
+						{
+							break;
+						}
+						else if (!bif)
+						{
+							bif = icand.prev != jcand.prev || icand.extend != jcand.extend;
+						}
+					}
+
+					if (bif)
+					{
+						boost::lock_guard<boost::mutex> guard(*outMutex);
+						out->push_back(icand.base.GetBody());
+					}
+					else
+					{
+						falsePositives++;
+					}
+
+					i = j;
+				}
+
+				return falsePositives;
+			}
+		};
+
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName,
@@ -543,8 +597,7 @@ namespace Sibelia
 		{
 			time_t mark = time(0);
 			size_t totalRecords = 0;
-			HashSet candidate(1 << 24, RecordHashFunction(vertexLength), RecordEquality(vertexLength));
-			uint64_t high = round == rounds - 1 ? UINT64_MAX : (UINT64_MAX / rounds) * (round + 1);
+			uint64_t high = round == rounds - 1 ? realSize : (realSize / rounds) * (round + 1);
 			{
 				std::vector<TaskQueuePtr> taskQueue;
 				ConcurrentBitVector bitVector(realSize);
@@ -587,7 +640,7 @@ namespace Sibelia
 						boost::cref(bitVector),
 						vertexLength,
 						boost::ref(*taskQueue[i]),
-						boost::ref(candidate),
+						boost::ref(tmpFile),
 						boost::ref(tmpFileMutex),
 						boost::ref(totalRecords));
 				}
@@ -597,47 +650,39 @@ namespace Sibelia
 				{
 					workerThread[i].join();
 				}
-				
 
 				std::cout << time(0) - mark << "\t";
 			}
 
 			mark = time(0);
+			std::vector<uint64_t> candidate(totalRecords);
 			std::ifstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
 			if (!tmpFile)
 			{
 				throw StreamFastaParser::Exception("Can't open the temporary file");
 			}
 
-			RecordEquality eq(vertexLength);
-			for (auto it = candidate.begin(); it != candidate.end();)
-			{								
-				auto jt = it;
-				size_t step = 0;
-				for (; jt != candidate.end() && eq(*it, *jt); ++jt)
-				{
-					++step;
-				}
-
-				if (step > 0)
-				{
-					bifurcation_.push_back(DnaString::Prefix(*it, vertexLength));
-				}
-
-				it = jt;
+			if (totalRecords > 0)
+			{
+				tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
 			}
-			
 
-			uint64_t falsePositives = 0;			
+			boost::mutex outMutex;
+			tbb::parallel_sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
+			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<size_t>(0, candidate.size()),
+				uint64_t(0),
+				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
+				std::plus<uint64_t>());
+
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "FP count = " << falsePositives << std::endl;
+			std::cout << "Records = " << candidate.size() << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			low = high + 1;
 		}
 
 		tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end());
-		assert(std::unique(bifurcation_.begin(), bifurcation_.end()) == bifurcation_.end());
 	}
 
 	size_t VertexEnumerator::GetVerticesCount() const
