@@ -65,11 +65,6 @@ namespace Sibelia
 			size_t vertexSize_;
 		};
 
-		size_t CharIndex(char ch)
-		{
-			return std::find(DnaString::LITERAL.begin(), DnaString::LITERAL.end(), ch) - DnaString::LITERAL.begin();
-		}
-
 		struct Task
 		{
 			bool isFinal;
@@ -329,7 +324,15 @@ namespace Sibelia
 			}
 		}
 
-		void FilterFillerWorker(uint64_t low, uint64_t high, const std::vector<HashFunctionPtr> & hashFunction, ConcurrentBitVector & filter, size_t edgeLength, TaskQueue & taskQueue)
+		const uint64_t BINS_COUNT = 1 << 24;
+		const uint32_t MAX_COUNTER = UINT32_MAX >> 1;
+
+		void FilterFillerWorker(uint64_t low,
+			uint64_t high,
+			const std::vector<HashFunctionPtr> & hashFunction,
+			ConcurrentBitVector & filter,
+			size_t edgeLength,
+			TaskQueue & taskQueue)
 		{
 			std::vector<uint64_t> hvalue(hashFunction.size());
 			while (true)
@@ -388,6 +391,79 @@ namespace Sibelia
 								filter.SetConcurrently(hv);
 							}
 						}						
+					}
+				}
+			}
+		}
+
+		void InitialFilterFillerWorker(uint64_t binSize,
+			const std::vector<HashFunctionPtr> & hashFunction,
+			ConcurrentBitVector & filter,
+			size_t vertexLength,
+			TaskQueue & taskQueue,
+			std::atomic<uint32_t> * binCounter)
+		{			
+			while (true)
+			{
+				Task task;
+				if (taskQueue.pop(task))
+				{
+					if (task.start == Task::GAME_OVER)
+					{
+						break;
+					}
+
+					if (task.str.size() < vertexLength)
+					{
+						continue;
+					}
+
+					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
+					for (size_t pos = 0;; ++pos)
+					{
+						bool wasSet = true;
+						uint64_t posHash0 = posVertexHash[0]->hashvalue;
+						uint64_t negHash0 = negVertexHash[0]->hashvalue;
+						for (size_t i = 0; i < hashFunction.size(); i++)
+						{
+							uint64_t hvalue = posHash0 < negHash0 ? posVertexHash[i]->hashvalue : negVertexHash[i]->hashvalue;
+							if (!filter.Get(hvalue))
+							{
+								wasSet = false;
+							}
+							else
+							{
+								filter.SetConcurrently(hvalue);
+							}
+						}
+
+						if (!wasSet)
+						{
+							uint64_t bin = posVertexHash[0]->hashvalue / binSize;
+							if (binCounter[bin] < MAX_COUNTER)
+							{
+								binCounter[bin].fetch_add(1);
+							}
+						}
+
+						if (pos + vertexLength < task.str.size())
+						{
+							char prevCh = task.str[pos];
+							char nextCh = task.str[pos + vertexLength];
+							for (size_t i = 0; i < hashFunction.size(); i++)
+							{
+								posVertexHash[i]->update(prevCh, nextCh);
+								assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+								negVertexHash[i]->reverse_update(DnaString::Reverse(nextCh), DnaString::Reverse(prevCh));
+								assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
+							}
+						}
+						else
+						{
+							break;
+						}
 					}
 				}
 			}
@@ -565,7 +641,7 @@ namespace Sibelia
 		}
 
 		std::cout << std::string(80, '-') << std::endl;
-
+		const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
 		if (vertexLength > 30)
 		{
 			throw std::runtime_error("The vertex size is too large");
@@ -578,12 +654,53 @@ namespace Sibelia
 		}
 
 		size_t edgeLength = vertexLength + 1;
-		uint64_t low = 0;
-		for (size_t round = 0; round < rounds; round++)
+		std::atomic<uint32_t> * binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 		{
+			std::fill(binCounter, binCounter + BINS_COUNT, 0);
+			std::vector<boost::thread> workerThread(threads);
+			ConcurrentBitVector bitVector(realSize);
+			std::vector<TaskQueuePtr> taskQueue;
+			for (size_t i = 0; i < workerThread.size(); i++)
+			{
+				taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+				workerThread[i] = boost::thread(InitialFilterFillerWorker,					
+					BIN_SIZE,
+					boost::cref(hashFunction),
+					boost::ref(bitVector),
+					vertexLength,
+					boost::ref(*taskQueue[i]),
+					binCounter);
+			}
+
+			DistributeTasks(fileName, edgeLength, taskQueue);
+			for (size_t i = 0; i < workerThread.size(); i++)
+			{
+				workerThread[i].join();
+			}
+		}
+
+		uint64_t low = 0;
+		uint64_t high = 0;
+		size_t lowBoundary = 0;
+		for (size_t round = 0; low < realSize; round++)
+		{			
 			time_t mark = time(0);
 			size_t totalRecords = 0;
-			uint64_t high = round == rounds - 1 ? realSize : (realSize / rounds) * (round + 1);
+			uint64_t accumulated = binCounter[lowBoundary];
+			for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
+			{				
+				if (accumulated == 0 || realSize / (accumulated + binCounter[lowBoundary]) > 50)
+				{
+					accumulated += binCounter[lowBoundary];
+				}
+				else
+				{					
+					break;
+				}
+			}
+
+			std::cout << "ration = " << float(realSize) / accumulated << std::endl;
+			uint64_t high = lowBoundary * BIN_SIZE;
 			{
 				std::vector<TaskQueuePtr> taskQueue;
 				ConcurrentBitVector bitVector(realSize);
@@ -678,6 +795,7 @@ namespace Sibelia
 			low = high + 1;
 		}
 
+		delete[] binCounter;
 		tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end());
 	}
 
