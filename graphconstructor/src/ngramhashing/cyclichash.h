@@ -26,7 +26,7 @@ class CyclicHash {
   public:
     // myn is the length of the sequences, e.g., 3 means that you want to hash sequences of 3 characters 
     // mywordsize is the number of bits you which to receive as hash values, e.g., 19 means that the hash values are 19-bit integers
-    CyclicHash(int myn, int mywordsize=19) : hashvalue(0), 
+    CyclicHash(int myn=3, int mywordsize=19) : hashvalue(0), 
     n(myn), wordsize(mywordsize), 
       hasher(maskfnc<hashvaluetype>(wordsize)),
       mask1(maskfnc<hashvaluetype>(wordsize-1)),
@@ -63,7 +63,7 @@ class CyclicHash {
 
      // this is a convenience function, use eat,update and .hashvalue to use as a rolling hash function 
     template<class container>
-    hashvaluetype  hash(container & c) {
+    hashvaluetype  hash(const container & c) const {
     	hashvaluetype answer(0);
     	for(uint k = 0; k<c.size();++k) {
     		fastleftshift1(answer);
@@ -123,11 +123,11 @@ class CyclicHash {
   
     hashvaluetype hashvalue;
     int n;
-    const int wordsize;
+    int wordsize;
     CharacterHash<hashvaluetype,chartype> hasher;
-    const hashvaluetype mask1;
-    const int myr;
-    const hashvaluetype maskn;
+    hashvaluetype mask1;
+    int myr;
+    hashvaluetype maskn;
 
 };
 
