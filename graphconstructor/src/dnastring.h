@@ -4,8 +4,6 @@
 #include <string>
 #include <cstdint>
 
-#include "streamfastaparser.h"
-
 namespace Sibelia
 {
 	class DnaString
@@ -13,24 +11,27 @@ namespace Sibelia
 	public:		
 		char PopBack();
 		char PopFront();
-		void AppendBack(uint64_t ch);
-		void AppendFront(uint64_t ch);
+		void AppendBack(char ch);
+		void AppendFront(char ch);
 		DnaString(uint64_t size = 0);
 		DnaString(const std::string & body);
 		DnaString(uint64_t size, uint64_t body);		
 		char GetChar(uint64_t idx) const;
-		void SetChar(uint64_t idx, uint64_t ch);
+		void SetChar(uint64_t idx, char ch);
 		DnaString Prefix(uint64_t size) const;
 		static uint64_t Prefix(uint64_t body, uint64_t size);
 
 		size_t GetSize() const;
 		uint64_t GetBody() const;
-		std::string ToString(bool unMakeUp = false) const;
+		std::string ToString() const;
+		static const std::string LITERAL;
+		static char Reverse(char ch);
 		DnaString RevComp() const;
-		static std::string SpecialRevComp(const std::string & str);
+		static std::string RevComp(const std::string & str);
 	private:
 		uint64_t size_;
 		uint64_t body_;
+		static uint64_t MakeUp(char ch);
 		friend bool operator == (const DnaString & a, const DnaString & b);
 		friend bool operator != (const DnaString & a, const DnaString & b);
 	};

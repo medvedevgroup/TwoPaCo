@@ -116,7 +116,7 @@ int main(int argc, char * argv[])
 			tmpFileName.getValue());
 
 		std::cout << "Distinct = " << vid.GetVerticesCount() << std::endl;
-		/*
+
 		if (countAll.isSet())
 		{
 			std::vector<std::string> all;
@@ -127,7 +127,7 @@ int main(int argc, char * argv[])
 			std::sort(all.begin(), all.end());
 			all.erase(std::unique(all.begin(), all.end()), all.end());
 			std::cout << "All = " << all.size() << std::endl;
-		}*/
+		}
 
 		std::cout << std::endl;
 

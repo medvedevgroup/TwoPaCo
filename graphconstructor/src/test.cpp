@@ -13,7 +13,7 @@ namespace Sibelia
 	{
 		
 	}
-	/*
+
 	void DnaStringTest(size_t n, std::ostream & log)
 	{
 		DnaString str0(32);
@@ -83,13 +83,13 @@ namespace Sibelia
 			log << str2pr << std::endl;
 			assert(str1pr.ToString() == str2pr);
 		}
-	}*/
+	}
 
 	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log)
 	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
-		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 1, 4, 1, "graphconstructor.tmp");
+		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 4, 1, 1, "graphconstructor.tmp");
 
 		for (const std::string & nowFileName : fileName)
 		{
@@ -108,7 +108,7 @@ namespace Sibelia
 					while (true)
 					{
 						edges.insert(edge);
-						edges.insert(DnaString::SpecialRevComp(edge));
+						edges.insert(DnaString::RevComp(edge));
 						if (parser.GetChar(ch))
 						{
 							edge.push_back(ch);
@@ -138,15 +138,15 @@ namespace Sibelia
 				if (vertex.size() >= vertexLength)
 				{
 					bif.insert(vertex);
-					bif.insert(DnaString::SpecialRevComp(vertex));
+					bif.insert(DnaString::RevComp(vertex));
 					while (true)
 					{
-						std::string candVertex[] = { vertex, DnaString::SpecialRevComp(vertex) };
+						std::string candVertex[] = { vertex, DnaString::RevComp(vertex) };
 						for (const std::string cand : candVertex)
 						{
 							size_t inCount = 0;
 							size_t outCount = 0;
-							for (char ch = 0; ch < 4; ch++)
+							for (char ch : DnaString::LITERAL)
 							{
 								std::string inEdge = ch + cand;
 								std::string outEdge = cand + ch;
@@ -159,10 +159,9 @@ namespace Sibelia
 								DnaString check;
 								for (size_t i = 0; i < cand.size(); i++)
 								{
-									check.AppendBack(StreamFastaParser::MakeUp(cand[i]));
+									check.AppendBack(cand[i]);
 								}
 
-								std::string tmp = check.ToString(true);
 								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.RevComp()) != VertexEnumerator::INVALID_VERTEX);
 								bif.insert(cand);
 							}
@@ -176,7 +175,7 @@ namespace Sibelia
 						else
 						{
 							bif.insert(vertex);
-							bif.insert(DnaString::SpecialRevComp(vertex));
+							bif.insert(DnaString::RevComp(vertex));
 							break;
 						}
 					}
@@ -190,7 +189,7 @@ namespace Sibelia
 		std::cout << "Diff:" << std::endl;
 		for (const std::string & v : vidSet)
 		{
-			if (bif.count(v) == 0 && bif.count(DnaString::SpecialRevComp(v)) == 0)
+			if (bif.count(v) == 0 && bif.count(DnaString::RevComp(v)) == 0)
 			{
 				std::cout << v << std::endl;
 			}
