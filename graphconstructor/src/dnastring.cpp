@@ -132,10 +132,14 @@ namespace Sibelia
 		return ret;
 	}
 
-	std::string DnaString::RevComp(const std::string & str)
+	std::string DnaString::SpecialRevComp(const std::string & str)
 	{
 		std::string ret;
-		std::transform(str.rbegin(), str.rend(), std::back_inserter(ret), StreamFastaParser::Reverse);
+		for (auto it = str.rbegin(); it != str.rend(); ++it)
+		{
+			ret.push_back(StreamFastaParser::UnMakeUp(StreamFastaParser::Reverse(StreamFastaParser::MakeUp(*it))));
+		}
+
 		return ret;
 	}
 }

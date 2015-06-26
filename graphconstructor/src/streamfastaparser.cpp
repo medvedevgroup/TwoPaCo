@@ -142,7 +142,6 @@ namespace Sibelia
 				}
 
 				GetCh(ch);
-				ch = makeUp ? MakeUp(toupper(ch)) : toupper(ch);
 				return true;
 			}
 		}

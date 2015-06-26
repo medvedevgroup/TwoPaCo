@@ -193,6 +193,11 @@ namespace Sibelia
 						continue;
 					}
 
+					for (char & ch : task.str)
+					{
+						ch = StreamFastaParser::MakeUp(toupper(ch));
+					}
+
 					if (task.start == 0)
 					{
 						DnaString posVertex = Generate(task.str.begin(), vertexLength);
@@ -346,6 +351,11 @@ namespace Sibelia
 						continue;
 					}
 
+					for (char & ch : task.str)
+					{
+						ch = StreamFastaParser::MakeUp(toupper(ch));
+					}
+
 					size_t vertexLength = edgeLength - 1;
 					CyclicHashFamily hf = hashFunction;
 					InitializeHashFunctions(hf, task.str, vertexLength);
@@ -409,6 +419,11 @@ namespace Sibelia
 					if (task.str.size() < edgeLength)
 					{
 						continue;
+					}
+
+					for (char & ch : task.str)
+					{
+						ch = StreamFastaParser::MakeUp(toupper(ch));
 					}
 
 					size_t vertexLength = edgeLength - 1;
@@ -689,7 +704,7 @@ namespace Sibelia
 			uint64_t accumulated = binCounter[lowBoundary];
 			for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
 			{				
-				if (accumulated == 0 || (accumulated + binCounter[lowBoundary] < average))
+				if (accumulated == 0 || (accumulated + binCounter[lowBoundary] < average) || round + 1 == rounds)
 				{
 					accumulated += binCounter[lowBoundary];
 				}

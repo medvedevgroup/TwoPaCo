@@ -27,7 +27,7 @@ namespace Sibelia
 		uint64_t GetBody() const;
 		std::string ToString(bool unMakeUp = false) const;
 		DnaString RevComp() const;
-		static std::string RevComp(const std::string & str);
+		static std::string SpecialRevComp(const std::string & str);
 	private:
 		uint64_t size_;
 		uint64_t body_;

@@ -89,7 +89,7 @@ namespace Sibelia
 	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
-		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp");
+		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 1, 4, 1, "graphconstructor.tmp");
 
 		for (const std::string & nowFileName : fileName)
 		{
@@ -108,7 +108,7 @@ namespace Sibelia
 					while (true)
 					{
 						edges.insert(edge);
-						edges.insert(DnaString::RevComp(edge));
+						edges.insert(DnaString::SpecialRevComp(edge));
 						if (parser.GetChar(ch))
 						{
 							edge.push_back(ch);
@@ -138,10 +138,10 @@ namespace Sibelia
 				if (vertex.size() >= vertexLength)
 				{
 					bif.insert(vertex);
-					bif.insert(DnaString::RevComp(vertex));
+					bif.insert(DnaString::SpecialRevComp(vertex));
 					while (true)
 					{
-						std::string candVertex[] = { vertex, DnaString::RevComp(vertex) };
+						std::string candVertex[] = { vertex, DnaString::SpecialRevComp(vertex) };
 						for (const std::string cand : candVertex)
 						{
 							size_t inCount = 0;
@@ -159,7 +159,7 @@ namespace Sibelia
 								DnaString check;
 								for (size_t i = 0; i < cand.size(); i++)
 								{
-									check.AppendBack(cand[i]);
+									check.AppendBack(StreamFastaParser::MakeUp(cand[i]));
 								}
 
 								std::string tmp = check.ToString(true);
@@ -176,7 +176,7 @@ namespace Sibelia
 						else
 						{
 							bif.insert(vertex);
-							bif.insert(DnaString::RevComp(vertex));
+							bif.insert(DnaString::SpecialRevComp(vertex));
 							break;
 						}
 					}
@@ -190,7 +190,7 @@ namespace Sibelia
 		std::cout << "Diff:" << std::endl;
 		for (const std::string & v : vidSet)
 		{
-			if (bif.count(v) == 0 && bif.count(DnaString::RevComp(v)) == 0)
+			if (bif.count(v) == 0 && bif.count(DnaString::SpecialRevComp(v)) == 0)
 			{
 				std::cout << v << std::endl;
 			}
@@ -207,7 +207,7 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 15, 12, ss);
+		VertexEnumeratorTest(fileName, 4, 12, ss);
 	
 		fileName.clear();
 		fileName.push_back("g00.fasta");
