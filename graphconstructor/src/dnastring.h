@@ -13,13 +13,13 @@ namespace Sibelia
 	public:		
 		char PopBack();
 		char PopFront();
-		void AppendBack(char ch);
-		void AppendFront(char ch);
+		void AppendBack(uint64_t ch);
+		void AppendFront(uint64_t ch);
 		DnaString(uint64_t size = 0);
 		DnaString(const std::string & body);
 		DnaString(uint64_t size, uint64_t body);		
 		char GetChar(uint64_t idx) const;
-		void SetChar(uint64_t idx, char ch);
+		void SetChar(uint64_t idx, uint64_t ch);
 		DnaString Prefix(uint64_t size) const;
 		static uint64_t Prefix(uint64_t body, uint64_t size);
 

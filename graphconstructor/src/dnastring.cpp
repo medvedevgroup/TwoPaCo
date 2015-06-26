@@ -53,14 +53,14 @@ namespace Sibelia
 		return ret;
 	}
 
-	void DnaString::AppendFront(char ch)
+	void DnaString::AppendFront(uint64_t ch)
 	{
 		++size_ ;
 		body_ <<= 2;
 		body_ |= ch;
 	}
 
-	void DnaString::AppendBack(char ch)
+	void DnaString::AppendBack(uint64_t ch)
 	{
 		body_ |=  ch << (2 * size_++);
 	}
@@ -103,7 +103,7 @@ namespace Sibelia
 		return charIdx & 0x3;
 	}
 
-	void DnaString::SetChar(uint64_t idx, char ch)
+	void DnaString::SetChar(uint64_t idx, uint64_t ch)
 	{
 		uint64_t mask = uint64_t(0x3) << (idx * 2);
 		body_ &= ~(mask);
