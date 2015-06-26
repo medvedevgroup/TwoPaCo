@@ -387,9 +387,9 @@ namespace Sibelia
 				}
 			}
 		}
-		/*
+		
 		void InitialFilterFillerWorker(uint64_t binSize,
-			const std::vector<HashFunctionPtr> & hashFunction,
+			const CyclicHashFamily & hashFunction,
 			ConcurrentBitVector & filter,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
@@ -412,21 +412,20 @@ namespace Sibelia
 					}
 
 					size_t vertexLength = edgeLength - 1;
-					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
+					CyclicHashFamily hf = hashFunction;
+					InitializeHashFunctions(hf, task.str, vertexLength);
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
 						char nextCh = task.str[pos + edgeLength - 1];
 						char revNextCh = StreamFastaParser::Reverse(nextCh);
-						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
-						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
-						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+						uint64_t posHash0 = hf.hash_extend(POSITIVE, 0, nextCh);
+						uint64_t negHash0 = hf.hash_prepend(NEGATIVE, 0, revNextCh);
+						uint64_t fistMinHash0 = std::min(hf.hashvalue[POSITIVE][0], hf.hashvalue[NEGATIVE][0]);
 						char prevCh = task.str[pos];
 						bool wasSet = true;
-						for (size_t i = 0; i < hashFunction.size(); i++)
+						for (size_t i = 0; i < hf.hashvalue[0].size(); i++)
 						{
-							uint64_t hvalue = posHash0 < negHash0 ? posVertexHash[i]->hash_extend(nextCh) : negVertexHash[i]->hash_prepend(revNextCh);							
+							uint64_t hvalue = posHash0 < negHash0 ? hf.hash_extend(POSITIVE, i, nextCh) : hf.hash_prepend(NEGATIVE, i, revNextCh);
 							if (filter.Get(hvalue))
 							{
 								wasSet = false;
@@ -434,22 +433,22 @@ namespace Sibelia
 							}
 						}
 
-						for (size_t i = 0; i < hashFunction.size(); i++)
+						for (size_t i = 0; i < hf.hashvalue[0].size(); i++)
 						{
-							posVertexHash[i]->update(prevCh, nextCh);
-							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-							negVertexHash[i]->reverse_update(StreamFastaParser::Reverse(nextCh), StreamFastaParser::Reverse(prevCh));
-							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
+							hf.update(POSITIVE, i, prevCh, nextCh);
+							assert(hf.hashvalue[POSITIVE][i] == hf.hash(i, task.str.substr(pos + 1, vertexLength)));
+							hf.reverse_update(NEGATIVE, i, StreamFastaParser::Reverse(nextCh), StreamFastaParser::Reverse(prevCh));
+							assert(hf.hashvalue[NEGATIVE][i] == hf.hash(i, RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
 
-						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+						uint64_t secondMinHash0 = std::min(hf.hashvalue[POSITIVE][0], hf.hashvalue[NEGATIVE][0]);
 						if (wasSet)
 						{
 							uint64_t prevBin = BINS_COUNT;
 							uint64_t value[] = { fistMinHash0, secondMinHash0 };
 							for (uint64_t v : value)
 							{
-								uint64_t bin = posVertexHash[0]->hashvalue / binSize;
+								uint64_t bin = v / binSize;
 								if (bin != prevBin && binCounter[bin] < MAX_COUNTER)
 								{
 									binCounter[bin].fetch_add(1);
@@ -460,7 +459,7 @@ namespace Sibelia
 					}
 				}
 			}
-		}*/
+		}
 
 		void DistributeTasks(const std::vector<std::string> & fileName, size_t overlapSize, std::vector<TaskQueuePtr> & taskQueue)
 		{
@@ -642,7 +641,7 @@ namespace Sibelia
 
 		CyclicHashFamily hashFunction(hashFunctions, vertexLength, filterSize);
 		size_t edgeLength = vertexLength + 1;
-		std::atomic<uint32_t> * binCounter = new std::atomic<uint32_t>[BINS_COUNT];/*
+		std::atomic<uint32_t> * binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 		{
 			std::fill(binCounter, binCounter + BINS_COUNT, 0);
 			std::vector<boost::thread> workerThread(threads);
@@ -665,8 +664,20 @@ namespace Sibelia
 			{
 				workerThread[i].join();
 			}
-		}*/
+		}
 
+		size_t count = 0;
+		double average = 0;
+		for (size_t i = 0; i < BINS_COUNT; i++)
+		{
+			average += binCounter[i];
+			if (binCounter[i])
+			{
+				count++;
+			}
+		}
+
+		average /= rounds;
 		uint64_t low = 0;
 		uint64_t high = 0;
 		size_t lowBoundary = 0;
@@ -678,7 +689,7 @@ namespace Sibelia
 			uint64_t accumulated = binCounter[lowBoundary];
 			for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
 			{				
-				if (accumulated == 0 || realSize / (accumulated + binCounter[lowBoundary]) > 34)
+				if (accumulated == 0 || (accumulated + binCounter[lowBoundary] < average))
 				{
 					accumulated += binCounter[lowBoundary];
 				}
@@ -688,9 +699,8 @@ namespace Sibelia
 				}
 			}
 
-			//std::cout << "Ratio = " << double(realSize) / accumulated << std::endl;
-			//uint64_t high = lowBoundary * BIN_SIZE;
-			uint64_t high = realSize;
+			std::cout << "Ratio = " << double(realSize) / accumulated << std::endl;
+			uint64_t high = lowBoundary * BIN_SIZE;
 			{
 				std::vector<TaskQueuePtr> taskQueue;
 				ConcurrentBitVector bitVector(realSize);
