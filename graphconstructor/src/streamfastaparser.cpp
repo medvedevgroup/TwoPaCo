@@ -8,6 +8,57 @@ namespace Sibelia
 	//const std::string StreamFastaParser::VALID_CHARS = "ACGTURYKMSWBDHWNX-";
 	const std::string StreamFastaParser::VALID_CHARS = "ACGT";
 
+	char StreamFastaParser::MakeUp(char ch)
+	{
+		switch (ch)
+		{
+		case 'A':
+			return 0;
+		case 'C':
+			return 1;
+		case 'G':
+			return 2;
+		case 'T':
+			return 3;
+		default:
+			return UNKNOWN_CHAR;
+		}
+	}
+
+	char StreamFastaParser::Reverse(char ch)
+	{
+		switch (ch)
+		{
+		case 0:
+			return 3;
+		case 3:
+			return 0;
+		case 1:
+			return 2;
+		case 2:
+			return 1;
+		}
+
+		return UNKNOWN_CHAR;
+	}
+
+	char StreamFastaParser::UnMakeUp(char ch)
+	{
+		switch (ch)
+		{
+		case 0:
+			return 'A';
+		case 1:
+			return 'C';
+		case 2:
+			return 'G';
+		case 3:
+			return 'T';
+		default:
+			return 'N';
+		}
+	}
+
 	StreamFastaParser::Exception::Exception(const std::string & msg) : std::runtime_error(msg)
 	{
 		
@@ -65,7 +116,7 @@ namespace Sibelia
 		return true;
 	}
 
-	bool StreamFastaParser::GetChar(char & ch)
+	bool StreamFastaParser::GetChar(char & ch, bool makeUp)
 	{
 		while (true)
 		{
@@ -91,7 +142,7 @@ namespace Sibelia
 				}
 
 				GetCh(ch);
-				ch = toupper(ch);
+				ch = makeUp ? MakeUp(toupper(ch)) : toupper(ch);
 				return true;
 			}
 		}

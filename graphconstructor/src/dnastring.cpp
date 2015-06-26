@@ -5,35 +5,12 @@
 
 namespace Sibelia
 {
-	const std::string DnaString::LITERAL = "ACGT";
-
 	DnaString::DnaString(const std::string & body) : size_(0), body_(0)
 	{
 		for (size_t i = 0; i < body.size(); i++)
 		{
 			AppendBack(body[i]);
 		}
-	}
-
-	char DnaString::Reverse(char ch)
-	{
-		switch (ch)
-		{
-		case 'A':
-			return 'T';
-			break;
-		case 'T':
-			return 'A';
-			break;
-		case 'C':
-			return 'G';
-			break;
-		case 'G':
-			return 'C';
-			break;
-		}
-
-		return 'N';
 	}
 
 	bool operator == (const DnaString & a, const DnaString & b)
@@ -59,30 +36,6 @@ namespace Sibelia
 		}
 	}
 
-	uint64_t DnaString::MakeUp(char ch)
-	{
-		size_t idx;
-		switch (ch)
-		{
-		case 'A':
-			idx = 0;
-			break;
-		case 'C':
-			idx = 1;
-			break;
-		case 'G':
-			idx = 2;
-			break;
-		case 'T':
-			idx = 3;
-			break;			
-		default:
-			idx = rand() % 4;
-		}
-
-		return idx;
-	}
-
 	char DnaString::PopBack()
 	{
 		char ret = GetChar(size_ - 1);
@@ -104,12 +57,12 @@ namespace Sibelia
 	{
 		++size_ ;
 		body_ <<= 2;
-		body_ |= MakeUp(ch);
+		body_ |= ch;
 	}
 
 	void DnaString::AppendBack(char ch)
 	{
-		body_ |= MakeUp(ch) << (2 * size_++);
+		body_ |=  ch << (2 * size_++);
 	}
 
 	size_t DnaString::GetSize() const 
@@ -147,22 +100,22 @@ namespace Sibelia
 	char DnaString::GetChar(uint64 idx) const
 	{
 		uint64_t charIdx = body_ >> (2 * idx);
-		return LITERAL[charIdx & 0x3];
+		return charIdx & 0x3;
 	}
 
 	void DnaString::SetChar(uint64_t idx, char ch)
 	{
 		uint64_t mask = uint64_t(0x3) << (idx * 2);
 		body_ &= ~(mask);
-		body_ |= MakeUp(ch) << (2 * idx++);
+		body_ |= ch << (2 * idx++);
 	}
 
-	std::string DnaString::ToString() const
+	std::string DnaString::ToString(bool unMakeUp) const
 	{
 		std::string ret(size_, ' ');
 		for (size_t i = 0; i < size_; i++)
 		{
-			ret[i] = GetChar(i);
+			ret[i] = unMakeUp ? StreamFastaParser::UnMakeUp(GetChar(i)) : GetChar(i);
 		}
 
 		return ret;
@@ -173,7 +126,7 @@ namespace Sibelia
 		DnaString ret;
 		for (size_t i = 0; i < size_; i++)
 		{
-			ret.AppendFront(Reverse(GetChar(i)));
+			ret.AppendFront(StreamFastaParser::Reverse(GetChar(i)));
 		}
 
 		return ret;
@@ -182,7 +135,7 @@ namespace Sibelia
 	std::string DnaString::RevComp(const std::string & str)
 	{
 		std::string ret;
-		std::transform(str.rbegin(), str.rend(), std::back_inserter(ret), DnaString::Reverse);
+		std::transform(str.rbegin(), str.rend(), std::back_inserter(ret), StreamFastaParser::Reverse);
 		return ret;
 	}
 }

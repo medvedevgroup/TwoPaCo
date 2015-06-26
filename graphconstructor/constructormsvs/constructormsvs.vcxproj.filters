@@ -56,6 +56,9 @@
     <ClInclude Include="..\src\concurrentbitvector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ngramhashing\cyclichash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="test.fasta" />

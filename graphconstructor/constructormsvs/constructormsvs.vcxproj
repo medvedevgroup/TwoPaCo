@@ -161,6 +161,7 @@
     <ClInclude Include="..\src\concurrentbitvector.h" />
     <ClInclude Include="..\src\dnastring.h" />
     <ClInclude Include="..\src\lib\SpookyV2.h" />
+    <ClInclude Include="..\src\ngramhashing\cyclichash.h" />
     <ClInclude Include="..\src\streamfastaparser.h" />
     <ClInclude Include="..\src\test.h" />
     <ClInclude Include="..\src\vertexenumerator.h" />

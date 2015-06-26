@@ -13,7 +13,7 @@ namespace Sibelia
 	{
 		
 	}
-
+	/*
 	void DnaStringTest(size_t n, std::ostream & log)
 	{
 		DnaString str0(32);
@@ -83,7 +83,7 @@ namespace Sibelia
 			log << str2pr << std::endl;
 			assert(str1pr.ToString() == str2pr);
 		}
-	}
+	}*/
 
 	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log)
 	{
@@ -146,7 +146,7 @@ namespace Sibelia
 						{
 							size_t inCount = 0;
 							size_t outCount = 0;
-							for (char ch : DnaString::LITERAL)
+							for (char ch = 0; ch < 4; ch++)
 							{
 								std::string inEdge = ch + cand;
 								std::string outEdge = cand + ch;
@@ -162,6 +162,7 @@ namespace Sibelia
 									check.AppendBack(cand[i]);
 								}
 
+								std::string tmp = check.ToString(true);
 								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.RevComp()) != VertexEnumerator::INVALID_VERTEX);
 								bif.insert(cand);
 							}

@@ -18,10 +18,15 @@ namespace Sibelia
 		public:
 			Exception(const std::string & msg);
 		};
+
+		static const char UNKNOWN_CHAR = 4;
 		
 		bool ReadRecord();
 		~StreamFastaParser();
-		bool GetChar(char & ch);		
+		bool GetChar(char & ch, bool makeUp = true);		
+		static char MakeUp(char ch);
+		static char Reverse(char ch);
+		static char UnMakeUp(char ch);
 		std::string GetErrorMessage() const;
 		std::string GetCurrentHeader() const;
 		StreamFastaParser(const std::string & fileName);
