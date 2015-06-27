@@ -680,18 +680,30 @@ namespace Sibelia
 			}
 		}
 
+
+		rounds = 1;
+		double roundSize = 0;
+		for (;; ++rounds)
+		{
+			roundSize = std::accumulate(binCounter, binCounter + BINS_COUNT, 0.f) / rounds;
+			if (realSize / roundSize > 16)
+			{
+				break;
+			}
+		}
+
 		uint64_t low = 0;
 		uint64_t high = 0;
 		size_t lowBoundary = 0;
 		uint64_t totalFpCount = 0;
-		for (size_t round = 0; low < realSize; round++)
+		for (size_t round = 0; round < rounds; round++)
 		{			
 			time_t mark = time(0);
 			size_t totalRecords = 0;
 			uint64_t accumulated = binCounter[lowBoundary];
 			for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
 			{				
-				if (accumulated == 0 || double(realSize) / (accumulated + binCounter[lowBoundary]) > 15)
+				if (accumulated <= roundSize || round + 1 == rounds)
 				{
 					accumulated += binCounter[lowBoundary];
 				}
