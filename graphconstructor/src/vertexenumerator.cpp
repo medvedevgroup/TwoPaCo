@@ -751,7 +751,7 @@ namespace Sibelia
 			}
 		}
 
-		/*
+
 		rounds = 1;
 		double roundSize = 0;
 		for (;; ++rounds)
@@ -761,9 +761,25 @@ namespace Sibelia
 			{
 				break;
 			}
-		}*/
+		}
 
-		//double roundSize = std::accumulate(binCounter, binCounter + BINS_COUNT, 0.f) // rounds;
+		long long diff = 0;
+		size_t nonZero = 0;
+		std::ofstream diffOut("diff.txt");
+		for (size_t i = 0; i < BINS_COUNT; i++)
+		{
+			long long c1 = binCounter[i];
+			long long c2 = trueBin[i];
+			diff += std::abs(c1 - c2);
+			if (c1 || c2)
+			{
+				diffOut << c1 << " " << c2 << std::endl;
+				nonZero++;
+			}
+		}
+
+		std::cout << "Diff = " << diff << std::endl;
+		std::cout << "Avg diff = " << double(diff) / nonZero << std::endl;
 
 		uint64_t low = 0;
 		uint64_t high = 0;
@@ -773,7 +789,7 @@ namespace Sibelia
 		{
 			totalRecords = 0;
 			time_t mark = time(0);			
-			/*	uint64_t accumulated = binCounter[lowBoundary];
+			uint64_t accumulated = binCounter[lowBoundary];
 			for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
 			{				
 				if (accumulated <= roundSize || round + 1 == rounds)
@@ -787,8 +803,7 @@ namespace Sibelia
 			}
 
 			std::cout << "Ratio = " << double(realSize) / accumulated << std::endl;
-			uint64_t high = lowBoundary * BIN_SIZE;*/
-			uint64_t high = round == rounds - 1 ? realSize : (realSize / rounds) * (round + 1);
+			uint64_t high = lowBoundary * BIN_SIZE;
 			{
 				std::vector<TaskQueuePtr> taskQueue;
 				ConcurrentBitVector bitVector(realSize);
