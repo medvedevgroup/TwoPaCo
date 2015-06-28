@@ -437,10 +437,10 @@ namespace Sibelia
 				}
 			}
 		}
-
+		/*
 		boost::mutex counterMutex;
 		std::unordered_set<uint64_t> edgeCounter;
-		std::vector<uint32_t> trueBin(BINS_COUNT, 0);
+		std::vector<uint32_t> trueBin(BINS_COUNT, 0);*/
 
 		void InitialFilterFillerWorker(uint64_t binSize,
 			const std::vector<HashFunctionPtr> & hashFunction,
@@ -510,7 +510,7 @@ namespace Sibelia
 								}
 							}
 						}
-
+						/*
 						{
 							DnaString edge(task.str.substr(pos, edgeLength));
 							if (!(posHash0 <= negHash0))
@@ -532,7 +532,7 @@ namespace Sibelia
 									}
 								}
 							}
-						}
+						}*/
 					}
 				}
 			}
@@ -763,6 +763,7 @@ namespace Sibelia
 			}
 		}
 
+		/*
 		long long diff = 0;
 		size_t nonZero = 0;
 		std::ofstream diffOut("diff.txt");
@@ -779,7 +780,7 @@ namespace Sibelia
 		}
 
 		std::cout << "Diff = " << diff << std::endl;
-		std::cout << "Avg diff = " << double(diff) / nonZero << std::endl;
+		std::cout << "Avg diff = " << double(diff) / nonZero << std::endl;*/
 
 		uint64_t low = 0;
 		uint64_t high = 0;
