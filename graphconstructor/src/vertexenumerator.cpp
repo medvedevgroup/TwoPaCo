@@ -66,7 +66,6 @@ namespace Sibelia
 				return stra.GetBody() < strb.GetBody();
 			}
 
-
 		private:
 			size_t vertexSize_;
 		};
@@ -109,29 +108,32 @@ namespace Sibelia
 			return hvalue >= low && hvalue <= high;
 		}
 
-		DnaString MakeCanonicalRecord(DnaString posVertex, DnaString negVertex, char posExtend, char posPrev)
+		DnaString MakeCanonicalRecord(std::string::iterator posVertex, std::string::iterator negVertex, char posExtend, char posPrev, size_t vertexLength)
 		{
-			if (posVertex.GetBody() < negVertex.GetBody())
+			bool less = false;
+			for (size_t i = 0; i < vertexLength; i++)
 			{
-				posVertex.AppendBack(posExtend);
-				posVertex.AppendBack(posPrev);
-				return posVertex;
+				char pc = *(posVertex + i);
+				char nc = *(negVertex + i);
+				if (pc != nc)
+				{
+					less = pc < nc;
+					break;
+				}
 			}
 
-			negVertex.AppendBack(DnaString::Reverse(posPrev));
-			negVertex.AppendBack(DnaString::Reverse(posExtend));
-			return negVertex;
-		}
-
-		DnaString Generate(std::string::const_iterator it, size_t size)
-		{
-			DnaString str;
-			for (size_t i = 0; i < size; i++)
+			if (less)
 			{
-				str.AppendBack(*(it + i));
+				DnaString posVertex1(vertexLength, posVertex);
+				posVertex1.AppendBack(posExtend);
+				posVertex1.AppendBack(posPrev);
+				return posVertex1;
 			}
 
-			return str;
+			DnaString negVertex1(vertexLength, negVertex);
+			negVertex1.AppendBack(DnaString::Reverse(posPrev));
+			negVertex1.AppendBack(DnaString::Reverse(posExtend));
+			return negVertex1;
 		}
 
 		std::string RevComp(const std::string & str)
@@ -183,10 +185,11 @@ namespace Sibelia
 			std::ofstream & outFile,
 			boost::mutex & outMutex,			
 			std::unique_ptr<StreamFastaParser::Exception> & error)
-		{
+		{			
 			uint64_t low = bound.first;
 			uint64_t high = bound.second;
 			std::vector<uint64_t> output;
+			size_t edgeLength = vertexLength + 1;
 			while (true)
 			{
 				Task task;
@@ -202,40 +205,39 @@ namespace Sibelia
 					{
 						continue;
 					}
-
-					std::string revTask = DnaString::RevComp(task.str);
+					
+					std::string revTask = DnaString::RevComp(task.str);					
 					if (task.start == 0)
 					{
-						DnaString posVertex = Generate(task.str.begin(), vertexLength);
-						DnaString negVertex = posVertex.RevComp();
-						uint64_t posHash0 = hashFunction[0]->hash(posVertex.ToString());
-						uint64_t negHash0 = hashFunction[0]->hash(negVertex.ToString());
+						std::string::iterator revPos = revTask.end() - vertexLength;						
+						uint64_t negHash0 = hashFunction[0]->hash(std::string(revPos, revTask.end()));
+						uint64_t posHash0 = hashFunction[0]->hash(std::string(task.str.begin(), task.str.begin() + vertexLength));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+							output.push_back(MakeCanonicalRecord(task.str.begin(), revPos, 'A', 'A', vertexLength).GetBody()); 
+							output.push_back(MakeCanonicalRecord(task.str.begin(), revPos, 'C', 'A', vertexLength).GetBody());
 						}
 					}
 
 					if (task.isFinal)
 					{
-						DnaString posVertex = Generate(task.str.end() - vertexLength, vertexLength);
-						DnaString negVertex = posVertex.RevComp();
-						uint64_t posHash0 = hashFunction[0]->hash(posVertex.ToString());
-						uint64_t negHash0 = hashFunction[0]->hash(negVertex.ToString());
+						std::string::iterator dirPos = task.str.end() - vertexLength;
+						uint64_t posHash0 = hashFunction[0]->hash(std::string(dirPos, task.str.end()));
+						uint64_t negHash0 = hashFunction[0]->hash(std::string(revTask.begin(), revTask.begin() + vertexLength));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'A', 'A').GetBody());
-							output.push_back(MakeCanonicalRecord(posVertex, negVertex, 'C', 'A').GetBody());
+							output.push_back(MakeCanonicalRecord(dirPos, revTask.begin(), 'A', 'A', vertexLength).GetBody());
+							output.push_back(MakeCanonicalRecord(dirPos, revTask.begin(), 'C', 'A', vertexLength).GetBody());
 						}
 					}
-
+					
 					if (task.str.size() >= vertexLength + 2)
-					{
+					{						
 						std::vector<HashFunctionPtr> posVertexHash(1);
 						std::vector<HashFunctionPtr> negVertexHash(1);
-						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
-						for (size_t pos = 1;; ++pos)
+						size_t revPos = revTask.size() - vertexLength - 1;
+						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);						
+						for (size_t pos = 1;; )
 						{
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];
@@ -259,18 +261,22 @@ namespace Sibelia
 										assert(negHash0 == negVertexHash[0]->hash(RevComp(std::string(1, nextCh) + task.str.substr(pos, vertexLength))));
 										if (posHash0 <= negHash0)
 										{
-											if (IsInBloomFilter(bitVector, seed, &body[pos], posHash0))
+											task.str[pos - 1] = nextCh;
+											if (IsInBloomFilter(bitVector, seed, &task.str[pos - 1], posHash0, edgeLength))
 											{
 												outCount++;
 											}
 										}
 										else
 										{
-											char revNextCh = DnaString::Reverse(nextCh);
-											if (IsInBloomFilter(bitVector, seed,  , negHash0))
+											char oldCh = revTask[revPos - 1];
+											revTask[revPos - 1] = revNextCh;
+											if (IsInBloomFilter(bitVector, seed, &revTask[revPos - 1], negHash0, edgeLength))
 											{
 												outCount++;
 											}
+
+											revTask[revPos - 1] = oldCh;
 										}
 									}
 
@@ -286,14 +292,19 @@ namespace Sibelia
 										assert(negHash0 == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength) + nextCh)));
 										if (posHash0 <= negHash0)
 										{
-											if (IsInBloomFilter(bitVector, seed, posOutEdge, posHash0))
+											char oldCh = task.str[pos + edgeLength - 1];
+											task.str[pos + edgeLength - 1] = nextCh;
+											if (IsInBloomFilter(bitVector, seed, &task.str[pos], posHash0, edgeLength))
 											{
 												outCount++;
 											}
+
+											task.str[pos + edgeLength - 1] = oldCh;
 										}
 										else
 										{
-											if (IsInBloomFilter(bitVector, seed, negOutEdge, negHash0))
+											revTask[revPos + edgeLength - 1] = revNextCh;
+											if (IsInBloomFilter(bitVector, seed, &revTask[revPos], negHash0, edgeLength))
 											{
 												outCount++;
 											}
@@ -303,19 +314,19 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									output.push_back(MakeCanonicalRecord(posVertex, negVertex, posExtend, posPrev).GetBody());
+									output.push_back(MakeCanonicalRecord(task.str.begin() + pos, revTask.begin() + revPos, posExtend, posPrev, vertexLength).GetBody());
 								}
 							}
 
 							if (pos + vertexLength + 1 < task.str.size())
-							{
-								char negExtend = DnaString::Reverse(posExtend);
-								char negPrev = DnaString::Reverse(task.str[pos + vertexLength]);
+							{		
+								++pos;
+								--revPos;
 								for (size_t i = 0; i < posVertexHash.size(); i++)
 								{
-									posVertexHash[i]->update(posPrev, posExtend);
-									negVertexHash[i]->reverse_update(negExtend, negPrev);
-									assert(posVertexHash[i]->hashvalue == posVertexHash[0]->hash(task.str.substr(pos, vertexLength)));
+									posVertexHash[i]->update(task.str[pos - 1], task.str[pos + vertexLength - 1]);
+									negVertexHash[i]->reverse_update(revTask[revPos], revTask[revPos + vertexLength]);
+ 									assert(posVertexHash[i]->hashvalue == posVertexHash[0]->hash(task.str.substr(pos, vertexLength)));
 									assert(negVertexHash[i]->hashvalue == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength))));
 								}
 							}
@@ -378,7 +389,7 @@ namespace Sibelia
 					std::vector<HashFunctionPtr> negVertexHash(1);
 					std::string revTask = DnaString::RevComp(task.str);
 					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
-					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
+					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos, --revPos)
 					{
 						char nextCh = task.str[pos + edgeLength - 1];
 						char revNextCh = DnaString::Reverse(nextCh);
