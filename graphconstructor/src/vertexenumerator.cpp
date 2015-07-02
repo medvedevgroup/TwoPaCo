@@ -241,6 +241,8 @@ namespace Sibelia
 						{
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];
+							std::string debug = task.str.substr(pos, vertexLength);
+//							bool x = debug == "GTAA" || DnaString::RevComp(debug) == "GTAA";
 							if (Within(std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high))
 							{
 								size_t inCount = 0;
@@ -256,9 +258,9 @@ namespace Sibelia
 									else
 									{
 										uint64_t posHash0 = posVertexHash[0]->hash_prepend(nextCh);
-										uint64_t negHash0 = negVertexHash[0]->hash_extend(revNextCh);
-										assert(posHash0 == posVertexHash[0]->hash(std::string(1, nextCh) + task.str.substr(pos, vertexLength)));
-										assert(negHash0 == negVertexHash[0]->hash(RevComp(std::string(1, nextCh) + task.str.substr(pos, vertexLength))));
+										uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
+//										assert(posHash0 == posVertexHash[0]->hash(std::string(1, nextCh) + task.str.substr(pos, vertexLength)));
+//										assert(negHash0 == negVertexHash[0]->hash(RevComp(std::string(1, nextCh) + task.str.substr(pos, vertexLength))));
 										if (posHash0 <= negHash0)
 										{
 											task.str[pos - 1] = nextCh;
@@ -287,9 +289,9 @@ namespace Sibelia
 									else
 									{
 										uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
-										uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
-										assert(posHash0 == posVertexHash[0]->hash(task.str.substr(pos, vertexLength) + nextCh));
-										assert(negHash0 == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength) + nextCh)));
+										uint64_t negHash0 = negVertexHash[0]->hash_extend(revNextCh);
+	//									assert(posHash0 == posVertexHash[0]->hash(task.str.substr(pos, vertexLength) + nextCh));
+//										assert(negHash0 == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength) + nextCh)));
 										if (posHash0 <= negHash0)
 										{
 											char oldCh = task.str[pos + edgeLength - 1];
@@ -391,6 +393,8 @@ namespace Sibelia
 					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos, --revPos)
 					{
+//						std::string debug = task.str.substr(pos, vertexLength);
+//						bool x = debug == "GTAA" || DnaString::RevComp(debug) == "GTAA";
 						char nextCh = task.str[pos + edgeLength - 1];
 						char revNextCh = DnaString::Reverse(nextCh);
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
@@ -696,6 +700,7 @@ namespace Sibelia
 
 		std::vector<uint64_t> seed(hashFunctions - 1);
 		std::generate(seed.begin(), seed.end(), rand);
+		seed[0] = 100500; seed[1] = 42; seed[2] = 666;
 		std::cout << std::string(80, '-') << std::endl;
 		const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
 		if (vertexLength > 30)

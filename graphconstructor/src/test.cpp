@@ -202,7 +202,7 @@ namespace Sibelia
 		std::stringstream ss;
 		std::vector<std::string> fileName;
 		fileName.push_back("teste.fasta");
-		VertexEnumeratorTest(fileName, 3, 10, ss);
+//		VertexEnumeratorTest(fileName, 3, 10, ss);
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
