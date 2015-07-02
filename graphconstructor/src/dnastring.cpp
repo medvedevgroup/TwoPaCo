@@ -168,14 +168,6 @@ namespace Sibelia
 		return ret;
 	}
 
-	DnaString::DnaString(size_t size, std::string::iterator it) : size_(0), body_(0)
-	{
-		for (size_t i = 0; i < size; i++)
-		{
-			AppendBack(*(it + i));
-		}
-	}
-
 	DnaString DnaString::RevComp() const
 	{
 		DnaString ret;

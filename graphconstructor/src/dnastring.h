@@ -15,7 +15,6 @@ namespace Sibelia
 		void AppendFront(char ch);
 		DnaString(uint64_t size = 0);
 		DnaString(const std::string & body);
-		DnaString(size_t size, std::string::iterator it);
 		DnaString(uint64_t size, uint64_t body);		
 		char GetChar(uint64_t idx) const;
 		void SetChar(uint64_t idx, char ch);
