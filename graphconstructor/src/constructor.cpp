@@ -30,7 +30,7 @@ int main(int argc, char * argv[])
 {
 	
 	assert(Sibelia::Runtests());
-	
+	/*
 	try
 	{
 		TCLAP::CmdLine cmd("Program for condensed de Bruijn graph construction", ' ', "0");
@@ -142,8 +142,6 @@ int main(int argc, char * argv[])
 		std::cerr << "error: " << e.what() << std::endl;
 		return 1;
 	}
-
-	
-
+	*/
 	return 0;
 }
