@@ -7,17 +7,7 @@
 namespace Sibelia
 {
 	const std::string DnaPiece::LITERAL = "ACGT";
-	const std::string DnaString::LITERAL = "ACGT";
-
-	bool operator == (const DnaPiece & a, const DnaPiece & b)
-	{
-		return a.body_ == b.body_;
-	}
-
-	bool operator != (const DnaPiece & a, const DnaPiece & b)
-	{
-		return !(a == b);
-	}
+	const std::string DnaString::LITERAL = "ACGT";	
 
 	DnaPiece::DnaPiece() :  body_(0)
 	{
@@ -97,17 +87,7 @@ namespace Sibelia
 
 		return ret;
 	}
-	/*
-	DnaPiece DnaPiece::RevComp(size_t size_) const
-	{
-		DnaPiece ret;
-		for (size_t i = 0; i < size_; i++)
-		{
-			ret.AppendFront(Reverse(GetChar(i)));
-		}
-
-		return ret;
-	}*/
+	
 
 	DnaPiece::DnaPiece(std::string::const_iterator begin, std::string::const_iterator end) : body_(0)
 	{
@@ -294,5 +274,41 @@ namespace Sibelia
 		}
 
 		return ret;
+	}
+
+	bool operator == (const DnaString & a, const DnaString & b)
+	{
+		if (a.GetSize() == b.GetSize())
+		{
+			for (size_t i = 0; i < a.GetCapacity(); i++)
+			{
+				if (a.str_[i].GetBody() != b.str_[i].GetBody())
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	bool operator != (const DnaString & a, const DnaString & b)
+	{
+		return !(a == b);
+	}
+	
+	bool operator < (const DnaString & a, const DnaString & b)
+	{
+		for (size_t i = 0; i < a.GetCapacity(); i++)
+		{
+			if (a.str_[i] != b.str_[i])
+			{
+				return a.str_[i] != b.str_[i];
+			}
+		}
+
+		return false;
 	}
 }

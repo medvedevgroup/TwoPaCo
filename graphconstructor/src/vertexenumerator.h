@@ -14,6 +14,7 @@ namespace Sibelia
 		const static size_t INVALID_VERTEX;
 		size_t GetVerticesCount() const;
 		size_t GetId(const DnaString & vertex) const;
+		/*
 		template<class Iterator>
 			void Dump(Iterator out)
 			{
@@ -23,6 +24,7 @@ namespace Sibelia
 //					*out++ = str.ToString();
 				}
 			}
+			*/
 
 		VertexEnumerator(const std::vector<std::string> & fileName,
 			size_t vertexLength,

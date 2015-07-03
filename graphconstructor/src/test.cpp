@@ -90,7 +90,7 @@ namespace Sibelia
 	}
 
 	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log)
-	{/*
+	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
 		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp");
@@ -197,14 +197,14 @@ namespace Sibelia
 			{
 				std::cout << v << std::endl;
 			}
-		}*/
+		}
 	}
 
 	bool Runtests()
 	{
-		DnaStringTest(10000, std::cerr);
+		DnaStringTest(100000, std::cerr);
 		//
-		/*
+		
 		std::stringstream ss;
 		std::vector<std::string> fileName;
 		fileName.push_back("teste.fasta");
@@ -226,7 +226,7 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, 24, ss);*/
+		VertexEnumeratorTest(fileName, 25, 24, ss);
 		
 		return true;
 	}

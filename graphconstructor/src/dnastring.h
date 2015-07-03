@@ -6,6 +6,7 @@
 
 namespace Sibelia
 {
+	class DnaString;
 	class DnaPiece
 	{
 	public:		
@@ -25,8 +26,6 @@ namespace Sibelia
 	private:
 		uint64_t body_;
 		static uint64_t MakeUp(char ch);
-		friend bool operator == (const DnaPiece & a, const DnaPiece & b);
-		friend bool operator != (const DnaPiece & a, const DnaPiece & b);
 	};
 
 	bool operator == (const DnaPiece & a, const DnaPiece & b);
@@ -56,8 +55,6 @@ namespace Sibelia
 		static char Reverse(char ch);
 		std::string ToString() const;
 		static std::string RevComp(const std::string & str);
-		
-
 		static const std::string LITERAL;
 	private:		
 		size_t size_;
@@ -65,7 +62,14 @@ namespace Sibelia
 		DnaPiece * str_;
 		static size_t CalculateCapacity(size_t size);
 		void GetCoord(uint64_t idx, uint64_t & element, uint64_t & pos) const;
+		friend bool operator < (const DnaString & a, const DnaString & b);
+		friend bool operator == (const DnaString & a, const DnaString & b);
+		friend bool operator != (const DnaString & a, const DnaString & b);
 	};
+
+	bool operator < (const DnaString & a, const DnaString & b);
+	bool operator == (const DnaString & a, const DnaString & b);
+	bool operator != (const DnaString & a, const DnaString & b);
 }
 
 #endif
