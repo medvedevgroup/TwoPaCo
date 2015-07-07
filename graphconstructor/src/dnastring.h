@@ -41,7 +41,8 @@ namespace Sibelia
 		size_t GetSize() const;
 		size_t MaxSize() const;
 		uint64_t* GetBody() const;
-		size_t GetCapacity() const;
+		size_t GetBodySize() const;
+		void Assign(const uint64_t * str);
 		char GetChar(uint64_t idx) const;
 		void SetChar(uint64_t idx, char ch);
 		~DnaString();		
@@ -54,13 +55,13 @@ namespace Sibelia
 		DnaString RevComp() const;
 		static char Reverse(char ch);
 		std::string ToString() const;
+		static size_t CalculateCapacity(size_t size);
 		static std::string RevComp(const std::string & str);
 		static const std::string LITERAL;
 	private:		
 		size_t size_;
 		size_t capacity_;
 		DnaPiece * str_;
-		static size_t CalculateCapacity(size_t size);
 		void GetCoord(uint64_t idx, uint64_t & element, uint64_t & pos) const;
 		friend bool operator < (const DnaString & a, const DnaString & b);
 		friend bool operator == (const DnaString & a, const DnaString & b);

@@ -9,14 +9,8 @@
 
 namespace Sibelia
 {
-	namespace
-	{
-		
-	}
-
 	void DnaStringTest(size_t n, std::ostream & log)
 	{
-	
 		size_t size = 300;
 		DnaString str0(size);
 		for (size_t i = 0; i < n; i++)
@@ -189,8 +183,8 @@ namespace Sibelia
 
 		std::cout << "TP = " << bif.size() << std::endl;
 		std::vector<std::string> vidSet;
-		vid.Dump(std::inserter(vidSet, vidSet.begin()));
-		std::cout << "Diff:" << std::endl;
+//		vid.Dump(std::inserter(vidSet, vidSet.begin()));
+//		std::cout << "Diff:" << std::endl;
 		for (const std::string & v : vidSet)
 		{
 			if (bif.count(v) == 0 && bif.count(DnaString::RevComp(v)) == 0)

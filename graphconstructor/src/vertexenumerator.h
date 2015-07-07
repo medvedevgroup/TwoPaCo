@@ -20,11 +20,11 @@ namespace Sibelia
 			{
 				for (uint64_t body : bifurcation_)
 				{
-//					DnaString str(vertexSize_, body);
-//					*out++ = str.ToString();
+					DnaString str(vertexSize_, body);
+					*out++ = str.ToString();
 				}
-			}
-			*/
+			}*/
+			
 
 		VertexEnumerator(const std::vector<std::string> & fileName,
 			size_t vertexLength,

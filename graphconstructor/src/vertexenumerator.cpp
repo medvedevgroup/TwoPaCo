@@ -20,6 +20,7 @@
 #include "lib/SpookyV2.h"
 #include "ngramhashing/cyclichash.h"
 
+#include "sortsupport.h"
 #include "vertexenumerator.h"
 
 namespace Sibelia
@@ -42,7 +43,7 @@ namespace Sibelia
 			uint64_t* body = edge.GetBody();
 			for (size_t i = 0; i < seed.size(); i++)
 			{
-				uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body) * edge.GetCapacity(), seed[i]) & hashMask;
+				uint64_t hvalue = SpookyHash::Hash64(body, edge.GetBodySize(), seed[i]) & hashMask;
 				if (!filter.Get(hvalue))
 				{
 					return false;
@@ -409,7 +410,7 @@ namespace Sibelia
 							for (uint64_t s : seed)
 							{
 								uint64_t* body = posHash0 <= negHash0 ? posEdge.GetBody() : negEdge.GetBody();
-								uint64_t hvalue = SpookyHash::Hash64(&body, sizeof(body) * posEdge.GetCapacity(), s) & hashMask;
+								uint64_t hvalue = SpookyHash::Hash64(body, posEdge.GetBodySize(), s) & hashMask;
 								filter.SetConcurrently(hvalue);
 							}
 						}
@@ -606,6 +607,11 @@ namespace Sibelia
 			}
 		};
 
+		void Dereference(DnaString & buf, const RecordIterator & it)
+		{
+
+		}
+
 		struct TrueBifurcations
 		{
 			size_t vertexSize;
@@ -616,12 +622,19 @@ namespace Sibelia
 			TrueBifurcations(std::vector<uint64_t> * candidate, std::vector<uint64_t> * out, boost::mutex * outMutex, size_t vertexSize) :
 				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
 
-			uint64_t operator()(const tbb::blocked_range<size_t> & range, uint64_t init) const
-			{
-				size_t i = range.begin();
-				if (i > 0)
+			uint64_t operator()(const tbb::blocked_range<RecordIterator> & range, uint64_t init) const
+			{/*
+				size_t capacity = DnaString::CalculateCapacity(vertexSize + 2);
+				DnaString istr(vertexSize + 2);
+				DnaString jstr(vertexSize + 2);
+				RecordIterator veryEnd(candidate->end(), capacity);
+				RecordIterator zeroIt(candidate->begin(), capacity);				
+				RecordIterator i = range.begin();
+				if (i > zeroIt)
 				{
-					DnaString istr(vertexSize, (*candidate)[i]);
+					
+				 	istr.Assign(Dereference(i));
+					DnaString buf(vertexSize + 2);
 					if (istr == DnaString(vertexSize, (*candidate)[i - 1]))
 					{
 						for (++i; i < range.end() && istr == DnaString(vertexSize, (*candidate)[i]); ++i);
@@ -634,8 +647,8 @@ namespace Sibelia
 					bool bif = false;
 					Candidate icand(vertexSize, (*candidate)[i]);
 					bool selfRevComp = icand.base == icand.base.RevComp();					
-					size_t j = i;
-					for (; j < candidate->size(); j++)
+					RecordIterator j = i;
+					for (; j < veryEnd; j++)
 					{
 						Candidate jcand(vertexSize, (*candidate)[j]);
 						if (jcand.base != icand.base)
@@ -665,10 +678,31 @@ namespace Sibelia
 					i = j;
 				}
 
-				return falsePositives;
+				return falsePositives;*/
+				return 0;
 			}
 		};
 
+
+		class VertexLess
+		{
+		public:
+			VertexLess(size_t vertexLess) : buf1(vertexLess + 2), buf2(vertexLess + 2)
+			{
+
+			}
+
+			bool operator() (const uint64_t * v1, const uint64_t * v2) const
+			{
+				buf1.Assign(v1);
+				buf2.Assign(v2);
+				return true;
+			}
+
+		private:
+			mutable DnaString buf1;
+			mutable DnaString buf2;
+		};
 	}
 
 	VertexEnumerator::VertexEnumerator(const std::vector<std::string> & fileName,
@@ -680,10 +714,10 @@ namespace Sibelia
 		size_t aggregationThreads,
 		const std::string & tmpFileName) :
 		vertexSize_(vertexLength)
-	{
+	{		
 		uint64_t realSize = uint64_t(1) << filterSize;
 		hashMask = realSize - 1;
-		std::cout << "Threads = " << threads << std::endl;
+		std::cout << "Threads = " << threads << std::endl;		
 		std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 		std::cout << "Hash functions = " << hashFunctions << std::endl;
 		std::cout << "Filter size = " << realSize << std::endl;
@@ -697,11 +731,6 @@ namespace Sibelia
 		std::generate(seed.begin(), seed.end(), rand);
 		std::cout << std::string(80, '-') << std::endl;
 		const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
-		if (vertexLength > 30)
-		{
-			throw std::runtime_error("The vertex size is too large");
-		}
-
 		std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 		for (HashFunctionPtr & ptr : hashFunction)
 		{
@@ -869,8 +898,11 @@ namespace Sibelia
 			}
 
 			boost::mutex outMutex;
-			tbb::parallel_sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_));
-			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<size_t>(0, candidate.size()),
+			size_t capacity = DnaString::CalculateCapacity(vertexLength + 2);
+			RecordIterator begin(candidate.begin(), capacity);
+			RecordIterator end(candidate.begin(), capacity);
+			tbb::parallel_sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_)));
+			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 				uint64_t(0),
 				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
 				std::plus<uint64_t>());
@@ -895,7 +927,7 @@ namespace Sibelia
 	}
 
 	size_t VertexEnumerator::GetId(const DnaString & vertex) const
-	{
+	{/*
 		DnaString check[2] = { vertex, vertex.RevComp() };
 		for (DnaString str : check)
 		{
@@ -905,7 +937,7 @@ namespace Sibelia
 				return it - bifurcation_.begin();
 			}
 		}
-
+		*/
 		return INVALID_VERTEX;
 	}
 }

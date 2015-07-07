@@ -97,6 +97,16 @@ namespace Sibelia
 		}
 	}
 
+	bool operator == (const DnaPiece & a, const DnaPiece & b)
+	{
+		return a.GetBody() == b.GetBody();
+	}
+
+	bool operator != (const DnaPiece & a, const DnaPiece & b)
+	{
+		return !(a == b);
+	}
+
 	//-------------------------------------------------------------------------
 
 	DnaString::~DnaString()
@@ -152,10 +162,6 @@ namespace Sibelia
 		return reinterpret_cast<uint64_t*>(str_);
 	}
 
-	size_t DnaString::GetCapacity() const
-	{
-		return capacity_;
-	}
 
 	DnaString::DnaString(const std::string & str) :size_(str.size()), capacity_(CalculateCapacity(str.size()))
 	{
@@ -215,6 +221,11 @@ namespace Sibelia
 		}
 
 		return 'N';
+	}
+
+	size_t DnaString::GetBodySize() const
+	{
+		return capacity_ * sizeof(str_[0]);
 	}
 
 	char DnaString::PopBack()
@@ -280,7 +291,7 @@ namespace Sibelia
 	{
 		if (a.GetSize() == b.GetSize())
 		{
-			for (size_t i = 0; i < a.GetCapacity(); i++)
+			for (size_t i = 0; i < a.capacity_; i++)
 			{
 				if (a.str_[i].GetBody() != b.str_[i].GetBody())
 				{
@@ -301,7 +312,7 @@ namespace Sibelia
 	
 	bool operator < (const DnaString & a, const DnaString & b)
 	{
-		for (size_t i = 0; i < a.GetCapacity(); i++)
+		for (size_t i = 0; i < a.capacity_; i++)
 		{
 			if (a.str_[i] != b.str_[i])
 			{
