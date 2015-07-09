@@ -9,6 +9,18 @@ namespace Sibelia
 	class DnaString
 	{
 	public:
+		void Assign(const DnaString & buf)
+		{
+			size_ = buf.size_;
+			std::copy(buf.str_, buf.str_ + buf.capacity_, str_);			
+		}
+		
+		void Assign(size_t size, const uint64_t * buf)
+		{
+			size_ = size;
+			capacity_ = CalculateCapacity(size);
+			std::copy(buf, buf + capacity_, str_);
+		}
 
 		char PopBack()
 		{
@@ -59,6 +71,11 @@ namespace Sibelia
 			return size_;
 		}
 
+		size_t GetCapacity() const
+		{
+			return capacity_;
+		}
+
 		size_t MaxSize() const
 		{
 			return capacity_ * UNIT_CAPACITY;
@@ -92,12 +109,16 @@ namespace Sibelia
 			delete[] str_;
 		}
 
-		DnaString(DnaString && str) : size_(str.size_), capacity_(capacity_), str_(0)
+		DnaString(DnaString && str) : size_(str.size_), capacity_(str.capacity_), str_(0)
 		{
 			std::swap(str_, str.str_);
 		}
 
-		DnaString(const DnaString & str);	
+		DnaString(const DnaString & str) : size_(str.size_), capacity_(str.capacity_), str_(new uint64_t[capacity_])
+		{
+			std::copy(str.str_, str.str_ + capacity_, str_);
+		}
+
 		DnaString(const std::string & str) :size_(str.size()), capacity_(CalculateCapacity(str.size()))
 		{
 			for (size_t i = 0; i < str.size(); i++)
@@ -106,7 +127,7 @@ namespace Sibelia
 			}
 		}
 
-		DnaString(size_t maxSize, size_t size) : size_(size), capacity_(CalculateCapacity(maxSize)),
+		DnaString(size_t maxSize, size_t size = 0) : size_(size), capacity_(CalculateCapacity(maxSize)),
 			str_(new uint64_t[capacity_])
 		{
 
@@ -180,6 +201,12 @@ namespace Sibelia
 			return ret;
 		}
 
+		static size_t CalculateCapacity(size_t size)
+		{
+			size_t mainPart = size / UNIT_CAPACITY;
+			return mainPart + (mainPart * UNIT_CAPACITY == size ? 0 : 1);
+		}
+
 		static const std::string LITERAL;
 	private:		
 		size_t size_;
@@ -191,12 +218,6 @@ namespace Sibelia
 			uint64_t ret = idx >> 5;
 			idx = idx & ((uint64_t(1) << uint64_t(5)) - 1);
 			return ret;
-		}
-
-		static size_t CalculateCapacity(size_t size)
-		{
-			size_t mainPart = size / UNIT_CAPACITY;
-			return mainPart + (mainPart * UNIT_CAPACITY == size ? 0 : 1);
 		}
 
 		char GetChar(uint64_t element, uint64_t idx) const

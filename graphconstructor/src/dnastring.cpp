@@ -6,18 +6,30 @@
 namespace Sibelia
 {
 	const std::string DnaString::LITERAL = "ACGT";
-
-	/*
+	
 	bool operator == (const DnaString & a, const DnaString & b)
 	{
 		if (a.GetSize() == b.GetSize())
 		{
-			for (size_t i = 0; i < a.capacity_; i++)
+			size_t remain = a.size_;			
+			for (size_t i = 0; remain > 0; i++)
 			{
-				if (a.str_[i] != b.str_[i])
+				size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
+				uint64_t apiece = a.str_[i];
+				uint64_t bpiece = b.str_[i];
+				if (current != DnaString::UNIT_CAPACITY)
+				{
+					uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
+					apiece &= mask;
+					bpiece &= mask;
+				}
+
+				if (apiece != bpiece)
 				{
 					return false;
 				}
+
+				remain -= current;
 			}
 
 			return true;
@@ -33,14 +45,30 @@ namespace Sibelia
 	
 	bool operator < (const DnaString & a, const DnaString & b)
 	{
-		for (size_t i = 0; i < a.capacity_; i++)
+		if (a.GetSize() == b.GetSize())
 		{
-			if (a.str_[i] != b.str_[i])
+			size_t remain = a.size_;
+			for (size_t i = 0; remain > 0; i++)
 			{
-				return a.str_[i] != b.str_[i];
+				size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
+				uint64_t apiece = a.str_[i];
+				uint64_t bpiece = b.str_[i];
+				if (current != DnaString::UNIT_CAPACITY)
+				{
+					uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
+					apiece &= mask;
+					bpiece &= mask;
+				}
+
+				if (apiece != bpiece)
+				{
+					return apiece < bpiece;
+				}
+
+				remain -= current;
 			}
 		}
 
 		return false;
-	}	*/
+	}
 }
