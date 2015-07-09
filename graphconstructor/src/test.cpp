@@ -11,8 +11,8 @@ namespace Sibelia
 {
 	void DnaStringTest(size_t n, std::ostream & log)
 	{
-		size_t size = 300;/*
-		DnaString str0(size);
+		size_t size = 300;
+		DnaString str0(size, size);
 		for (size_t i = 0; i < n; i++)
 		{
 			size_t idx = rand() % str0.GetSize();			
@@ -21,8 +21,7 @@ namespace Sibelia
 			str0.SetChar(idx, newChar);
 			log << "Got char " << str0.GetChar(idx) << std::endl;
 			assert(str0.GetChar(idx) == newChar);
-		}*/
-
+		}
 		
 		std::string str2;
 		DnaString str1(300, uint64_t(0));
