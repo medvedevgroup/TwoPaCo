@@ -675,21 +675,20 @@ namespace Sibelia
 		class VertexLess
 		{
 		public:
-			VertexLess(size_t vertexSize) : buf1(vertexSize, vertexSize), buf2(vertexSize, vertexSize)
+			VertexLess(size_t vertexSize) : vertexSize_(vertexSize)
 			{
 
 			}
 
 			bool operator() (const uint64_t * v1, const uint64_t * v2) const
 			{
-				buf1.Assign(buf1.GetSize(), v1);
-				buf2.Assign(buf2.GetSize(), v2);
+				DnaString buf1(vertexSize_, v1);
+				DnaString buf2(vertexSize_, v2);
 				return buf1 < buf2;
 			}
 
 		private:
-			mutable DnaString buf1;
-			mutable DnaString buf2;
+			size_t vertexSize_;
 		};
 	}
 
@@ -889,7 +888,7 @@ namespace Sibelia
 			size_t capacity = DnaString::CalculateCapacity(vertexLength + 2);
 			RecordIterator begin(candidate.begin(), capacity);
 			RecordIterator end(candidate.end(), capacity);
-			std::sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_))); 
+			tbb::parallel_sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_))); 
 			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 				uint64_t(0),
 				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
