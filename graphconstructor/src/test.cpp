@@ -153,7 +153,7 @@ namespace Sibelia
 
 							if (inCount != 1 || outCount != 1)
 							{
-								DnaString check(cand.size());
+								DnaString check(cand.size(), cand.size());
 								for (size_t i = 0; i < cand.size(); i++)
 								{
 									check.SetChar(i, cand[i]);
@@ -196,8 +196,6 @@ namespace Sibelia
 	bool Runtests()
 	{
 	//	DnaStringTest(100000, std::cerr);
-		
-		
 		std::stringstream ss;
 		std::vector<std::string> fileName;
 		fileName.push_back("teste.fasta");
@@ -205,7 +203,7 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 4, 12, ss);
+		VertexEnumeratorTest(fileName, 4, 16, ss);
 	
 		fileName.clear();
 		fileName.push_back("g00.fasta");
@@ -214,7 +212,7 @@ namespace Sibelia
 	//	fileName.push_back("g3.fasta");
 		for (size_t k = 6; k <= 16; k++)
 		{
-			VertexEnumeratorTest(fileName, k, 16, ss);
+			VertexEnumeratorTest(fileName, k, 20, ss);
 		}
 
 		fileName.clear();

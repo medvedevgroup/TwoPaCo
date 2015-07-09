@@ -16,14 +16,7 @@ namespace Sibelia
 			{
 				size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
 				uint64_t apiece = a.str_[i];
-				uint64_t bpiece = b.str_[i];
-				if (current != DnaString::UNIT_CAPACITY)
-				{
-					uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
-					apiece &= mask;
-					bpiece &= mask;
-				}
-
+				uint64_t bpiece = b.str_[i];				
 				if (apiece != bpiece)
 				{
 					return false;
@@ -53,13 +46,6 @@ namespace Sibelia
 				size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
 				uint64_t apiece = a.str_[i];
 				uint64_t bpiece = b.str_[i];
-				if (current != DnaString::UNIT_CAPACITY)
-				{
-					uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
-					apiece &= mask;
-					bpiece &= mask;
-				}
-
 				if (apiece != bpiece)
 				{
 					return apiece < bpiece;

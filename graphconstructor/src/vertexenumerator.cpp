@@ -91,7 +91,7 @@ namespace Sibelia
 
 		void WriteCanonicalRecord(const DnaString & posVertex, const DnaString & negVertex, char posExtend, char posPrev, std::vector<uint64_t> & out)
 		{
-			if (posVertex.GetBody() < negVertex.GetBody())
+			if (posVertex < negVertex)
 			{
 				DnaString buf(posVertex.GetSize() + 2);
 				buf.Assign(posVertex);
@@ -390,7 +390,6 @@ namespace Sibelia
 						posEdge.AppendBack(nextCh);
 						negEdge.AppendFront(revNextCh);
 						assert(posEdge.RevComp() == negEdge);				
-
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);						
@@ -637,7 +636,7 @@ namespace Sibelia
 					bool selfRevComp = baseCandidate.base == baseCandidate.base.RevComp();
 					for (; next < vectorEnd; ++next)
 					{
-						Candidate nextCandidate(Dereference(vertexSize + 2, base));
+						Candidate nextCandidate(Dereference(vertexSize + 2, next));
 						if (baseCandidate.base != nextCandidate.base)
 						{
 							break;
@@ -645,7 +644,7 @@ namespace Sibelia
 						else if (!bifurcation)
 						{
 							bifurcation = baseCandidate.prev != nextCandidate.prev || baseCandidate.extend != nextCandidate.extend;
-							if (selfRevComp)
+							if (selfRevComp) 
 							{
 								bifurcation = bifurcation ||
 									baseCandidate.prev != DnaString::Reverse(nextCandidate.extend) ||
@@ -676,7 +675,7 @@ namespace Sibelia
 		class VertexLess
 		{
 		public:
-			VertexLess(size_t vertexSize) : buf1(vertexSize), buf2(vertexSize)
+			VertexLess(size_t vertexSize) : buf1(vertexSize, vertexSize), buf2(vertexSize, vertexSize)
 			{
 
 			}
@@ -889,13 +888,12 @@ namespace Sibelia
 			boost::mutex outMutex;
 			size_t capacity = DnaString::CalculateCapacity(vertexLength + 2);
 			RecordIterator begin(candidate.begin(), capacity);
-			RecordIterator end(candidate.begin(), capacity);
-			tbb::parallel_sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_)));
+			RecordIterator end(candidate.end(), capacity);
+			std::sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_))); 
 			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 				uint64_t(0),
 				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
 				std::plus<uint64_t>());
-
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "FP count = " << falsePositives << std::endl;
@@ -916,17 +914,17 @@ namespace Sibelia
 	}
 
 	size_t VertexEnumerator::GetId(const DnaString & vertex) const
-	{/*
-		DnaString check[2] = { vertex, vertex.RevComp() };
-		for (DnaString str : check)
+	{
+		uint64_t check[2] = { vertex.GetBody()[0], vertex.RevComp().GetBody()[0] };
+		for (uint64_t str : check)
 		{
-			std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str.GetBody());
-			if (it != bifurcation_.end() && *it == str.GetBody()[0])
+			std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str);
+			if (it != bifurcation_.end() && *it == str)
 			{
 				return it - bifurcation_.begin();
 			}
 		}
-		*/
+		
 		return INVALID_VERTEX;
 	}
 }

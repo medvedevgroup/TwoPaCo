@@ -11,20 +11,31 @@ namespace Sibelia
 	public:
 		void Assign(const DnaString & buf)
 		{
-			size_ = buf.size_;
-			std::copy(buf.str_, buf.str_ + buf.capacity_, str_);			
+			Assign(buf.size_, buf.str_);
 		}
 		
-		void Assign(size_t size, const uint64_t * buf)
+		void Assign(size_t size, const uint64_t * body)
 		{
 			size_ = size;
-			capacity_ = CalculateCapacity(size);
-			std::copy(buf, buf + capacity_, str_);
+			size_t remain = size_;
+			std::fill(str_, str_ + capacity_, 0);
+			for (size_t i = 0; remain > 0; i++)
+			{
+				size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
+				uint64_t piece = current != DnaString::UNIT_CAPACITY ? body[i] & ((uint64_t(1) << (current * 2)) - 1) : body[i];
+				str_[i] = piece;
+				remain -= current;
+			}
 		}
 
 		char PopBack()
 		{
-			return GetChar(size_--);
+			size_t idx = --size_;
+			size_t element = TranslateIdx(idx);
+			char ret = GetChar(element, idx);
+			uint64_t mask = uint64_t(0x3) << (idx * 2);
+			str_[element] &= ~(mask);
+			return ret;
 		}
 
 		char PopFront()
@@ -95,7 +106,6 @@ namespace Sibelia
 		{
 			uint64_t element = TranslateIdx(idx);
 			return GetChar(element, idx);
-			
 		}
 
 		void SetChar(uint64_t idx, char ch)
@@ -130,12 +140,12 @@ namespace Sibelia
 		DnaString(size_t maxSize, size_t size = 0) : size_(size), capacity_(CalculateCapacity(maxSize)),
 			str_(new uint64_t[capacity_])
 		{
-
+			std::fill(str_, str_ + capacity_, 0);
 		}
 
-		DnaString(size_t size, const uint64_t * body) :size_(size), capacity_(CalculateCapacity(size))
-		{
-			std::copy(body, body + capacity_, reinterpret_cast<uint64_t*>(str_));
+		DnaString(size_t size, const uint64_t * body) :size_(size), capacity_(CalculateCapacity(size)), str_(new uint64_t[capacity_])
+		{			
+			Assign(size, body);
 		}
 				
 		static char Reverse(char ch)
