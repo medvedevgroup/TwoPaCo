@@ -33,17 +33,12 @@ namespace Sibelia
 		typedef CyclicHash<uint64_t> HashFunction;
 		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
 
-		bool IsInBloomFilter(const ConcurrentBitVector & filter, const std::vector<uint64_t> & seed, const DnaString & edge, uint64_t hash0)
+		template<class F>
+		bool IsInBloomFilter(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
 		{
-			if (!filter.Get(hash0))
+			for (size_t i = 0; i < hf.size(); i++)
 			{
-				return false;
-			}
-
-			uint64_t* body = edge.GetBody();
-			for (size_t i = 0; i < seed.size(); i++)
-			{
-				uint64_t hvalue = SpookyHash::Hash64(body, edge.BytesInBody(), seed[i]) & hashMask;
+				uint64_t hvalue = i == 0 ? hash0 : ((*hf[i]).*f)(farg);
 				if (!filter.Get(hvalue))
 				{
 					return false;
@@ -162,12 +157,11 @@ namespace Sibelia
 
 		void CandidateCheckingWorker(std::pair<uint64_t, uint64_t> bound,
 			const std::vector<HashFunctionPtr> & hashFunction,
-			const std::vector<uint64_t> & seed,
 			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
 			TaskQueue & taskQueue,
 			std::ofstream & outFile,
-			boost::mutex & outMutex,			
+			boost::mutex & outMutex,
 			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
 			uint64_t low = bound.first;
@@ -219,8 +213,8 @@ namespace Sibelia
 					{
 						DnaString posVertex = Generate(task.str.begin() + 1, vertexLength);
 						DnaString negVertex = posVertex.RevComp();
-						std::vector<HashFunctionPtr> posVertexHash(1);
-						std::vector<HashFunctionPtr> negVertexHash(1);
+						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						for (size_t pos = 1;; ++pos)
 						{
@@ -245,25 +239,10 @@ namespace Sibelia
 										uint64_t negHash0 = negVertexHash[0]->hash_extend(revNextCh);
 										assert(posHash0 == posVertexHash[0]->hash(std::string(1, nextCh) + task.str.substr(pos, vertexLength)));
 										assert(negHash0 == negVertexHash[0]->hash(RevComp(std::string(1, nextCh) + task.str.substr(pos, vertexLength))));
-										if (posHash0 <= negHash0)
+										if ((posHash0 <= negHash0 && IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_prepend, nextCh, posHash0)) ||
+											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_extend, revNextCh, negHash0)))
 										{
-											char nextCh = DnaString::LITERAL[i];
-											DnaString posInEdge = posVertex;
-											posInEdge.AppendFront(nextCh);
-											if (IsInBloomFilter(bitVector, seed, posInEdge, posHash0))
-											{
-												outCount++;
-											}
-										}
-										else
-										{
-											char revNextCh = DnaString::Reverse(nextCh);
-											DnaString negInEdge = negVertex;
-											negInEdge.AppendBack(revNextCh);
-											if (IsInBloomFilter(bitVector, seed, negInEdge, negHash0))
-											{
-												outCount++;
-											}
+											outCount++;
 										}
 									}
 
@@ -277,24 +256,11 @@ namespace Sibelia
 										uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 										assert(posHash0 == posVertexHash[0]->hash(task.str.substr(pos, vertexLength) + nextCh));
 										assert(negHash0 == negVertexHash[0]->hash(RevComp(task.str.substr(pos, vertexLength) + nextCh)));
-										if (posHash0 <= negHash0)
+										if ((posHash0 <= negHash0 && IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_extend, nextCh, posHash0)) ||
+											(posHash0 > negHash0 && IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_prepend, revNextCh, negHash0)))
 										{
-											DnaString posOutEdge = posVertex;
-											posOutEdge.AppendBack(nextCh);
-											if (IsInBloomFilter(bitVector, seed, posOutEdge, posHash0))
-											{
-												outCount++;
-											}
+											outCount++;
 										}
-										else
-										{
-											DnaString negOutEdge = negVertex;
-											negOutEdge.AppendFront(DnaString::Reverse(nextCh));
-											if (IsInBloomFilter(bitVector, seed, negOutEdge, negHash0))
-											{
-												outCount++;
-											}
-										}										
 									}
 								}
 
@@ -311,7 +277,7 @@ namespace Sibelia
 								negVertex.AppendFront(negExtend);
 								char posPrev = posVertex.PopFront();
 								char negPrev = negVertex.PopBack();
-								for (size_t i = 0; i < posVertexHash.size(); i++)
+								for (size_t i = 0; i < hashFunction.size(); i++)
 								{
 									posVertexHash[i]->update(posPrev, posExtend);
 									negVertexHash[i]->reverse_update(negExtend, negPrev);
@@ -352,11 +318,11 @@ namespace Sibelia
 		void FilterFillerWorker(uint64_t low,
 			uint64_t high,
 			const std::vector<HashFunctionPtr> & hashFunction,
-			const std::vector<uint64_t> & seed,
 			ConcurrentBitVector & filter,
 			size_t edgeLength,
 			TaskQueue & taskQueue)
 		{
+			std::vector<uint64_t> hvalue(hashFunction.size());
 			while (true)
 			{
 				Task task;
@@ -372,30 +338,32 @@ namespace Sibelia
 						continue;
 					}
 
-					DnaString posEdge(edgeLength - 1, edgeLength - 1);
-					for (size_t j = 0; j < edgeLength - 1; j++)
-					{
-						posEdge.SetChar(j, task.str[j]);
-					}
-
-					DnaString negEdge = posEdge.RevComp();
 					size_t vertexLength = edgeLength - 1;
-					std::vector<HashFunctionPtr> posVertexHash(1);
-					std::vector<HashFunctionPtr> negVertexHash(1);
+					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
 						char nextCh = task.str[pos + edgeLength - 1];
 						char revNextCh = DnaString::Reverse(nextCh);
-						posEdge.AppendBack(nextCh);
-						negEdge.AppendFront(revNextCh);
-						assert(posEdge.RevComp() == negEdge);				
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
-						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);						
+						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						char prevCh = task.str[pos];
-						
-						for (size_t i = 0; i < posVertexHash.size(); i++)
+
+						for (size_t i = 0; i < hashFunction.size(); i++)
+						{
+							if (posHash0 < negHash0)
+							{
+								hvalue[i] = posVertexHash[i]->hash_extend(nextCh);
+							}
+							else
+							{
+								hvalue[i] = negVertexHash[i]->hash_prepend(revNextCh);
+							}
+						}
+
+						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
 							posVertexHash[i]->update(prevCh, nextCh);
 							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
@@ -406,21 +374,17 @@ namespace Sibelia
 						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						if (Within(fistMinHash0, low, high) || Within(secondMinHash0, low, high))
 						{
-							filter.SetConcurrently(std::min(posHash0, negHash0));
-							for (uint64_t s : seed)
+							for (uint64_t hv : hvalue)
 							{
-								uint64_t* body = posHash0 <= negHash0 ? posEdge.GetBody() : negEdge.GetBody();
-								uint64_t hvalue = SpookyHash::Hash64(body, posEdge.BytesInBody(), s) & hashMask;
-								filter.SetConcurrently(hvalue);
+								filter.SetConcurrently(hv);
 							}
 						}
-
-						posEdge.PopFront();
-						negEdge.PopBack();
 					}
 				}
 			}
 		}
+
+
 		/*
 		boost::mutex counterMutex;
 		std::unordered_set<uint64_t> edgeCounter;
@@ -714,8 +678,6 @@ namespace Sibelia
 			std::cout << fn << std::endl;
 		}
 
-		std::vector<uint64_t> seed(hashFunctions - 1);
-		std::generate(seed.begin(), seed.end(), rand);
 		std::cout << std::string(80, '-') << std::endl;
 		const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
 		std::vector<HashFunctionPtr> hashFunction(hashFunctions);
@@ -817,7 +779,6 @@ namespace Sibelia
 						low,
 						high,
 						boost::cref(hashFunction),
-						boost::cref(seed),
 						boost::ref(bitVector),
 						edgeLength,
 						boost::ref(*taskQueue[i]));
@@ -844,7 +805,6 @@ namespace Sibelia
 					workerThread[i] = boost::thread(CandidateCheckingWorker,
 						std::make_pair(low, high),						
 						boost::cref(hashFunction),
-						boost::cref(seed),
 						boost::cref(bitVector),
 						vertexLength,
 						boost::ref(*taskQueue[i]),
