@@ -646,9 +646,28 @@ namespace Sibelia
 
 			bool operator() (const uint64_t * v1, const uint64_t * v2) const
 			{
-				DnaString buf1(vertexSize_, v1);
-				DnaString buf2(vertexSize_, v2);
-				return buf1 < buf2;
+				size_t remain = vertexSize_;
+				for (size_t i = 0; remain > 0; i++)
+				{
+					size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
+					uint64_t apiece = v1[i];
+					uint64_t bpiece = v2[i];
+					if (current != DnaString::UNIT_CAPACITY)
+					{
+						uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
+						apiece &= mask;
+						bpiece &= mask;
+					}
+
+					if (apiece != bpiece)
+					{
+						return apiece < bpiece;
+					}
+
+					remain -= current;
+				}
+
+				return false;
 			}
 
 		private:

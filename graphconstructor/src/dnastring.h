@@ -218,11 +218,12 @@ namespace Sibelia
 		}
 
 		static const std::string LITERAL;
+		static const size_t UNIT_CAPACITY = 32;
+
 	private:		
 		size_t size_;
 		size_t capacity_;
 		uint64_t * str_;		
-		static const size_t UNIT_CAPACITY = 32;		
 		uint64_t TranslateIdx(uint64_t & idx) const
 		{
 			uint64_t ret = idx >> 5;
