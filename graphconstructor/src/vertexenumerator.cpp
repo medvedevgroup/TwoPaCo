@@ -101,7 +101,7 @@ namespace Sibelia
 			size_t element = 0;
 			out.push_back(VertexEnumerator::CompressedString());
 			std::string::const_reverse_iterator rit(pos + vertexLength);
-			if (posHash0 < negHash0)
+			if (posHash0 <= negHash0)
 			{
 				char buf[] = { posExtend, posPrev };
 				out.back().StrCpy(pos, element, idx, vertexLength, Id);
