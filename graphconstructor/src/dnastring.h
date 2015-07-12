@@ -223,7 +223,7 @@ namespace Sibelia
 	private:		
 		size_t size_;
 		size_t capacity_;
-		uint64_t * str_;		
+		uint64_t * str_;
 		uint64_t TranslateIdx(uint64_t & idx) const
 		{
 			uint64_t ret = idx >> 5;

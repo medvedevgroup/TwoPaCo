@@ -7,7 +7,7 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
-#include <algorithm>
+
 #include <unordered_set>
 
 #include <boost/ref.hpp>
@@ -640,7 +640,7 @@ namespace Sibelia
 					for (; next < vectorEnd; ++next)
 					{
 						Candidate nextCandidate(Dereference(vertexSize, next));
-					//	std::cout << DnaString(vertexSize, &*next.GetIterator()).ToString() << ' ' << nextCandidate.extend << nextCandidate.prev << std::endl;
+					//	std::cout << DnaString(vertexSize, next->str).ToString() << ' ' << nextCandidate.extend << nextCandidate.prev << std::endl;
 						if (!(EqualVertex(vertexSize, base, next)))
 						{
 							break;
@@ -672,7 +672,7 @@ namespace Sibelia
 								piece &= mask;
 							}
 
-							base->str[i] = piece;
+							out->back().str[i] = piece;
 							remain -= current;
 						}
 
@@ -698,14 +698,14 @@ namespace Sibelia
 
 			}
 
-			bool operator() (const uint64_t * v1, const uint64_t * v2) const
+			bool operator() (const VertexEnumerator::CompressedString & v1, const VertexEnumerator::CompressedString & v2) const
 			{
 				size_t remain = vertexSize_;
 				for (size_t i = 0; remain > 0; i++)
 				{
 					size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
-					uint64_t apiece = v1[i];
-					uint64_t bpiece = v2[i];
+					uint64_t apiece = v1.str[i];
+					uint64_t bpiece = v2.str[i];
 					if (current != DnaString::UNIT_CAPACITY)
 					{
 						uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
@@ -921,13 +921,14 @@ namespace Sibelia
 			boost::mutex outMutex;
 			RecordIterator begin = candidate.begin();
 			RecordIterator end = candidate.end();
-		//	tbb::parallel_sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_))); 
+			tbb::parallel_sort(begin, end, VertexLess(vertexSize_)); 
+			
 			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 				uint64_t(0),
 				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
 				std::plus<uint64_t>());
-			//uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
-//			size_t falsePositives = 0;
+		//	uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
+		//	size_t falsePositives = 0;
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "FP count = " << falsePositives << std::endl;
@@ -939,7 +940,7 @@ namespace Sibelia
 
 		std::cout << "Total FPs = " << totalFpCount << std::endl;
 		delete[] binCounter;
-		tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end());
+		tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end(), VertexLess(vertexSize_));
 	}
 
 	size_t VertexEnumerator::GetVerticesCount() const

@@ -1,6 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
+#include <algorithm>
 #include <tbb/concurrent_vector.h>
 
 #include "streamfastaparser.h"
@@ -17,12 +18,11 @@ namespace Sibelia
 		
 		template<class Iterator>
 			void Dump(Iterator out)
-			{
-				for (uint64_t body : bifurcation_)
+			{/*
+				for (CompressedString & str : bifurcation_)
 				{
-					DnaString str(vertexSize_, &body);
 					*out++ = str.ToString();
-				}
+				}*/
 			}
 			
 
@@ -42,7 +42,16 @@ namespace Sibelia
 			
 			uint64_t str[capacity];
 
-			CompressedString() {}
+			CompressedString()
+			{
+				std::fill(str, str + capacity, 0);
+			}
+
+			CompressedString(const CompressedString & cpy)
+			{
+				std::copy(cpy.str, cpy.str + capacity, str);
+			}
+
 			CompressedString(uint64_t init)
 			{
 				str[0] = init;
@@ -50,7 +59,7 @@ namespace Sibelia
 
 			bool operator == (const CompressedString & other) const
 			{
-				std::equal(str, str + capacity, other.str);
+				return std::equal(str, str + capacity, other.str);
 			}
 
 			bool operator != (const CompressedString & other) const
