@@ -565,31 +565,7 @@ namespace Sibelia
 			return ret;
 		}
 
-		bool EqualVertex(size_t vertexSize_, RecordIterator it1, RecordIterator it2)
-		{
-			size_t remain = vertexSize_;
-			for (size_t i = 0; remain > 0; i++)
-			{
-				size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
-				uint64_t apiece = it1->str[i];
-				uint64_t bpiece = it2->str[i];
-				if (current != DnaString::UNIT_CAPACITY)
-				{
-					uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
-					apiece &= mask;
-					bpiece &= mask;
-				}
-
-				if (apiece != bpiece)
-				{
-					return false;
-				}
-
-				remain -= current;
-			}
-
-			return true;
-		}
+		
 
 		bool IsSelfRevComp(size_t vertexSize, const VertexEnumerator::CompressedString & str)
 		{
@@ -624,9 +600,9 @@ namespace Sibelia
 				RecordIterator base = range.begin();
 				if (base > vectorBegin)
 				{
-					if (EqualVertex(vertexSize, base, base - 1))
+					if (VertexEnumerator::CompressedString::EqualPrefix(vertexSize, *base, *(base - 1)))
 					{
-						for (++base; base < range.end() && EqualVertex(vertexSize, base, range.begin()); ++base);
+						for (++base; base < range.end() && VertexEnumerator::CompressedString::EqualPrefix(vertexSize, *base, *range.begin()); ++base);
 					}
 				}
 
@@ -641,7 +617,7 @@ namespace Sibelia
 					{
 						Candidate nextCandidate(Dereference(vertexSize, next));
 					//	std::cout << DnaString(vertexSize, next->str).ToString() << ' ' << nextCandidate.extend << nextCandidate.prev << std::endl;
-						if (!(EqualVertex(vertexSize, base, next)))
+						if (!(VertexEnumerator::CompressedString::EqualPrefix(vertexSize, *base, *next)))
 						{
 							break;
 						}
@@ -661,21 +637,7 @@ namespace Sibelia
 					{
 						boost::lock_guard<boost::mutex> guard(*outMutex);
 						out->push_back(VertexEnumerator::CompressedString());
-						size_t remain = vertexSize;
-						for (size_t i = 0; remain > 0; i++)
-						{
-							uint64_t piece = base->str[i];
-							size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
-							if (current != DnaString::UNIT_CAPACITY)
-							{
-								uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
-								piece &= mask;
-							}
-
-							out->back().str[i] = piece;
-							remain -= current;
-						}
-
+						out->back().StrCpyPrefix(*base, vertexSize);
 					}
 					else
 					{
@@ -700,28 +662,7 @@ namespace Sibelia
 
 			bool operator() (const VertexEnumerator::CompressedString & v1, const VertexEnumerator::CompressedString & v2) const
 			{
-				size_t remain = vertexSize_;
-				for (size_t i = 0; remain > 0; i++)
-				{
-					size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
-					uint64_t apiece = v1.str[i];
-					uint64_t bpiece = v2.str[i];
-					if (current != DnaString::UNIT_CAPACITY)
-					{
-						uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
-						apiece &= mask;
-						bpiece &= mask;
-					}
-
-					if (apiece != bpiece)
-					{
-						return apiece < bpiece;
-					}
-
-					remain -= current;
-				}
-
-				return false;
+				return VertexEnumerator::CompressedString::LessPrefix(vertexSize_, v1, v2);
 			}
 
 		private:
