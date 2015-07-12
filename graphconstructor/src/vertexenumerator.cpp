@@ -20,7 +20,6 @@
 #include "lib/SpookyV2.h"
 #include "ngramhashing/cyclichash.h"
 
-#include "sortsupport.h"
 #include "vertexenumerator.h"
 
 namespace Sibelia
@@ -29,37 +28,9 @@ namespace Sibelia
 
 	namespace
 	{
-		uint64_t TranslateIdx(uint64_t & idx)
-		{
-			uint64_t ret = idx >> 5;
-			idx = idx & ((uint64_t(1) << uint64_t(5)) - 1);
-			return ret;
-		}
-
-		char GetChar(std::vector<uint64_t>::iterator str_, uint64_t idx)
-		{
-			uint64_t element = TranslateIdx(idx);
-			uint64_t charIdx = str_[element] >> (2 * idx);
-			return DnaString::LITERAL[charIdx & 0x3];
-		}
-
 		char Id(char ch)
 		{
 			return ch;
-		}
-
-		template<class T, class F>
-		void DnaStrCpy(T src, size_t & element, size_t & idx, size_t size, F f, uint64_t * str)
-		{
-			for (size_t i = 0; i < size; i++)
-			{
-				str[element] |= DnaString::MakeUp(f(*src++)) << (2 * idx++);
-				if (idx >= DnaString::UNIT_CAPACITY)
-				{
-					idx = 0;
-					++element;
-				}
-			}
 		}
 
 		uint64_t hashMask;
@@ -124,23 +95,23 @@ namespace Sibelia
 			size_t capacity,
 			char posExtend,
 			char posPrev,
-			std::vector<uint64_t> & out)
+			std::vector<VertexEnumerator::CompressedString> & out)
 		{
 			size_t idx = 0;
 			size_t element = 0;
-			out.insert(out.end(), capacity, 0);
+			out.push_back(VertexEnumerator::CompressedString());
 			std::string::const_reverse_iterator rit(pos + vertexLength);
 			if (posHash0 < negHash0)
 			{
 				char buf[] = { posExtend, posPrev };
-				DnaStrCpy(pos, element, idx, vertexLength, Id, &*(out.end() - capacity));
-				DnaStrCpy(buf, element, idx, 2, Id, &*(out.end() - capacity));
+				out.back().StrCpy(pos, element, idx, vertexLength, Id);
+				out.back().StrCpy(buf, element, idx, 2, Id);
 			}
 			else
 			{
 				char buf[] = { DnaString::Reverse(posPrev), DnaString::Reverse(posExtend) };
-				DnaStrCpy(rit, element, idx, vertexLength, DnaString::Reverse, &*(out.end() - capacity));
-				DnaStrCpy(buf, element, idx, 2, Id, &*(out.end() - capacity));
+				out.back().StrCpy(rit, element, idx, vertexLength, DnaString::Reverse);
+				out.back().StrCpy(buf, element, idx, 2, Id);
 			}
 		}
 
@@ -205,7 +176,7 @@ namespace Sibelia
 		{
 			uint64_t low = bound.first;
 			uint64_t high = bound.second;
-			std::vector<uint64_t> output;
+			std::vector<VertexEnumerator::CompressedString> output;
 			size_t capacity = DnaString::CalculateCapacity(vertexLength + 2);
 			while (true)
 			{
@@ -577,6 +548,8 @@ namespace Sibelia
 				taskQueue[i]->push(Task(Task::GAME_OVER, true, std::string()));
 			}
 		}
+
+		typedef std::vector<VertexEnumerator::CompressedString>::iterator RecordIterator;
 		
 		struct Candidate
 		{
@@ -587,21 +560,19 @@ namespace Sibelia
 		Candidate Dereference(size_t size, RecordIterator it)
 		{
 			Candidate ret;
-			ret.extend = GetChar(it.GetIterator(), size);
-			ret.prev = GetChar(it.GetIterator(), size + 1);
+			ret.extend = it->GetChar(size);
+			ret.prev = it->GetChar(size + 1);
 			return ret;
 		}
 
 		bool EqualVertex(size_t vertexSize_, RecordIterator it1, RecordIterator it2)
 		{
-			std::vector<uint64_t>::iterator v1 = it1.GetIterator();
-			std::vector<uint64_t>::iterator v2 = it2.GetIterator();
 			size_t remain = vertexSize_;
 			for (size_t i = 0; remain > 0; i++)
 			{
 				size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
-				uint64_t apiece = v1[i];
-				uint64_t bpiece = v2[i];
+				uint64_t apiece = it1->str[i];
+				uint64_t bpiece = it2->str[i];
 				if (current != DnaString::UNIT_CAPACITY)
 				{
 					uint64_t mask = (uint64_t(1) << (current * 2)) - 1;
@@ -620,11 +591,11 @@ namespace Sibelia
 			return true;
 		}
 
-		bool IsSelfRevComp(size_t vertexSize, std::vector<uint64_t>::iterator base)
+		bool IsSelfRevComp(size_t vertexSize, const VertexEnumerator::CompressedString & str)
 		{
 			for (size_t i = 0; i < vertexSize; i++)
 			{
-				if (GetChar(base, i) != DnaString::Reverse(GetChar(base, vertexSize - i - 1)))
+				if (str.GetChar(i) != DnaString::Reverse(str.GetChar(vertexSize - i - 1)))
 				{
 					return false;
 				}
@@ -637,17 +608,19 @@ namespace Sibelia
 		{
 			size_t vertexSize;
 			uint64_t falsePositives;
-			std::vector<uint64_t> * candidate;
-			std::vector<uint64_t> * out;
+			std::vector<VertexEnumerator::CompressedString> * candidate;
+			std::vector<VertexEnumerator::CompressedString> * out;
 			boost::mutex * outMutex;
-			TrueBifurcations(std::vector<uint64_t> * candidate, std::vector<uint64_t> * out, boost::mutex * outMutex, size_t vertexSize) :
+			TrueBifurcations(std::vector<VertexEnumerator::CompressedString> * candidate,
+				std::vector<VertexEnumerator::CompressedString> * out,
+				boost::mutex * outMutex,
+				size_t vertexSize) :
 				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
 
 			uint64_t operator()(const tbb::blocked_range<RecordIterator> & range, uint64_t init) const
-			{
-				size_t capacity = DnaString::CalculateCapacity(vertexSize);
-				RecordIterator vectorBegin = RecordIterator(candidate->begin(), range.begin().GetRecordSize());
-				RecordIterator vectorEnd = RecordIterator(candidate->end(), range.begin().GetRecordSize());
+			{				
+				RecordIterator vectorBegin = candidate->begin();
+				RecordIterator vectorEnd = candidate->end();
 				RecordIterator base = range.begin();
 				if (base > vectorBegin)
 				{
@@ -663,7 +636,7 @@ namespace Sibelia
 					bool bifurcation = false;
 					RecordIterator next = base;
 					Candidate baseCandidate(Dereference(vertexSize, base));
-					bool selfRevComp = IsSelfRevComp(vertexSize, base.GetIterator());
+					bool selfRevComp = IsSelfRevComp(vertexSize, *base);
 					for (; next < vectorEnd; ++next)
 					{
 						Candidate nextCandidate(Dereference(vertexSize, next));
@@ -687,11 +660,11 @@ namespace Sibelia
 					if (bifurcation)
 					{
 						boost::lock_guard<boost::mutex> guard(*outMutex);
-						out->insert(out->end(), capacity, 0);
+						out->push_back(VertexEnumerator::CompressedString());
 						size_t remain = vertexSize;
 						for (size_t i = 0; remain > 0; i++)
 						{
-							uint64_t piece = base.GetIterator()[i];
+							uint64_t piece = base->str[i];
 							size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
 							if (current != DnaString::UNIT_CAPACITY)
 							{
@@ -699,7 +672,7 @@ namespace Sibelia
 								piece &= mask;
 							}
 
-							(*out)[out->size() - capacity + i] = piece;
+							base->str[i] = piece;
 							remain -= current;
 						}
 
@@ -929,7 +902,7 @@ namespace Sibelia
 			}
 
 			mark = time(0);
-			std::vector<uint64_t> candidate(totalRecords);
+			std::vector<CompressedString> candidate(totalRecords);
 			std::ifstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
 			if (!tmpFile)
 			{
@@ -946,15 +919,15 @@ namespace Sibelia
 			}
 
 			boost::mutex outMutex;
-			size_t capacity = DnaString::CalculateCapacity(vertexLength + 2);
-			RecordIterator begin(candidate.begin(), capacity);
-			RecordIterator end(candidate.end(), capacity);
-			tbb::parallel_sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_))); 
+			RecordIterator begin = candidate.begin();
+			RecordIterator end = candidate.end();
+		//	tbb::parallel_sort(begin, end, Comparator<VertexLess>(VertexLess(vertexSize_))); 
 			uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 				uint64_t(0),
 				TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
 				std::plus<uint64_t>());
 			//uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
+//			size_t falsePositives = 0;
 			std::cout << time(0) - mark << std::endl;
 			std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 			std::cout << "FP count = " << falsePositives << std::endl;
@@ -976,10 +949,10 @@ namespace Sibelia
 
 	size_t VertexEnumerator::GetId(const DnaString & vertex) const
 	{
-		uint64_t check[2] = { vertex.GetBody()[0], vertex.RevComp().GetBody()[0] };
-		for (uint64_t str : check)
+		CompressedString check[2] = { vertex.GetBody()[0], vertex.RevComp().GetBody()[0] };
+		for (CompressedString & str : check)
 		{
-			std::vector<uint64_t>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str);
+			std::vector<CompressedString>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str, VertexLess(vertexSize_));
 			if (it != bifurcation_.end() && *it == str)
 			{
 				return it - bifurcation_.begin();
