@@ -11,18 +11,79 @@
 
 \stub Discuss the importance of de Bruijn graphs \cite{bruijn1946combinatorial} in assembly [cite assembly applications]  and comparative genomics [cite comparative genomics applications].
 
-\stub Tell about compressed graph and its  advantages[cite paper where it first appeared].
+\stub Tell about compressed graph and its  advantages [cite paper where it first appeared].
 State that it is desirable to avoid construction of an ordinary graph first.
 
-\stub Notice that for pan-genome all available methods are based on suffix arrays/tress  -- they need a lot of memory.
+\stub Notice that all methods applicable to pan-genome are slow and/or require a lot of memory.
 
+\stub "We invented a new algorithm that is parallelizable and requires much smaller memory..." 
+Say a few a words about the idea: based on Bloom Filters, constructs a partially compacted graph first, then filters out false positives.
 
-\section{Preliminaries}
 \section{The Basic Algorithm}
+\stub Define ordinary de Bruijn graph [figure needed] for pan-genome.
+Define the compacted graph [figure needed]; define what a Bifurcation is.
+
+\stub Say a few words high-level about Bloom filters: structure, supported operations, etc.
+
+\stub Basic observation \#1: if a genomic substring $S$ is flanked by a pair of bifurcations; $S$ is an edge in the compacted graph.
+Note that it is true only for pan-genome case [figures needed].
+
+\stub Basic observation \#2: suppose that we have a data structure that can list output/input edges of vertex.
+Given such a structure, it is easy to decide whether a vertex is a bifurcation.
+
+\stub If we use Bloom filter as such a structure, we can discover vertices of a partially compacted graph [figure?]
+
+\stub We can quickly remove false bifurcations by explicitly exploring edges of candidate bifurcations  [figure?].
+
+\stub Present a figure with the whole algorithm.
+
+\stub Discuss double-strandness: for each copy of a $k + 1$-mer store its "canonical" version in a Bloom Filter.
+
+
+
 \section{Parallelization Scheme}
 \section{Effects of Bloom Filter Size  and Parameter Selection}
 \section{Results}
+\stub Overview the experiment design:
+
+\begin{enumerate}
+	\item Comparison with other tools
+	\item Parallel scalability
+	\item Round-splitting efficiency
+\end{enumerate}
+
+\stub Highlight the results of comparison with other tools
+Notice that Schatz's paper mentioned Sibelia in a totally, absolutely, completely, fully, entirely, perfectly, thoroughly incorrect way.
+
+\stub Discuss the results of scalability experiments.
+
+\stub Speculate about round-splitting results.
+
 \section{Discussion}
+
+\stub State that the algorithm works well and have the following advantages:
+\begin{enumerate}
+	\item Faster than competitors
+	\item Smaller memory than competitors
+	\item Parallelization scalability 
+	\item Smooth memory/time tradeoff
+	\item Simple
+\end{enumerate}
+Note that experimental results directly support claims 1-4.
+
+\stub Discuss possible applicability of partially compacted graphs.
+
+\stub Show limitations \& drawbacks:
+\begin{enumerate}
+	\item Can't be applied to assembly setting
+	\item Bloom filters are cache inefficient 
+	\item ?
+\end{enumerate}
+
+\stub Main take-home message: de Bruijn graph for pan-genome are easy to construct, and can form the backbone of sequence genome comparison:
+reference/variant representation, alignment and synteny blocks construction.
+
+\textbf{Acknowledgements.} Say thanks to Daniel Lemire, author of \cite{lemire2010recursive} for his enormous support.
 
 \bibliographystyle{splncs03}
 \bibliography{bibliography}
