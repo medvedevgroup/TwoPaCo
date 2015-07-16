@@ -1,6 +1,5 @@
 1. Intro
-	-Paragraph about de Bruijn graphs in general
-	-Paragraph about de Bruijn graphs in comparative genomics
+	-Paragraph about de Bruijn graphs in general and  de Bruijn graphs in comparative genomics
 	-Paragraph aobut limitations of approaches
 	-Paragraph about the algorithm and its advantages
 
