@@ -1,5 +1,5 @@
 \documentclass{llncs}
-\title{Building compacted de Bruijn graph from 100 human genomes}
+\title{Building Compacted de Bruijn Graph from 100 Human Genomes with [Tool Name]}
 \author{Ilia Minkin\inst{1} \and Paul Medvedev\inst{1}}
 \institute{Department of Computer Science and Engineering, The Pennsylvania State University, USA}
 
@@ -21,7 +21,7 @@ Say a few a words about the idea: based on Bloom Filters, constructs a partially
 
 \section{The Basic Algorithm}
 \stub Define ordinary de Bruijn graph [figure needed] for pan-genome.
-Define the compacted graph [figure needed]; define what a Bifurcation is.
+Define the compacted graph [figure needed]; define what a bifurcation is.
 
 \stub Say a few words high-level about Bloom filters: structure, supported operations, etc.
 
@@ -31,25 +31,71 @@ Note that it is true only for pan-genome case [figures needed].
 \stub Basic observation \#2: suppose that we have a data structure that can list output/input edges of vertex.
 Given such a structure, it is easy to decide whether a vertex is a bifurcation.
 
-\stub If we use Bloom filter as such a structure, we can discover vertices of a partially compacted graph [figure?]
+\stub If we use Bloom filter as such a structure, we can discover vertices of a partially compacted graph -- candidates for true bifurcations[figure?]
 
 \stub We can quickly remove false bifurcations by explicitly exploring edges of candidate bifurcations  [figure?].
 
-\stub Present a figure with the whole algorithm.
+\stub Present a figure with the basic algorithm with three stages: 
+\begin{enumerate}
+	\item Filling the filter
+	\item Checking extensions, or partial compaction
+	\item Filtering out false positives, or full compaction
+\end{enumerate}
 
 \stub Discuss double-strandness: for each copy of a $k + 1$-mer store its "canonical" version in a Bloom Filter.
 
 
-
 \section{Parallelization Scheme}
+\stub An advantage of our Basic Algorithm is that it can be effectively parallelized
+
+\stub For the parallelization of first two stages, we use the following schema [figure needed]:
+\begin{enumerate}
+	\item One reader thread that splits input into parts and sends them into worker queues
+	\item $N$ worker threads that grab genome parts from queues and process them
+\end{enumerate}
+In the first stage, worker threads work with shared Bloom filter -- synchronization is done via atomic operations on it.
+In the second stage, workers have no shared data (except output file) -- things are easy.
+
+\stub Third stage is simple: parallel sorting and exploration of $k + 1$-mers [figure needed?]
+
 \section{Effects of Bloom Filter Size  and Parameter Selection}
+\stub Performance critically depends on the memory available.
+If Bloom Filter is too small -- huge amount of false positives will degenerate the approach into mere sorting of $k + 1$-mers.
+But we can fix this.
+
+\stub Observation: we can split all $k$-mers into a family of classes, and identify bifurcations within each class separately.
+Way to separate: take a range of hash function and split it into segments.
+Class = $k$-mers that hash into a single segment.
+Naive splitting can be uneven.
+How to split well?
+
+\stub Notice that FP-rate depends on the number of elements in the BF.
+So we are interested in classes that have number of edges as equal as possible.
+Algorithm [figure needed]:
+\begin{enumerate}
+\item Divide range of a HF into a number of buckets
+\item For each bucket $b$ estimate number of edges that have $k$-mers that hash into $b$. How?
+\item Modify Bloom Filling procedure: before putting an edge into BF, check if it was seen before. 
+If not, increment counter for the bucket corresponding to the value of hash function
+
+\stub Present a figure with full algorithm: parameters split and run in parallel.
+
+\stub Note that round-splitting leads to a perfectly scalable cluster implementation.
+\end{enumerate}
+
+\section{Analysis of The Algorithm}
+
+\stub Explore efficiency of the round splitting: derive expected amount of false positives given the size of true bifurcation set.
+
+\stub Based on the analysis above, show the expected running time and memory usage by the algorithm.
+
 \section{Results}
 \stub Overview the experiment design:
 
 \begin{enumerate}
 	\item Comparison with other tools
 	\item Parallel scalability
-	\item Round-splitting efficiency
+	\item Round-splitting efficiency: compare our procedure with naive splitting
 \end{enumerate}
 
 \stub Highlight the results of comparison with other tools
@@ -57,7 +103,7 @@ Notice that Schatz's paper mentioned Sibelia in a totally, absolutely, completel
 
 \stub Discuss the results of scalability experiments.
 
-\stub Speculate about round-splitting results.
+\stub Speculate about round-splitting results: the procedure works better than the naive approach.
 
 \section{Discussion}
 
@@ -65,9 +111,10 @@ Notice that Schatz's paper mentioned Sibelia in a totally, absolutely, completel
 \begin{enumerate}
 	\item Faster than competitors
 	\item Smaller memory than competitors
-	\item Parallelization scalability 
+	\item Parallelization scalability on a SMP system
 	\item Smooth memory/time tradeoff
-	\item Simple
+	\item Parallelization scalability on a cluster
+	\item Simple: no need for a suffix array/tree
 \end{enumerate}
 Note that experimental results directly support claims 1-4.
 
