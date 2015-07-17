@@ -662,7 +662,7 @@ namespace Sibelia
 
 			bool operator() (const VertexEnumerator::CompressedString & v1, const VertexEnumerator::CompressedString & v2) const
 			{
-				return VertexEnumerator::CompressedString::LessPrefix(vertexSize_, v1, v2);
+				return VertexEnumerator::CompressedString::LessPrefix(v1, v2, vertexSize_);
 			}
 
 		private:

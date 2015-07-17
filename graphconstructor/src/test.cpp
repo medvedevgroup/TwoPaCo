@@ -153,6 +153,7 @@ namespace Sibelia
 
 							if (inCount != 1 || outCount != 1)
 							{
+								VertexEnumerator::CompressedString check;
 								DnaString check(cand.size(), cand.size());
 								for (size_t i = 0; i < cand.size(); i++)
 								{

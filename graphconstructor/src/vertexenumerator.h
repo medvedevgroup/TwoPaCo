@@ -50,9 +50,9 @@ namespace Sibelia
 				str[0] = init;
 			}
 
-			CompressedString(const CompressedString & cpy)
+			CompressedString(const CompressedString & toCopy)
 			{
-				std::copy(cpy.str, cpy.str + capacity, str);
+				std::copy(toCopy.str, toCopy.str + capacity, str);
 			}
 
 			static uint64_t Mask(size_t prefix)
@@ -86,7 +86,7 @@ namespace Sibelia
 				return true;
 			}
 
-			static bool LessPrefix(size_t prefix, const VertexEnumerator::CompressedString & v1, const VertexEnumerator::CompressedString & v2)
+			static bool LessPrefix(const VertexEnumerator::CompressedString & v1, const VertexEnumerator::CompressedString & v2, size_t prefix)
 			{
 				size_t remain = prefix;
 				for (size_t i = 0; remain > 0; i++)
