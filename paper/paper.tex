@@ -77,11 +77,10 @@ Algorithm [figure needed]:
 \item For each bucket $b$ estimate number of edges that have $k$-mers that hash into $b$. How?
 \item Modify Bloom Filling procedure: before putting an edge into BF, check if it was seen before. 
 If not, increment counter for the bucket corresponding to the value of hash function
+\end{enumerate}
 
 \stub Present a figure with full algorithm: parameters split and run in parallel.
-
-\stub Note that round-splitting leads to a perfectly scalable cluster implementation.
-\end{enumerate}
+Note that round-splitting leads to a perfectly scalable cluster implementation.
 
 \section{Analysis of The Algorithm}
 
@@ -103,7 +102,8 @@ Notice that Schatz's paper mentioned Sibelia in a totally, absolutely, completel
 
 \stub Discuss the results of scalability experiments.
 
-\stub Speculate about round-splitting results: the procedure works better than the naive approach.
+\stub Speculate about round-splitting results: the procedure works better than the naive approach. 
+Maybe plot number of false positives ?
 
 \section{Discussion}
 
