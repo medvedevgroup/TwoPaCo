@@ -143,7 +143,7 @@ namespace Sibelia
 						{
 							size_t inCount = 0;
 							size_t outCount = 0;
-							for (char ch : VertexEnumerator::CompressedString::LITERAL)
+							for (char ch : VertexEnumerator::DnaString::LITERAL)
 							{
 								std::string inEdge = ch + cand;
 								std::string outEdge = cand + ch;
@@ -153,7 +153,7 @@ namespace Sibelia
 
 							if (inCount != 1 || outCount != 1)
 							{
-								VertexEnumerator::CompressedString check;
+								VertexEnumerator::DnaString check;
 								check.CopyFromString(cand.begin(), cand.size());
 								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.ReverseComplement(vertexLength)) != VertexEnumerator::INVALID_VERTEX);
 								bif.insert(cand);

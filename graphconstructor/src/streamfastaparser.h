@@ -6,8 +6,6 @@
 
 #include <boost/thread.hpp>
 
-#include "dnastring.h"
-
 namespace Sibelia
 {
 	class StreamFastaParser

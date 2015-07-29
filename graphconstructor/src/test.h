@@ -1,6 +1,5 @@
 #ifndef _TEST_H_
 
-#include "dnastring.h"
 #include "vertexenumerator.h"
 
 namespace Sibelia
