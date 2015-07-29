@@ -95,18 +95,17 @@ namespace Sibelia
 			size_t idx = 0;
 			size_t element = 0;
 			out.push_back(VertexEnumerator::CompressedString());
-			std::string::const_reverse_iterator rit(pos + vertexLength);
 			if (posHash0 <= negHash0)
 			{
-				char buf[] = { posExtend, posPrev };
-				out.back().StrCpy(pos, element, idx, vertexLength, VertexEnumerator::CompressedString::Id);
-				out.back().StrCpy(buf, element, idx, 2, VertexEnumerator::CompressedString::Id);
+				out.back().CopyFromString(pos, vertexLength);
+				out.back().SetChar(vertexLength, posExtend);
+				out.back().SetChar(vertexLength + 1, posPrev);
 			}
 			else
 			{
-				char buf[] = { DnaString::Reverse(posPrev), DnaString::Reverse(posExtend) };
-				out.back().StrCpy(rit, element, idx, vertexLength, DnaString::Reverse);
-				out.back().StrCpy(buf, element, idx, 2, VertexEnumerator::CompressedString::Id);
+				out.back().CopyFromReverseString(pos, vertexLength);
+				out.back().SetChar(vertexLength, DnaString::Reverse(posPrev));
+				out.back().SetChar(vertexLength + 1, DnaString::Reverse(posExtend));
 			}
 		}
 
@@ -608,7 +607,6 @@ namespace Sibelia
 					for (; next < vectorEnd; ++next)
 					{
 						Candidate nextCandidate(Dereference(vertexSize, next));
-					//	std::cout << DnaString(vertexSize, next->str).ToString() << ' ' << nextCandidate.extend << nextCandidate.prev << std::endl;
 						if (!(VertexEnumerator::CompressedString::EqualPrefix(vertexSize, *base, *next)))
 						{
 							break;
@@ -629,7 +627,7 @@ namespace Sibelia
 					{
 						boost::lock_guard<boost::mutex> guard(*outMutex);
 						out->push_back(VertexEnumerator::CompressedString());
-						out->back().StrCpyPrefix(*base, vertexSize);
+						out->back().CopyPrefix(*base, vertexSize);
 					}
 					else
 					{

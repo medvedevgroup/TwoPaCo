@@ -154,9 +154,7 @@ namespace Sibelia
 							if (inCount != 1 || outCount != 1)
 							{
 								VertexEnumerator::CompressedString check;
-								size_t idx = 0;
-								size_t element = 0;
-								check.StrCpy(cand.begin(), element, idx, cand.size(), VertexEnumerator::CompressedString::Id);
+								check.CopyFromString(cand.begin(), cand.size());
 								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.ReverseComplement(vertexLength)) != VertexEnumerator::INVALID_VERTEX);
 								bif.insert(cand);
 							}
@@ -208,7 +206,7 @@ namespace Sibelia
 	//	fileName.push_back("g1.fasta");
 	//	fileName.push_back("g2.fasta");
 	//	fileName.push_back("g3.fasta");
-		for (size_t k = 6; k <= 16; k++)
+		for (size_t k = 6; k <= 28; k++)
 		{
 			VertexEnumeratorTest(fileName, k, 20, ss);
 		}

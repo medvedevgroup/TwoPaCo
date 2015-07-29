@@ -36,7 +36,7 @@ namespace Sibelia
 			size_t aggregationThreads,
 			const std::string & tmpFileName);
 
-		static const size_t capacity = 1;
+		static const size_t capacity = 2;
 
 		class CompressedString
 		{
@@ -113,12 +113,12 @@ namespace Sibelia
 				return false;
 			}
 
-			void StrCpyPrefix(const CompressedString & cpy, size_t prefix)
+			void CopyPrefix(const CompressedString & copy, size_t prefix)
 			{
 				size_t remain = prefix;
 				for (size_t i = 0; remain > 0; i++)
 				{
-					uint64_t piece = cpy.str[i];
+					uint64_t piece = copy.str[i];
 					size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
 					if (current != DnaString::UNIT_CAPACITY)
 					{						
@@ -172,8 +172,21 @@ namespace Sibelia
 				return DnaString::LITERAL[charIdx & 0x3];
 			}
 
+			void CopyFromString(std::string::const_iterator it, size_t size)
+			{
+				StrCpy(it, 0, 0, size, Id);
+			}
+
+			void CopyFromReverseString(std::string::const_iterator it, size_t size)
+			{
+				StrCpy(std::string::const_reverse_iterator(it + size), 0, 0, size, DnaString::Reverse);
+			}
+
+		private:
+			uint64_t str[capacity];
+
 			template<class T, class F>
-			void StrCpy(T src, size_t & element, size_t & idx, size_t size, F f)
+			void StrCpy(T src, size_t element, size_t idx, size_t size, F f)
 			{
 				for (size_t i = 0; i < size; i++)
 				{
@@ -185,9 +198,6 @@ namespace Sibelia
 					}
 				}
 			}
-
-		private:
-			uint64_t str[capacity];
 
 			uint64_t TranslateIdx(uint64_t & idx) const
 			{
