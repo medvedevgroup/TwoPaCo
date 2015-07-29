@@ -154,13 +154,10 @@ namespace Sibelia
 							if (inCount != 1 || outCount != 1)
 							{
 								VertexEnumerator::CompressedString check;
-								DnaString check(cand.size(), cand.size());
-								for (size_t i = 0; i < cand.size(); i++)
-								{
-									check.SetChar(i, cand[i]);
-								}
-
-								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.RevComp()) != VertexEnumerator::INVALID_VERTEX);
+								size_t idx = 0;
+								size_t element = 0;
+								check.StrCpy(cand.begin(), element, idx, cand.size(), VertexEnumerator::CompressedString::Id);
+								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.ReverseComplement(vertexLength)) != VertexEnumerator::INVALID_VERTEX);
 								bif.insert(cand);
 							}
 						}						

@@ -12,9 +12,10 @@ namespace Sibelia
 	class VertexEnumerator
 	{
 	public:
+		class CompressedString;
 		const static size_t INVALID_VERTEX;
 		size_t GetVerticesCount() const;
-		size_t GetId(const DnaString & vertex) const;
+		size_t GetId(const CompressedString & vertex) const;
 		
 		template<class Iterator>
 			void Dump(Iterator out)
@@ -137,6 +138,31 @@ namespace Sibelia
 			bool operator != (const CompressedString & other) const
 			{
 				return !(*this == other);
+			}
+
+			static char Id(char ch)
+			{
+				return ch;
+			}
+
+			CompressedString ReverseComplement(size_t stringSize) const
+			{
+				CompressedString ret;
+				for (size_t i = 0; i < stringSize; i++)
+				{
+					ret.SetChar(i, DnaString::Reverse(GetChar(stringSize - i - 1)));
+				}
+
+				return ret;
+			}
+
+			void SetChar(uint64_t idx, char ch)
+			{
+				uint64_t element = TranslateIdx(idx);
+				uint64_t charIdx = str[element] >> (2 * idx);
+				uint64_t mask = uint64_t(0x3) << (idx * 2);
+				str[element] &= ~(mask);
+				str[element] |= DnaString::MakeUp(ch) << (2 * idx++);
 			}
 
 			char GetChar(uint64_t idx) const

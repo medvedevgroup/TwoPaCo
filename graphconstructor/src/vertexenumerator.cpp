@@ -28,11 +28,6 @@ namespace Sibelia
 
 	namespace
 	{
-		char Id(char ch)
-		{
-			return ch;
-		}
-
 		uint64_t hashMask;
 		typedef CyclicHash<uint64_t> HashFunction;
 		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
@@ -104,14 +99,14 @@ namespace Sibelia
 			if (posHash0 <= negHash0)
 			{
 				char buf[] = { posExtend, posPrev };
-				out.back().StrCpy(pos, element, idx, vertexLength, Id);
-				out.back().StrCpy(buf, element, idx, 2, Id);
+				out.back().StrCpy(pos, element, idx, vertexLength, VertexEnumerator::CompressedString::Id);
+				out.back().StrCpy(buf, element, idx, 2, VertexEnumerator::CompressedString::Id);
 			}
 			else
 			{
 				char buf[] = { DnaString::Reverse(posPrev), DnaString::Reverse(posExtend) };
 				out.back().StrCpy(rit, element, idx, vertexLength, DnaString::Reverse);
-				out.back().StrCpy(buf, element, idx, 2, Id);
+				out.back().StrCpy(buf, element, idx, 2, VertexEnumerator::CompressedString::Id);
 			}
 		}
 
@@ -446,7 +441,6 @@ namespace Sibelia
 							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
 
-
 						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						if (!wasSet)
 						{
@@ -564,8 +558,6 @@ namespace Sibelia
 			ret.prev = it->GetChar(size + 1);
 			return ret;
 		}
-
-		
 
 		bool IsSelfRevComp(size_t vertexSize, const VertexEnumerator::CompressedString & str)
 		{
@@ -889,18 +881,14 @@ namespace Sibelia
 		return bifurcation_.size();
 	}
 
-	size_t VertexEnumerator::GetId(const DnaString & vertex) const
+	size_t VertexEnumerator::GetId(const CompressedString & str) const
 	{
-		CompressedString check[2] = { vertex.GetBody()[0], vertex.RevComp().GetBody()[0] };
-		for (CompressedString & str : check)
+		std::vector<CompressedString>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str, VertexLess(vertexSize_));
+		if (it != bifurcation_.end() && *it == str)
 		{
-			std::vector<CompressedString>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str, VertexLess(vertexSize_));
-			if (it != bifurcation_.end() && *it == str)
-			{
-				return it - bifurcation_.begin();
-			}
+			return it - bifurcation_.begin();
 		}
-		
+	
 		return INVALID_VERTEX;
 	}
 }
