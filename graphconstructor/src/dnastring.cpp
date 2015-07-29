@@ -4,8 +4,8 @@
 #include "DnaString.h"
 
 namespace Sibelia
-{
-	const std::string DnaString::LITERAL = "ACGT";
+{/*
+	
 	
 	bool operator == (const DnaString & a, const DnaString & b)
 	{
@@ -56,5 +56,5 @@ namespace Sibelia
 		}
 
 		return false;
-	}
+	}*/
 }

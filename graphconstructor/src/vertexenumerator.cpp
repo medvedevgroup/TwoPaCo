@@ -24,13 +24,24 @@
 
 namespace Sibelia
 {
-	const size_t VertexEnumerator::INVALID_VERTEX = -1;
+	std::string RevComp(const std::string & str)
+	{
+		std::string ret;
+		for (auto it = str.rbegin(); it != str.rend(); ++it)
+		{
+			ret.push_back(VertexEnumerator::CompressedString::ReverseChar(*it));
+		}
 
+		return ret;
+	}
+
+	const size_t VertexEnumerator::INVALID_VERTEX = -1;
+	const std::string VertexEnumerator::CompressedString::LITERAL = "ACGT";
 	namespace
 	{
 		uint64_t hashMask;
 		typedef CyclicHash<uint64_t> HashFunction;
-		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
+		typedef std::unique_ptr<HashFunction> HashFunctionPtr;		
 
 		template<class F>
 		bool IsInBloomFilter(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
@@ -104,31 +115,9 @@ namespace Sibelia
 			else
 			{
 				out.back().CopyFromReverseString(pos, vertexLength);
-				out.back().SetChar(vertexLength, DnaString::Reverse(posPrev));
-				out.back().SetChar(vertexLength + 1, DnaString::Reverse(posExtend));
+				out.back().SetChar(vertexLength, VertexEnumerator::CompressedString::ReverseChar(posPrev));
+				out.back().SetChar(vertexLength + 1, VertexEnumerator::CompressedString::ReverseChar(posExtend));
 			}
-		}
-
-		DnaString Generate(std::string::const_iterator it, size_t size)
-		{
-			DnaString str(size, size);
-			for (size_t i = 0; i < size; i++)
-			{
-				str.SetChar(i, *(it + i));
-			}
-
-			return str;
-		}
-
-		std::string RevComp(const std::string & str)
-		{
-			std::string ret;
-			for (auto it = str.rbegin(); it != str.rend(); ++it)
-			{
-				ret.push_back(DnaString::Reverse(*it));
-			}
-
-			return ret;
 		}
 
 		void InitializeHashFunctions(const std::vector<HashFunctionPtr> & seed,
@@ -150,11 +139,11 @@ namespace Sibelia
 				assert(posEdgeHash[i]->hashvalue == posEdgeHash[i]->hash(fragment.substr(offset, length)));
 				for (std::string::const_reverse_iterator it(fragment.begin() + length + offset); it != fragment.rend() - offset; ++it)
 				{
-					char c = DnaString::Reverse(*it);
-					negEdgeHash[i]->eat(DnaString::Reverse(*it));
+					char ch = VertexEnumerator::CompressedString::ReverseChar(*it);
+					negEdgeHash[i]->eat(VertexEnumerator::CompressedString::ReverseChar(*it));
 				}
 
-				assert(negEdgeHash[i]->hashvalue == negEdgeHash[i]->hash(RevComp(fragment.substr(offset, length))));
+			//	assert(negEdgeHash[i]->hashvalue == negEdgeHash[i]->hash(RevComp(fragment.substr(offset, length))));
 			}
 		}		
 
@@ -170,8 +159,7 @@ namespace Sibelia
 		{
 			uint64_t low = bound.first;
 			uint64_t high = bound.second;
-			std::vector<VertexEnumerator::CompressedString> output;
-			size_t capacity = DnaString::CalculateCapacity(vertexLength + 2);
+			std::vector<VertexEnumerator::CompressedString> output;			
 			while (true)
 			{
 				Task task;
@@ -191,22 +179,22 @@ namespace Sibelia
 					if (task.start == 0)
 					{
 						uint64_t posHash0 = hashFunction[0]->hash(task.str.substr(vertexLength));
-						uint64_t negHash0 = hashFunction[0]->hash(DnaString::RevComp(task.str.substr(vertexLength)));
+						uint64_t negHash0 = hashFunction[0]->hash(RevComp(task.str.substr(vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, capacity, 'A', 'A', output);
-							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, capacity, 'A', 'C', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, VertexEnumerator::capacity, 'A', 'A', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, VertexEnumerator::capacity, 'A', 'C', output);
 						}
 					}
 
 					if (task.isFinal)
 					{
 						uint64_t posHash0 = hashFunction[0]->hash(task.str.substr(task.str.size() - vertexLength, vertexLength));
-						uint64_t negHash0 = hashFunction[0]->hash(DnaString::RevComp(task.str.substr(task.str.size() - vertexLength, vertexLength)));
+						uint64_t negHash0 = hashFunction[0]->hash(RevComp(task.str.substr(task.str.size() - vertexLength, vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, capacity, 'A', 'A', output);
-							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, capacity, 'A', 'C', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, VertexEnumerator::capacity, 'A', 'A', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, VertexEnumerator::capacity, 'A', 'C', output);
 						}
 					}
 
@@ -223,10 +211,10 @@ namespace Sibelia
 							{
 								size_t inCount = 0;
 								size_t outCount = 0;
-								for (int i = 0; i < DnaString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
+								for (int i = 0; i < VertexEnumerator::CompressedString::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 								{
-									char nextCh = DnaString::LITERAL[i];
-									char revNextCh = DnaString::Reverse(nextCh);
+									char nextCh = VertexEnumerator::CompressedString::LITERAL[i];
+									char revNextCh = VertexEnumerator::CompressedString::ReverseChar(nextCh);
 									if (nextCh == posPrev)
 									{
 										++inCount;
@@ -264,21 +252,21 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									WriteCanonicalRecord(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue, task.str.begin() + pos, vertexLength, capacity, posExtend, posPrev, output);
+									WriteCanonicalRecord(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue, task.str.begin() + pos, vertexLength, VertexEnumerator::capacity, posExtend, posPrev, output);
 								}
 							}
 
 							if (pos + vertexLength + 1 < task.str.size())
 							{
-								char negExtend = DnaString::Reverse(posExtend);
+								char negExtend = VertexEnumerator::CompressedString::ReverseChar(posExtend);
 								char posPrev = task.str[pos];
-								char negPrev = DnaString::Reverse(task.str[pos]);
+								char negPrev = VertexEnumerator::CompressedString::ReverseChar(task.str[pos]);
 								for (size_t i = 0; i < hashFunction.size(); i++)
 								{
 									posVertexHash[i]->update(posPrev, posExtend);
 									negVertexHash[i]->reverse_update(negExtend, negPrev);
 									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaString::RevComp(task.str.substr(pos + 1, vertexLength))));
+									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 								}
 							}
 							else
@@ -341,7 +329,7 @@ namespace Sibelia
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
 						char nextCh = task.str[pos + edgeLength - 1];
-						char revNextCh = DnaString::Reverse(nextCh);
+						char revNextCh = VertexEnumerator::CompressedString::ReverseChar(nextCh);
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
@@ -363,7 +351,7 @@ namespace Sibelia
 						{
 							posVertexHash[i]->update(prevCh, nextCh);
 							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-							negVertexHash[i]->reverse_update(DnaString::Reverse(nextCh), DnaString::Reverse(prevCh));
+							negVertexHash[i]->reverse_update(VertexEnumerator::CompressedString::ReverseChar(nextCh), VertexEnumerator::CompressedString::ReverseChar(prevCh));
 							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
 
@@ -416,7 +404,7 @@ namespace Sibelia
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
 						char nextCh = task.str[pos + edgeLength - 1];
-						char revNextCh = DnaString::Reverse(nextCh);
+						char revNextCh = VertexEnumerator::CompressedString::ReverseChar(nextCh);
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
@@ -436,7 +424,7 @@ namespace Sibelia
 						{
 							posVertexHash[i]->update(prevCh, nextCh);
 							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-							negVertexHash[i]->reverse_update(DnaString::Reverse(nextCh), DnaString::Reverse(prevCh));
+							negVertexHash[i]->reverse_update(VertexEnumerator::CompressedString::ReverseChar(nextCh), VertexEnumerator::CompressedString::ReverseChar(prevCh));
 							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
 
@@ -562,7 +550,7 @@ namespace Sibelia
 		{
 			for (size_t i = 0; i < vertexSize; i++)
 			{
-				if (str.GetChar(i) != DnaString::Reverse(str.GetChar(vertexSize - i - 1)))
+				if (str.GetChar(i) != VertexEnumerator::CompressedString::ReverseChar(str.GetChar(vertexSize - i - 1)))
 				{
 					return false;
 				}
@@ -617,8 +605,8 @@ namespace Sibelia
 							if (selfRevComp) 
 							{
 								bifurcation = bifurcation ||
-									baseCandidate.prev != DnaString::Reverse(nextCandidate.extend) ||
-									baseCandidate.extend != DnaString::Reverse(nextCandidate.prev);
+									baseCandidate.prev != VertexEnumerator::CompressedString::ReverseChar(nextCandidate.extend) ||
+									baseCandidate.extend != VertexEnumerator::CompressedString::ReverseChar(nextCandidate.prev);
 							}
 						}
 					}

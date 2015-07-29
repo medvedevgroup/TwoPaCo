@@ -122,7 +122,7 @@ int main(int argc, char * argv[])
 			std::vector<std::string> all;
 			vid.Dump(std::back_inserter(all));
 			std::vector<std::string> rev;
-			std::transform(all.begin(), all.end(), std::back_inserter(rev), static_cast<std::string(*)(const std::string&)>(Sibelia::DnaString::RevComp));
+			std::transform(all.begin(), all.end(), std::back_inserter(rev), static_cast<std::string(*)(const std::string&)>(Sibelia::RevComp));
 			all.insert(all.begin(), rev.begin(), rev.end());
 			std::sort(all.begin(), all.end());
 			all.erase(std::unique(all.begin(), all.end()), all.end());

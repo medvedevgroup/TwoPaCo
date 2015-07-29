@@ -9,6 +9,8 @@
 
 namespace Sibelia
 {
+	std::string RevComp(const std::string & str);
+
 	class VertexEnumerator
 	{
 	public:
@@ -41,6 +43,8 @@ namespace Sibelia
 		class CompressedString
 		{
 		public:
+			static const size_t UNIT_CAPACITY = 32;
+
 			CompressedString()
 			{
 				std::fill(str, str + capacity, 0);
@@ -66,10 +70,10 @@ namespace Sibelia
 				size_t remain = prefix;
 				for (size_t i = 0; remain > 0; i++)
 				{
-					size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
+					size_t current = std::min(remain, UNIT_CAPACITY);
 					uint64_t apiece = it1.str[i];
 					uint64_t bpiece = it2.str[i];
-					if (current != DnaString::UNIT_CAPACITY)
+					if (current != UNIT_CAPACITY)
 					{
 						uint64_t mask = Mask(prefix);
 						apiece &= mask;
@@ -92,10 +96,10 @@ namespace Sibelia
 				size_t remain = prefix;
 				for (size_t i = 0; remain > 0; i++)
 				{
-					size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
+					size_t current = std::min(remain, UNIT_CAPACITY);
 					uint64_t apiece = v1.str[i];
 					uint64_t bpiece = v2.str[i];
-					if (current != DnaString::UNIT_CAPACITY)
+					if (current != UNIT_CAPACITY)
 					{
 						uint64_t mask = Mask(prefix);
 						apiece &= mask;
@@ -119,8 +123,8 @@ namespace Sibelia
 				for (size_t i = 0; remain > 0; i++)
 				{
 					uint64_t piece = copy.str[i];
-					size_t current = std::min(remain, DnaString::UNIT_CAPACITY);
-					if (current != DnaString::UNIT_CAPACITY)
+					size_t current = std::min(remain, UNIT_CAPACITY);
+					if (current != UNIT_CAPACITY)
 					{						
 						piece &= Mask(current);
 					}
@@ -145,12 +149,46 @@ namespace Sibelia
 				return ch;
 			}
 
+			static char ReverseChar(char ch)
+			{
+				switch (ch)
+				{
+				case 'A':
+					return 'T';
+				case 'T':
+					return 'A';
+				case 'C':
+					return 'G';
+				case 'G':
+					return 'C';
+				}
+
+				return 'N';
+			}
+
+			static uint64_t MakeUpChar(char ch)
+			{
+				switch (ch)
+				{
+				case 'A':
+					return 0;
+				case 'C':
+					return 1;
+				case 'G':
+					return 2;
+				case 'T':
+					return 3;
+				}
+
+				return 0;
+			}
+
 			CompressedString ReverseComplement(size_t stringSize) const
 			{
 				CompressedString ret;
 				for (size_t i = 0; i < stringSize; i++)
 				{
-					ret.SetChar(i, DnaString::Reverse(GetChar(stringSize - i - 1)));
+					ret.SetChar(i, ReverseChar(GetChar(stringSize - i - 1)));
 				}
 
 				return ret;
@@ -162,14 +200,14 @@ namespace Sibelia
 				uint64_t charIdx = str[element] >> (2 * idx);
 				uint64_t mask = uint64_t(0x3) << (idx * 2);
 				str[element] &= ~(mask);
-				str[element] |= DnaString::MakeUp(ch) << (2 * idx++);
+				str[element] |= MakeUpChar(ch) << (2 * idx++);
 			}
 
 			char GetChar(uint64_t idx) const
 			{
 				uint64_t element = TranslateIdx(idx);
 				uint64_t charIdx = str[element] >> (2 * idx);
-				return DnaString::LITERAL[charIdx & 0x3];
+				return LITERAL[charIdx & 0x3];
 			}
 
 			void CopyFromString(std::string::const_iterator it, size_t size)
@@ -179,8 +217,11 @@ namespace Sibelia
 
 			void CopyFromReverseString(std::string::const_iterator it, size_t size)
 			{
-				StrCpy(std::string::const_reverse_iterator(it + size), 0, 0, size, DnaString::Reverse);
+				StrCpy(std::string::const_reverse_iterator(it + size), 0, 0, size, ReverseChar);
 			}
+
+			static const std::string LITERAL;
+
 
 		private:
 			uint64_t str[capacity];
@@ -190,8 +231,8 @@ namespace Sibelia
 			{
 				for (size_t i = 0; i < size; i++)
 				{
-					str[element] |= DnaString::MakeUp(f(*src++)) << (2 * idx++);
-					if (idx >= DnaString::UNIT_CAPACITY)
+					str[element] |= MakeUpChar(f(*src++)) << (2 * idx++);
+					if (idx >= UNIT_CAPACITY)
 					{
 						idx = 0;
 						++element;

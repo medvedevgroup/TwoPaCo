@@ -5,7 +5,7 @@
 #include <cstdint>
 
 namespace Sibelia
-{
+{/*
 	class DnaString
 	{
 	public:
@@ -251,7 +251,7 @@ namespace Sibelia
 
 	bool operator < (const DnaString & a, const DnaString & b);
 	bool operator == (const DnaString & a, const DnaString & b);
-	bool operator != (const DnaString & a, const DnaString & b);
+	bool operator != (const DnaString & a, const DnaString & b);*/
 }
 
 #endif
