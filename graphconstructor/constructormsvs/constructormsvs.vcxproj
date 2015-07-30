@@ -149,9 +149,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\compressedstring.cpp" />
     <ClCompile Include="..\src\concurrentbitvector.cpp" />
     <ClCompile Include="..\src\constructor.cpp" />
-    <ClCompile Include="..\src\lib\SpookyV2.cpp" />
     <ClCompile Include="..\src\streamfastaparser.cpp" />
     <ClCompile Include="..\src\test.cpp" />
     <ClCompile Include="..\src\vertexenumerator.cpp" />
@@ -159,7 +159,6 @@
   <ItemGroup>
     <ClInclude Include="..\src\compressedstring.h" />
     <ClInclude Include="..\src\concurrentbitvector.h" />
-    <ClInclude Include="..\src\lib\SpookyV2.h" />
     <ClInclude Include="..\src\ngramhashing\cyclichash.h" />
     <ClInclude Include="..\src\streamfastaparser.h" />
     <ClInclude Include="..\src\test.h" />

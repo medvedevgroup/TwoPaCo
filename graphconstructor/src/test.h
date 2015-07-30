@@ -1,6 +1,9 @@
 #ifndef _TEST_H_
+#define _TEST_H_
 
-#include "vertexenumerator.h"
+#include <vector>
+#include <string>
+#include <iostream>
 
 namespace Sibelia
 {

@@ -2,10 +2,11 @@
 #include <cassert>
 #include <sstream>
 #include <iterator>
-#include <iostream>
 #include <algorithm>
 
 #include "test.h"
+#include "vertexenumerator.h"
+
 
 namespace Sibelia
 {
@@ -143,7 +144,7 @@ namespace Sibelia
 						{
 							size_t inCount = 0;
 							size_t outCount = 0;
-							for (char ch : VertexEnumerator::DnaString::LITERAL)
+							for (char ch : LITERAL)
 							{
 								std::string inEdge = ch + cand;
 								std::string outEdge = cand + ch;

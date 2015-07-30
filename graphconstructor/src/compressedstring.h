@@ -7,25 +7,21 @@
 
 namespace Sibelia
 {
-	template<size_t capacity>
+	extern const std::string LITERAL;
+	extern const size_t UNIT_CAPACITY;
+
+	template<size_t CAPACITY>
 	class CompressedString
 	{
 	public:
-		static const size_t UNIT_CAPACITY = 32;
-
 		CompressedString()
 		{
-			std::fill(str, str + capacity, 0);
-		}
-
-		CompressedString(uint64_t init)
-		{
-			str[0] = init;
+			std::fill(str_, str_ + CAPACITY, 0);
 		}
 
 		CompressedString(const CompressedString & toCopy)
 		{
-			std::copy(toCopy.str, toCopy.str + capacity, str);
+			std::copy(toCopy.str_, toCopy.str_ + CAPACITY, str_);
 		}
 
 		static uint64_t Mask(size_t prefix)
@@ -39,8 +35,8 @@ namespace Sibelia
 			for (size_t i = 0; remain > 0; i++)
 			{
 				size_t current = std::min(remain, UNIT_CAPACITY);
-				uint64_t apiece = it1.str[i];
-				uint64_t bpiece = it2.str[i];
+				uint64_t apiece = it1.str_[i];
+				uint64_t bpiece = it2.str_[i];
 				if (current != UNIT_CAPACITY)
 				{
 					uint64_t mask = Mask(prefix);
@@ -65,8 +61,8 @@ namespace Sibelia
 			for (size_t i = 0; remain > 0; i++)
 			{
 				size_t current = std::min(remain, UNIT_CAPACITY);
-				uint64_t apiece = v1.str[i];
-				uint64_t bpiece = v2.str[i];
+				uint64_t apiece = v1.str_[i];
+				uint64_t bpiece = v2.str_[i];
 				if (current != UNIT_CAPACITY)
 				{
 					uint64_t mask = Mask(prefix);
@@ -90,21 +86,21 @@ namespace Sibelia
 			size_t remain = prefix;
 			for (size_t i = 0; remain > 0; i++)
 			{
-				uint64_t piece = copy.str[i];
+				uint64_t piece = copy.str_[i];
 				size_t current = std::min(remain, UNIT_CAPACITY);
 				if (current != UNIT_CAPACITY)
 				{
 					piece &= Mask(current);
 				}
 
-				str[i] = piece;
+				str_[i] = piece;
 				remain -= current;
 			}
 		}
 
 		bool operator == (const CompressedString & other) const
 		{
-			return std::equal(str, str + capacity, other.str);
+			return std::equal(str_, str_ + CAPACITY, other.str_);
 		}
 
 		bool operator != (const CompressedString & other) const
@@ -148,16 +144,16 @@ namespace Sibelia
 		void SetChar(uint64_t idx, char ch)
 		{
 			uint64_t element = TranslateIdx(idx);
-			uint64_t charIdx = str[element] >> (2 * idx);
+			uint64_t charIdx = str_[element] >> (2 * idx);
 			uint64_t mask = uint64_t(0x3) << (idx * 2);
-			str[element] &= ~(mask);
-			str[element] |= MakeUpChar(ch) << (2 * idx++);
+			str_[element] &= ~(mask);
+			str_[element] |= MakeUpChar(ch) << (2 * idx++);
 		}
 
 		char GetChar(uint64_t idx) const
 		{
 			uint64_t element = TranslateIdx(idx);
-			uint64_t charIdx = str[element] >> (2 * idx);
+			uint64_t charIdx = str_[element] >> (2 * idx);
 			return LITERAL[charIdx & 0x3];
 		}
 
@@ -171,17 +167,15 @@ namespace Sibelia
 			StrCpy(std::string::const_reverse_iterator(it + size), 0, 0, size, ReverseChar);
 		}
 
-		static const std::string LITERAL;
-
 	private:
-		uint64_t str[capacity];
+		uint64_t str_[CAPACITY];
 
 		template<class T, class F>
 		void StrCpy(T src, size_t element, size_t idx, size_t size, F f)
 		{
 			for (size_t i = 0; i < size; i++)
 			{
-				str[element] |= MakeUpChar(f(*src++)) << (2 * idx++);
+				str_[element] |= MakeUpChar(f(*src++)) << (2 * idx++);
 				if (idx >= UNIT_CAPACITY)
 				{
 					idx = 0;
