@@ -107,7 +107,7 @@ int main(int argc, char * argv[])
 		cmd.parse(argc, argv);
 		
 		size_t aggThreads = aggregationThreads.isSet() ? aggregationThreads.getValue() : threads.getValue();
-		Sibelia::VertexEnumerator vid(fileName.getValue(),
+		Sibelia::VertexEnumerator<1> vid(fileName.getValue(),
 			kvalue.getValue(), filterSize.getValue(),
 			hashFunctions.getValue(),
 			rounds.getValue(),

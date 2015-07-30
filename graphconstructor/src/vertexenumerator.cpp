@@ -12,14 +12,5 @@
 
 namespace Sibelia
 {
-	std::string RevComp(const std::string & str)
-	{
-		std::string ret;
-		for (auto it = str.rbegin(); it != str.rend(); ++it)
-		{
-			ret.push_back(VertexEnumerator::DnaString::ReverseChar(*it));
-		}
-
-		return ret;
-	}
+	
 }

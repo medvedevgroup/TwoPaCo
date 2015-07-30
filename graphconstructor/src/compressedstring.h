@@ -10,6 +10,8 @@ namespace Sibelia
 	extern const std::string LITERAL;
 	extern const size_t UNIT_CAPACITY;
 
+	std::string RevComp(const std::string & str);
+
 	template<size_t CAPACITY>
 	class CompressedString
 	{

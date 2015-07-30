@@ -87,7 +87,7 @@ namespace Sibelia
 	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
-		VertexEnumerator vid(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp");
+		VertexEnumerator<1> vid(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp");
 
 		for (const std::string & nowFileName : fileName)
 		{
@@ -154,9 +154,9 @@ namespace Sibelia
 
 							if (inCount != 1 || outCount != 1)
 							{
-								VertexEnumerator::DnaString check;
+								VertexEnumerator<1>::DnaString check;
 								check.CopyFromString(cand.begin(), cand.size());
-								assert(vid.GetId(check) != VertexEnumerator::INVALID_VERTEX || vid.GetId(check.ReverseComplement(vertexLength)) != VertexEnumerator::INVALID_VERTEX);
+								assert(vid.GetId(check) != VertexEnumerator<1>::INVALID_VERTEX || vid.GetId(check.ReverseComplement(vertexLength)) != VertexEnumerator<1>::INVALID_VERTEX);
 								bif.insert(cand);
 							}
 						}						

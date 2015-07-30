@@ -1,6 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
+#include <vector>
 #include <numeric>
 #include <algorithm>
 #include <unordered_set>
@@ -21,12 +22,10 @@
 
 namespace Sibelia
 {
-	std::string RevComp(const std::string & str);
-
+	template<size_t CAPACITY>
 	class VertexEnumerator
 	{
 	public:		
-		static const size_t CAPACITY = 2;
 		const static size_t INVALID_VERTEX = -1;
 		typedef CompressedString<CAPACITY> DnaString;
 
@@ -129,14 +128,14 @@ namespace Sibelia
 			std::ofstream diffOut("diff.txt");
 			for (size_t i = 0; i < BINS_COUNT; i++)
 			{
-			long long c1 = binCounter[i];
-			long long c2 = trueBin[i];
-			diff += std::abs(c1 - c2);
-			if (c1 || c2)
-			{
-			diffOut << c1 << " " << c2 << std::endl;
-			nonZero++;
-			}
+				long long c1 = binCounter[i];
+				long long c2 = trueBin[i];
+				diff += std::abs(c1 - c2);
+				if (c1 || c2)
+				{
+					diffOut << c1 << " " << c2 << std::endl;
+					nonZero++;
+				}
 			}
 
 			std::cout << "Diff = " << diff << std::endl;
@@ -271,23 +270,9 @@ namespace Sibelia
 
 	private:		
 
-		typedef CyclicHash<uint64_t> HashFunction;
-		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
-
-		template<class F>
-		static bool IsInBloomFilter(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
-		{
-			for (size_t i = 0; i < hf.size(); i++)
-			{
-				uint64_t hvalue = i == 0 ? hash0 : ((*hf[i]).*f)(farg);
-				if (!filter.Get(hvalue))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
+		static const size_t QUEUE_CAPACITY = 16;
+		static const uint64_t BINS_COUNT = 1 << 24;
+		static const uint32_t MAX_COUNTER = UINT32_MAX >> 1;
 
 		struct Task
 		{
@@ -304,9 +289,25 @@ namespace Sibelia
 			Task(uint64_t start, bool isFinal, std::string && str) : start(start), isFinal(isFinal), str(std::move(str)) {}
 		};
 
-		const size_t QUEUE_CAPACITY = 16;
+		typedef CyclicHash<uint64_t> HashFunction;
+		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
+
+		template<class F>
+		static bool IsInBloomFilter(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg, uint64_t hash0)
+		{
+			for (size_t i = 0; i < hf.size(); i++)
+			{
+				uint64_t hvalue = i == 0 ? hash0 : ((*hf[i]).*f)(farg);
+				if (!filter.Get(hvalue))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}		
 
 		static uint64_t NormHash(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash)
 		{
@@ -325,7 +326,7 @@ namespace Sibelia
 			size_t capacity,
 			char posExtend,
 			char posPrev,
-			std::vector<VertexEnumerator::DnaString> & out)
+			std::vector<DnaString> & out)
 		{
 			size_t idx = 0;
 			size_t element = 0;
@@ -406,8 +407,8 @@ namespace Sibelia
 						uint64_t negHash0 = hashFunction[0]->hash(RevComp(task.str.substr(vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, VertexEnumerator::CAPACITY, 'A', 'A', output);
-							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, VertexEnumerator::CAPACITY, 'A', 'C', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, CAPACITY, 'A', 'A', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, CAPACITY, 'A', 'C', output);
 						}
 					}
 
@@ -417,8 +418,8 @@ namespace Sibelia
 						uint64_t negHash0 = hashFunction[0]->hash(RevComp(task.str.substr(task.str.size() - vertexLength, vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, VertexEnumerator::CAPACITY, 'A', 'A', output);
-							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, VertexEnumerator::CAPACITY, 'A', 'C', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, CAPACITY, 'A', 'A', output);
+							WriteCanonicalRecord(posHash0, negHash0, task.str.end() - vertexLength, vertexLength, CAPACITY, 'A', 'C', output);
 						}
 					}
 
@@ -476,7 +477,7 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									WriteCanonicalRecord(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue, task.str.begin() + pos, vertexLength, VertexEnumerator::CAPACITY, posExtend, posPrev, output);
+									WriteCanonicalRecord(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue, task.str.begin() + pos, vertexLength, CAPACITY, posExtend, posPrev, output);
 								}
 							}
 
@@ -519,9 +520,6 @@ namespace Sibelia
 				}
 			}
 		}
-
-		static const uint64_t BINS_COUNT = 1 << 24;
-		static const uint32_t MAX_COUNTER = UINT32_MAX >> 1;
 
 		static void FilterFillerWorker(uint64_t low,
 			uint64_t high,
@@ -753,7 +751,7 @@ namespace Sibelia
 			}
 		}
 
-		typedef std::vector<VertexEnumerator::DnaString>::iterator RecordIterator;
+		typedef typename std::vector<DnaString>::iterator RecordIterator;
 
 		struct Candidate
 		{
@@ -769,7 +767,7 @@ namespace Sibelia
 			return ret;
 		}
 
-		static bool IsSelfRevComp(size_t vertexSize, const VertexEnumerator::DnaString & str)
+		static bool IsSelfRevComp(size_t vertexSize, const DnaString & str)
 		{
 			for (size_t i = 0; i < vertexSize; i++)
 			{
@@ -786,11 +784,11 @@ namespace Sibelia
 		{
 			size_t vertexSize;
 			uint64_t falsePositives;
-			std::vector<VertexEnumerator::DnaString> * candidate;
-			std::vector<VertexEnumerator::DnaString> * out;
+			std::vector<DnaString> * candidate;
+			std::vector<DnaString> * out;
 			boost::mutex * outMutex;
-			TrueBifurcations(std::vector<VertexEnumerator::DnaString> * candidate,
-				std::vector<VertexEnumerator::DnaString> * out,
+			TrueBifurcations(std::vector<DnaString> * candidate,
+				std::vector<DnaString> * out,
 				boost::mutex * outMutex,
 				size_t vertexSize) :
 				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
@@ -860,9 +858,9 @@ namespace Sibelia
 
 			}
 
-			bool operator() (const VertexEnumerator::DnaString & v1, const VertexEnumerator::DnaString & v2) const
+			bool operator() (const DnaString & v1, const DnaString & v2) const
 			{
-				return VertexEnumerator::DnaString::LessPrefix(v1, v2, vertexSize_);
+				return DnaString::LessPrefix(v1, v2, vertexSize_);
 			}
 
 		private:
