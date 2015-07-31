@@ -1,6 +1,8 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
+#define MAX_CAPACITY 50
+
 #include <vector>
 #include <numeric>
 #include <algorithm>
@@ -22,7 +24,6 @@
 
 namespace Sibelia
 {
-
 	class VertexEnumerator
 	{
 	public:
@@ -33,10 +34,17 @@ namespace Sibelia
 		virtual ~VertexEnumerator()
 		{
 
-		}
-		
+		}		
 	};
 
+	std::unique_ptr<VertexEnumerator> CreateEnumerator(const std::vector<std::string> & fileName,
+		size_t vertexLength,
+		size_t filterSize,
+		size_t hashFunctions,
+		size_t rounds,
+		size_t threads,
+		size_t aggregationThreads,
+		const std::string & tmpFileName);
 
 	template<size_t CAPACITY>
 	class VertexEnumeratorImpl: public VertexEnumerator

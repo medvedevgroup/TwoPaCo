@@ -26,11 +26,9 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
-
 int main(int argc, char * argv[])
 {
-	//assert(Sibelia::Runtests());
-
+	assert(Sibelia::Runtests());
 	try
 	{
 		TCLAP::CmdLine cmd("Program for condensed de Bruijn graph construction", ' ', "0");
@@ -107,7 +105,7 @@ int main(int argc, char * argv[])
 		cmd.parse(argc, argv);
 		
 		size_t aggThreads = aggregationThreads.isSet() ? aggregationThreads.getValue() : threads.getValue();
-		Sibelia::VertexEnumeratorImpl<1> vid(fileName.getValue(),
+		std::unique_ptr<Sibelia::VertexEnumerator> vid = Sibelia::CreateEnumerator(fileName.getValue(),
 			kvalue.getValue(), filterSize.getValue(),
 			hashFunctions.getValue(),
 			rounds.getValue(),
@@ -115,7 +113,7 @@ int main(int argc, char * argv[])
 			aggThreads,
 			tmpFileName.getValue());
 
-		std::cout << "Distinct = " << vid.GetVerticesCount() << std::endl;
+		std::cout << "Distinct = " << vid->GetVerticesCount() << std::endl;
 		/*
 		if (countAll.isSet())
 		{
