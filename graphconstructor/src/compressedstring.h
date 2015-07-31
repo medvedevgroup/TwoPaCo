@@ -159,6 +159,17 @@ namespace Sibelia
 			return LITERAL[charIdx & 0x3];
 		}
 
+		std::string ToString(size_t size) const
+		{
+			std::string ret(size, ' ');
+			for (size_t i = 0; i < size; i++)
+			{
+				ret[i] = GetChar(i);
+			}
+
+			return ret;
+		}
+
 		void CopyFromString(std::string::const_iterator it, size_t size)
 		{
 			StrCpy(it, 0, 0, size, Id);

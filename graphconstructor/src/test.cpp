@@ -177,8 +177,8 @@ namespace Sibelia
 
 		std::cout << "TP = " << bif.size() << std::endl;
 		std::vector<std::string> vidSet;
-//		vid.Dump(std::inserter(vidSet, vidSet.begin()));
-//		std::cout << "Diff:" << std::endl;
+		vid->Dump(vidSet);
+		std::cout << "Diff:" << std::endl;
 		for (const std::string & v : vidSet)
 		{
 			if (bif.count(v) == 0 && bif.count(RevComp(v)) == 0)
@@ -198,7 +198,7 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 4, 16, ss);
+//		VertexEnumeratorTest(fileName, 4, 16, ss);
 	
 		fileName.clear();
 		fileName.push_back("g00.fasta");

@@ -28,6 +28,10 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
+	CyclicHash<uint64_t> hf(6, 20);
+	uint64_t v1 = hf.hash(std::string("GTTTTA"));
+	uint64_t v2 = hf.hash(std::string("TAAAAC"));
+	
 	assert(Sibelia::Runtests());
 	try
 	{

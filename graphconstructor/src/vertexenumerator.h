@@ -1,7 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
-#define MAX_CAPACITY 50
+#define MAX_CAPACITY 2
 
 #include <vector>
 #include <numeric>
@@ -28,8 +28,9 @@ namespace Sibelia
 	{
 	public:
 		const static size_t INVALID_VERTEX = -1;
-		virtual size_t GetVerticesCount() const = 0;
+		virtual size_t GetVerticesCount() const = 0;		
 		virtual size_t GetId(const std::string & vertex) const = 0;
+		virtual void Dump(std::vector<std::string> & toCopy) const = 0;
 
 		virtual ~VertexEnumerator()
 		{
@@ -69,15 +70,21 @@ namespace Sibelia
 
 			return INVALID_VERTEX;
 		}
-		
-		template<class Iterator>
-			void Dump(Iterator out)
-			{/*
-				for (CompressedString & str : bifurcation_)
-				{
-					*out++ = str.ToString();
-				}*/
+
+		virtual void Dump(std::vector<std::string> & toCopy) const
+		{
+			std::set<std::string> ret;
+			for (const DnaString & str : bifurcation_)
+			{
+				std::string pos = str.ToString(vertexSize_);
+				std::string neg = RevComp(pos);
+				assert(ret.count(pos) == 0 && ret.count(neg) == 0);
+				ret.insert(pos);
+				ret.insert(neg);
 			}
+
+			toCopy.assign(ret.begin(), ret.end());
+		}
 			
 
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
@@ -92,9 +99,11 @@ namespace Sibelia
 		{
 			uint64_t realSize = uint64_t(1) << filterSize;
 			std::cout << "Threads = " << threads << std::endl;
+			std::cout << "Vertex length = " << vertexLength << std::endl;
 			std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 			std::cout << "Hash functions = " << hashFunctions << std::endl;
 			std::cout << "Filter size = " << realSize << std::endl;
+			std::cout << "Capacity = " << CAPACITY << std::endl;
 			std::cout << "Files: " << std::endl;
 			for (const std::string & fn : fileName)
 			{
@@ -272,13 +281,13 @@ namespace Sibelia
 				RecordIterator begin = candidate.begin();
 				RecordIterator end = candidate.end();
 				tbb::parallel_sort(begin, end, VertexLess(vertexSize_));
-
+				/*
 				uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 					uint64_t(0),
 					TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
-					std::plus<uint64_t>());
-				//	uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
-				//	size_t falsePositives = 0;
+					std::plus<uint64_t>());*/
+				uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
+				//size_t falsePositives = 0;
 				std::cout << time(0) - mark << std::endl;
 				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
@@ -368,6 +377,9 @@ namespace Sibelia
 				out.back().SetChar(vertexLength, VertexEnumeratorImpl::DnaString::ReverseChar(posPrev));
 				out.back().SetChar(vertexLength + 1, VertexEnumeratorImpl::DnaString::ReverseChar(posExtend));
 			}
+
+			std::string s = std::string(pos, pos + vertexLength);
+			bool x = out.back().ToString(vertexLength) == "TAAAAC" || RevComp(out.back().ToString(vertexLength)) == "TAAAAC";
 		}
 
 		static void InitializeHashFunctions(const std::vector<HashFunctionPtr> & seed,
@@ -393,7 +405,7 @@ namespace Sibelia
 					negEdgeHash[i]->eat(VertexEnumeratorImpl::DnaString::ReverseChar(*it));
 				}
 
-				//	assert(negEdgeHash[i]->hashvalue == negEdgeHash[i]->hash(RevComp(fragment.substr(offset, length))));
+				assert(negEdgeHash[i]->hashvalue == negEdgeHash[i]->hash(RevComp(fragment.substr(offset, length))));
 			}
 		}
 
@@ -428,8 +440,9 @@ namespace Sibelia
 
 					if (task.start == 0)
 					{
-						uint64_t posHash0 = hashFunction[0]->hash(task.str.substr(vertexLength));
-						uint64_t negHash0 = hashFunction[0]->hash(RevComp(task.str.substr(vertexLength)));
+						std::string x = task.str.substr(vertexLength);
+						uint64_t posHash0 = hashFunction[0]->hash(task.str.substr(0, vertexLength));
+						uint64_t negHash0 = hashFunction[0]->hash(RevComp(task.str.substr(0, vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
 							WriteCanonicalRecord(posHash0, negHash0, task.str.begin(), vertexLength, CAPACITY, 'A', 'A', output);
