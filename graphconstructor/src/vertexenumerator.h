@@ -1,7 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
-#define MAX_CAPACITY 2
+#define MAX_CAPACITY 50
 
 #include <vector>
 #include <numeric>
@@ -322,6 +322,24 @@ namespace Sibelia
 			Task(uint64_t start, bool isFinal, std::string && str) : start(start), isFinal(isFinal), str(std::move(str)) {}
 		};
 
+		static bool CompareWithReverseComplement(std::string::const_iterator pit, size_t vertexSize)
+		{
+			std::string::const_reverse_iterator nit(pit + vertexSize);
+			for (size_t i = 0; i < vertexSize; i++)
+			{
+				char reverse = DnaString::ReverseChar(*nit);
+				if (*pit != reverse)
+				{
+					return *pit < reverse;
+				}
+
+				++nit;
+				++pit;
+			}
+
+			return false;
+		}
+
 		typedef CyclicHash<uint64_t> HashFunction;
 		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
@@ -362,7 +380,7 @@ namespace Sibelia
 			std::vector<DnaString> & out)
 		{
 			out.push_back(VertexEnumeratorImpl::DnaString());
-			if (posHash0 < negHash0 || (posHash0 == negHash0 && std::string(pos, pos + vertexLength) < RevComp(std::string(pos, pos + vertexLength))))
+			if (posHash0 < negHash0 || (posHash0 == negHash0 && CompareWithReverseComplement(pos, vertexLength)))
 			{
 				out.back().CopyFromString(pos, vertexLength);
 				out.back().SetChar(vertexLength, posExtend);
@@ -593,7 +611,7 @@ namespace Sibelia
 
 						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
-							if (posHash0 < negHash0 || (posHash0 == negHash0 && task.str.substr(pos, vertexLength) < RevComp(task.str.substr(pos, vertexLength))))
+							if (posHash0 < negHash0 || (posHash0 == negHash0 && CompareWithReverseComplement(task.str.begin() + pos, vertexLength)))
 							{
 								hvalue[i] = posVertexHash[i]->hash_extend(nextCh);
 							}
@@ -670,7 +688,7 @@ namespace Sibelia
 											
 						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
-							if (posHash0 < negHash0 || (posHash0 == negHash0 && task.str.substr(pos, vertexLength) < RevComp(task.str.substr(pos, vertexLength))))
+							if (posHash0 < negHash0 || (posHash0 == negHash0 && CompareWithReverseComplement(task.str.begin() + pos, vertexLength)))
 							{
 								hvalue = posHash0;
 							}

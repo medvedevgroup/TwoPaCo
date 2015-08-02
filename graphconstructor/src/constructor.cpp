@@ -28,10 +28,6 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-	CyclicHash<uint64_t> hf(6, 20);
-	uint64_t v1 = hf.hash(std::string("GTTTTA"));
-	uint64_t v2 = hf.hash(std::string("TAAAAC"));
-	
 	assert(Sibelia::Runtests());
 	try
 	{
@@ -118,18 +114,13 @@ int main(int argc, char * argv[])
 			tmpFileName.getValue());
 
 		std::cout << "Distinct = " << vid->GetVerticesCount() << std::endl;
-		/*
+		
 		if (countAll.isSet())
 		{
 			std::vector<std::string> all;
-			vid.Dump(std::back_inserter(all));
-			std::vector<std::string> rev;
-			std::transform(all.begin(), all.end(), std::back_inserter(rev), static_cast<std::string(*)(const std::string&)>(Sibelia::RevComp));
-			all.insert(all.begin(), rev.begin(), rev.end());
-			std::sort(all.begin(), all.end());
-			all.erase(std::unique(all.begin(), all.end()), all.end());
+			vid->Dump(all);
 			std::cout << "All = " << all.size() << std::endl;
-		}*/
+		}
 
 		std::cout << std::endl;
 
