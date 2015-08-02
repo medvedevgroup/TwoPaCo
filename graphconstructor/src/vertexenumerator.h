@@ -281,13 +281,12 @@ namespace Sibelia
 				RecordIterator begin = candidate.begin();
 				RecordIterator end = candidate.end();
 				tbb::parallel_sort(begin, end, VertexLess(vertexSize_));
-				/*
+				
 				uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 					uint64_t(0),
 					TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
-					std::plus<uint64_t>());*/
-				uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
-				//size_t falsePositives = 0;
+					std::plus<uint64_t>());
+				//uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
 				std::cout << time(0) - mark << std::endl;
 				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
@@ -594,7 +593,7 @@ namespace Sibelia
 
 						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
-							if (posHash0 < negHash0)
+							if (posHash0 < negHash0 || (posHash0 == negHash0 && task.str.substr(pos, vertexLength) < RevComp(task.str.substr(pos, vertexLength))))
 							{
 								hvalue[i] = posVertexHash[i]->hash_extend(nextCh);
 							}
@@ -660,16 +659,26 @@ namespace Sibelia
 					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
+						uint64_t hvalue;						
+						bool wasSet = true;
+						char prevCh = task.str[pos];
 						char nextCh = task.str[pos + edgeLength - 1];
 						char revNextCh = VertexEnumeratorImpl::DnaString::ReverseChar(nextCh);
+						uint64_t firstMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
-						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
-						char prevCh = task.str[pos];
-						bool wasSet = true;
+											
 						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
-							uint64_t hvalue = posHash0 <= negHash0 ? posVertexHash[i]->hash_extend(nextCh) : negVertexHash[i]->hash_prepend(revNextCh);
+							if (posHash0 < negHash0 || (posHash0 == negHash0 && task.str.substr(pos, vertexLength) < RevComp(task.str.substr(pos, vertexLength))))
+							{
+								hvalue = posHash0;
+							}
+							else
+							{
+								hvalue = negHash0;
+							}
+
 							if (!filter.Get(hvalue))
 							{
 								wasSet = false;
@@ -688,7 +697,7 @@ namespace Sibelia
 						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						if (!wasSet)
 						{
-							uint64_t value[] = { fistMinHash0, secondMinHash0 };
+							uint64_t value[] = { firstMinHash0, secondMinHash0 };
 							for (uint64_t v : value)
 							{
 								uint64_t bin = v / binSize;
