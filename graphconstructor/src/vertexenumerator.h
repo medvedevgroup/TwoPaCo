@@ -362,10 +362,8 @@ namespace Sibelia
 			char posPrev,
 			std::vector<DnaString> & out)
 		{
-			size_t idx = 0;
-			size_t element = 0;
 			out.push_back(VertexEnumeratorImpl::DnaString());
-			if (posHash0 <= negHash0)
+			if (posHash0 < negHash0 || (posHash0 == negHash0 && std::string(pos, pos + vertexLength) < RevComp(std::string(pos, pos + vertexLength))))
 			{
 				out.back().CopyFromString(pos, vertexLength);
 				out.back().SetChar(vertexLength, posExtend);
@@ -378,8 +376,7 @@ namespace Sibelia
 				out.back().SetChar(vertexLength + 1, VertexEnumeratorImpl::DnaString::ReverseChar(posExtend));
 			}
 
-			std::string s = std::string(pos, pos + vertexLength);
-			bool x = out.back().ToString(vertexLength) == "TAAAAC" || RevComp(out.back().ToString(vertexLength)) == "TAAAAC";
+
 		}
 
 		static void InitializeHashFunctions(const std::vector<HashFunctionPtr> & seed,
