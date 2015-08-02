@@ -62,7 +62,7 @@ namespace Sibelia
 		{
 			DnaString str;
 			str.CopyFromString(vertex.begin(), vertexSize_);
-			std::vector<DnaString>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str, VertexLess(vertexSize_));
+			typename std::vector<DnaString>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str, VertexLess(vertexSize_));
 			if (it != bifurcation_.end() && *it == str)
 			{
 				return it - bifurcation_.begin();

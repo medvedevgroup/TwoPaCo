@@ -99,58 +99,58 @@ protected:
 
 //Methods
 public:
-	MTRand::MTRand(const uint32& oneSeed)
+	MTRand(const uint32& oneSeed)
 	{
 		seed(oneSeed);
 	}
 
-	MTRand::MTRand(uint32 *const bigSeed, const uint32 seedLength)
+	MTRand(uint32 *const bigSeed, const uint32 seedLength)
 	{
 		seed(bigSeed, seedLength);
 	}
 
-	MTRand::MTRand()
+	MTRand()
 	{
 		seed();
 	}
 
-	double MTRand::rand()
+	double rand()
 	{
 		return double(randInt()) * (1.0 / 4294967295.0);
 	}
 
-	double MTRand::rand(const double& n)
+	double rand(const double& n)
 	{
 		return rand() * n;
 	}
 
-	double MTRand::randExc()
+	double randExc()
 	{
 		return double(randInt()) * (1.0 / 4294967296.0);
 	}
 
-	double MTRand::randExc(const double& n)
+	double randExc(const double& n)
 	{
 		return randExc() * n;
 	}
 
-	double MTRand::randDblExc()
+	double randDblExc()
 	{
 		return (double(randInt()) + 0.5) * (1.0 / 4294967296.0);
 	}
 
-	double MTRand::randDblExc(const double& n)
+	double randDblExc(const double& n)
 	{
 		return randDblExc() * n;
 	}
 
-	double MTRand::rand53()
+	double rand53()
 	{
 		uint32 a = randInt() >> 5, b = randInt() >> 6;
 		return (a * 67108864.0 + b) * (1.0 / 9007199254740992.0);  // by Isaku Wada
 	}
 
-	double MTRand::randNorm(const double& mean, const double& variance)
+	double randNorm(const double& mean, const double& variance)
 	{
 		// Return a real number from a normal (Gaussian) distribution with given
 		// mean and variance by Box-Muller method
@@ -159,7 +159,7 @@ public:
 		return mean + r * cos(phi);
 	}
 
-	MTRand::uint32 MTRand::randInt()
+	uint32 randInt()
 	{
 		// Pull a 32-bit integer from the generator state
 		// Every other access function simply transforms the numbers extracted here
@@ -175,7 +175,7 @@ public:
 		return (s1 ^ (s1 >> 18));
 	}
 
-	MTRand::uint32 MTRand::randInt(const uint32& n)
+	uint32 randInt(const uint32& n)
 	{
 		// Find which bits are used in n
 		// Optimized by Magnus Jonsson (magnus@smartelectronix.com)
@@ -195,7 +195,7 @@ public:
 	}
 
 
-	void MTRand::seed(const uint32 oneSeed)
+	void seed(const uint32 oneSeed)
 	{
 		// Seed the generator with a simple uint32
 		initialize(oneSeed);
@@ -203,7 +203,7 @@ public:
 	}
 
 
-	void MTRand::seed(uint32 *const bigSeed, const uint32 seedLength)
+	void seed(uint32 *const bigSeed, const uint32 seedLength)
 	{
 		// Seed the generator with an array of uint32's
 		// There are 2^19937-1 possible initial states.  This function allows
@@ -239,7 +239,7 @@ public:
 	}
 
 
-	void MTRand::seed()
+	void seed()
 	{
 		// Seed the generator with an array from /dev/urandom if available
 		// Otherwise use a hash of time() and clock() values
@@ -262,7 +262,7 @@ public:
 		seed(hash(time(NULL), clock()));
 	}	
 
-	void MTRand::save(uint32* saveArray) const
+	void save(uint32* saveArray) const
 	{
 		uint32 *sa = saveArray;
 		const uint32 *s = state;
@@ -272,7 +272,7 @@ public:
 	}
 
 
-	void MTRand::load(uint32 *const loadArray)
+	void load(uint32 *const loadArray)
 	{
 		uint32 *s = state;
 		uint32 *la = loadArray;
@@ -326,7 +326,7 @@ protected:
 	uint32 twist( const uint32& m, const uint32& s0, const uint32& s1 ) const
 		{ return m ^ (mixBits(s0,s1)>>1) ^ (-static_cast<long>(loBit(s1)) & 0x9908b0dfUL); }
 	
-	static MTRand::uint32 MTRand::hash(time_t t, clock_t c)
+	static uint32 hash(time_t t, clock_t c)
 	{
 		// Get a uint32 from t and c
 		// Better than uint32(x) in case x is floating point in [0,1]
