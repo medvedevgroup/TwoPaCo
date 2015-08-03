@@ -149,34 +149,14 @@ namespace Sibelia
 			for (;; ++rounds)
 			{
 				roundSize = double(std::accumulate(binCounter, binCounter + BINS_COUNT, size_t(0))) / rounds;
-				if (realSize / roundSize >= 10)
+				if (realSize / roundSize >= 8)
 				{
 					break;
 				}
 			}
 
-			/*
-			long long diff = 0;
-			size_t nonZero = 0;
-			std::ofstream diffOut("diff.txt");
-			for (size_t i = 0; i < BINS_COUNT; i++)
-			{
-				long long c1 = binCounter[i];
-				long long c2 = trueBin[i];
-				diff += std::abs(c1 - c2);
-				if (c1 || c2)
-				{
-					diffOut << c1 << " " << c2 << std::endl;
-					nonZero++;
-				}
-			}
-
-			std::cout << "Diff = " << diff << std::endl;
-			std::cout << "Avg diff = " << double(diff) / nonZero << std::endl;*/
-
 			std::cout << "Round size = " << realSize / roundSize << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
-
 			uint64_t low = 0;
 			uint64_t high = 0;
 			size_t lowBoundary = 0;
@@ -298,8 +278,8 @@ namespace Sibelia
 				low = high + 1;
 			}
 
-			std::cout << "Total FPs = " << totalFpCount << std::endl;
 			delete[] binCounter;
+			std::cout << "Total FPs = " << totalFpCount << std::endl;			
 			tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end(), VertexLess(vertexSize_));
 		}
 
@@ -642,12 +622,6 @@ namespace Sibelia
 			}
 		}
 
-
-		/*
-		boost::mutex counterMutex;
-		std::unordered_set<uint64_t> edgeCounter;
-		std::vector<uint32_t> trueBin(BINS_COUNT, 0);*/
-
 		static void InitialFilterFillerWorker(uint64_t binSize,
 			const std::vector<HashFunctionPtr> & hashFunction,
 			ConcurrentBitVector & filter,
@@ -725,28 +699,6 @@ namespace Sibelia
 								}
 							}
 						}
-						/*
-						{
-						DnaString edge(task.str.substr(pos, edgeLength));
-						if (!(posHash0 <= negHash0))
-						{
-							edge = edge.RevComp();
-						}
-
-						boost::lock_guard<boost::mutex> g(counterMutex);
-						if (edgeCounter.count(edge.GetBody()) == 0)
-						{
-							edgeCounter.insert(edge.GetBody());
-							uint64_t value[] = { fistMinHash0, secondMinHash0 };
-							for (uint64_t v : value)
-							{
-								uint64_t bin = v / binSize;
-								if (trueBin[bin] < MAX_COUNTER)
-								{
-									trueBin[bin] += 1;
-								}
-							}
-						}*/
 					}
 				}
 			}
