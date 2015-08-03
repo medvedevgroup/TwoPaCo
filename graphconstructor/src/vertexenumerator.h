@@ -1,7 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
-#define MAX_CAPACITY 50
+#define MAX_CAPACITY 5
 
 #include <vector>
 #include <numeric>
@@ -110,7 +110,6 @@ namespace Sibelia
 				std::cout << fn << std::endl;
 			}
 
-			std::cout << std::string(80, '-') << std::endl;
 			const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 			for (HashFunctionPtr & ptr : hashFunction)
@@ -149,8 +148,8 @@ namespace Sibelia
 			double roundSize = 0;
 			for (;; ++rounds)
 			{
-				roundSize = std::accumulate(binCounter, binCounter + BINS_COUNT, 0.f) / rounds;
-				if (realSize / roundSize > 16)
+				roundSize = double(std::accumulate(binCounter, binCounter + BINS_COUNT, size_t(0))) / rounds;
+				if (realSize / roundSize >= 10)
 				{
 					break;
 				}
@@ -174,6 +173,9 @@ namespace Sibelia
 
 			std::cout << "Diff = " << diff << std::endl;
 			std::cout << "Avg diff = " << double(diff) / nonZero << std::endl;*/
+
+			std::cout << "Round size = " << realSize / roundSize << std::endl;
+			std::cout << std::string(80, '-') << std::endl;
 
 			uint64_t low = 0;
 			uint64_t high = 0;
@@ -392,8 +394,6 @@ namespace Sibelia
 				out.back().SetChar(vertexLength, VertexEnumeratorImpl::DnaString::ReverseChar(posPrev));
 				out.back().SetChar(vertexLength + 1, VertexEnumeratorImpl::DnaString::ReverseChar(posExtend));
 			}
-
-
 		}
 
 		static void InitializeHashFunctions(const std::vector<HashFunctionPtr> & seed,
