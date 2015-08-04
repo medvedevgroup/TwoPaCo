@@ -117,7 +117,6 @@ namespace Sibelia
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
 			}
 
-			size_t ss = clock();
 			size_t edgeLength = vertexLength + 1;
 			std::atomic<uint32_t> * binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 			{
@@ -143,8 +142,6 @@ namespace Sibelia
 					workerThread[i].join();
 				}
 			}
-
-			std::cout << (double(clock()) - ss) / CLOCKS_PER_SEC << std::endl;
 
 			rounds = 1;
 			double roundSize = 0;
@@ -563,6 +560,7 @@ namespace Sibelia
 			TaskQueue & taskQueue)
 		{
 			uint64_t ret = 0;
+			std::vector<uint64_t> setup;
 			std::vector<uint64_t> hvalue(hashFunction.size());
 			while (true)
 			{
@@ -617,14 +615,21 @@ namespace Sibelia
 						{
 							for (uint64_t hv : hvalue)
 							{
-								if (!filter.Get(hv))
-								{
-									filter.SetConcurrently(hv);
-								}
+								setup.push_back(hv);
 							}
 						}
 					}
 				}
+
+				for (uint64_t hv : setup)
+				{
+					if (!filter.Get(hv))
+					{
+						filter.SetConcurrently(hv);
+					}
+				}
+
+				setup.clear();
 			}
 
 			return ret;
