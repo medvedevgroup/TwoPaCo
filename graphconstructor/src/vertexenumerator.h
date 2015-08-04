@@ -117,6 +117,7 @@ namespace Sibelia
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
 			}
 
+			size_t ss = clock();
 			size_t edgeLength = vertexLength + 1;
 			std::atomic<uint32_t> * binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 			{
@@ -143,6 +144,7 @@ namespace Sibelia
 				}
 			}
 
+			std::cout << (double(clock()) - ss) / CLOCKS_PER_SEC << std::endl;
 
 			rounds = 1;
 			double roundSize = 0;
@@ -615,7 +617,10 @@ namespace Sibelia
 						{
 							for (uint64_t hv : hvalue)
 							{
-								filter.SetConcurrently(hv);
+								if (!filter.Get(hv))
+								{
+									filter.SetConcurrently(hv);
+								}
 							}
 						}
 					}
@@ -667,11 +672,11 @@ namespace Sibelia
 						{
 							if (posHash0 < negHash0 || (posHash0 == negHash0 && CompareWithReverseComplement(task.str.begin() + pos, vertexLength)))
 							{
-								hvalue = posHash0;
+								hvalue = posVertexHash[i]->hash_extend(nextCh);
 							}
 							else
 							{
-								hvalue = negHash0;
+								hvalue = negVertexHash[i]->hash_prepend(revNextCh);
 							}
 
 							if (!filter.Get(hvalue))
@@ -688,7 +693,7 @@ namespace Sibelia
 							negVertexHash[i]->reverse_update(ReverseChar(nextCh), ReverseChar(prevCh));
 							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
-
+						
 						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						if (!wasSet)
 						{
