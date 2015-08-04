@@ -309,7 +309,7 @@ namespace Sibelia
 			std::string::const_reverse_iterator nit(pit + vertexSize);
 			for (size_t i = 0; i < vertexSize; i++)
 			{
-				char reverse = DnaString::ReverseChar(*nit);
+				char reverse = ReverseChar(*nit);
 				if (*pit != reverse)
 				{
 					return *pit < reverse;
@@ -371,8 +371,8 @@ namespace Sibelia
 			else
 			{
 				out.back().CopyFromReverseString(pos, vertexLength);
-				out.back().SetChar(vertexLength, VertexEnumeratorImpl::DnaString::ReverseChar(posPrev));
-				out.back().SetChar(vertexLength + 1, VertexEnumeratorImpl::DnaString::ReverseChar(posExtend));
+				out.back().SetChar(vertexLength, ReverseChar(posPrev));
+				out.back().SetChar(vertexLength + 1, ReverseChar(posExtend));
 			}
 		}
 
@@ -395,8 +395,8 @@ namespace Sibelia
 				assert(posEdgeHash[i]->hashvalue == posEdgeHash[i]->hash(fragment.substr(offset, length)));
 				for (std::string::const_reverse_iterator it(fragment.begin() + length + offset); it != fragment.rend() - offset; ++it)
 				{
-					char ch = VertexEnumeratorImpl::DnaString::ReverseChar(*it);
-					negEdgeHash[i]->eat(VertexEnumeratorImpl::DnaString::ReverseChar(*it));
+					char ch = ReverseChar(*it);
+					negEdgeHash[i]->eat(ReverseChar(*it));
 				}
 
 				assert(negEdgeHash[i]->hashvalue == negEdgeHash[i]->hash(RevComp(fragment.substr(offset, length))));
@@ -471,7 +471,7 @@ namespace Sibelia
 								for (int i = 0; i < LITERAL.size() && inCount < 2 && outCount < 2; i++)
 								{
 									char nextCh = LITERAL[i];
-									char revNextCh = VertexEnumeratorImpl::DnaString::ReverseChar(nextCh);
+									char revNextCh = ReverseChar(nextCh);
 									if (nextCh == posPrev)
 									{
 										++inCount;
@@ -515,9 +515,9 @@ namespace Sibelia
 
 							if (pos + vertexLength + 1 < task.str.size())
 							{
-								char negExtend = VertexEnumeratorImpl::DnaString::ReverseChar(posExtend);
+								char negExtend = ReverseChar(posExtend);
 								char posPrev = task.str[pos];
-								char negPrev = VertexEnumeratorImpl::DnaString::ReverseChar(task.str[pos]);
+								char negPrev = ReverseChar(task.str[pos]);
 								for (size_t i = 0; i < hashFunction.size(); i++)
 								{
 									posVertexHash[i]->update(posPrev, posExtend);
@@ -553,13 +553,14 @@ namespace Sibelia
 			}
 		}
 
-		static void FilterFillerWorker(uint64_t low,
+		static uint64_t FilterFillerWorker(uint64_t low,
 			uint64_t high,
 			const std::vector<HashFunctionPtr> & hashFunction,
 			ConcurrentBitVector & filter,
 			size_t edgeLength,
 			TaskQueue & taskQueue)
 		{
+			uint64_t ret = 0;
 			std::vector<uint64_t> hvalue(hashFunction.size());
 			while (true)
 			{
@@ -583,7 +584,7 @@ namespace Sibelia
 					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 					{
 						char nextCh = task.str[pos + edgeLength - 1];
-						char revNextCh = VertexEnumeratorImpl::DnaString::ReverseChar(nextCh);
+						char revNextCh = ReverseChar(nextCh);
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 						uint64_t fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
@@ -605,7 +606,7 @@ namespace Sibelia
 						{
 							posVertexHash[i]->update(prevCh, nextCh);
 							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-							negVertexHash[i]->reverse_update(VertexEnumeratorImpl::DnaString::ReverseChar(nextCh), VertexEnumeratorImpl::DnaString::ReverseChar(prevCh));
+							negVertexHash[i]->reverse_update(revNextCh, ReverseChar(prevCh));
 							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
 
@@ -620,6 +621,8 @@ namespace Sibelia
 					}
 				}
 			}
+
+			return ret;
 		}
 
 		static void InitialFilterFillerWorker(uint64_t binSize,
@@ -655,7 +658,7 @@ namespace Sibelia
 						bool wasSet = true;
 						char prevCh = task.str[pos];
 						char nextCh = task.str[pos + edgeLength - 1];
-						char revNextCh = VertexEnumeratorImpl::DnaString::ReverseChar(nextCh);
+						char revNextCh = ReverseChar(nextCh);
 						uint64_t firstMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
 						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
@@ -682,7 +685,7 @@ namespace Sibelia
 						{
 							posVertexHash[i]->update(prevCh, nextCh);
 							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-							negVertexHash[i]->reverse_update(VertexEnumeratorImpl::DnaString::ReverseChar(nextCh), VertexEnumeratorImpl::DnaString::ReverseChar(prevCh));
+							negVertexHash[i]->reverse_update(ReverseChar(nextCh), ReverseChar(prevCh));
 							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(RevComp(task.str.substr(pos + 1, vertexLength))));
 						}
 
@@ -785,7 +788,7 @@ namespace Sibelia
 		{
 			for (size_t i = 0; i < vertexSize; i++)
 			{
-				if (str.GetChar(i) != VertexEnumeratorImpl::DnaString::ReverseChar(str.GetChar(vertexSize - i - 1)))
+				if (str.GetChar(i) != ReverseChar(str.GetChar(vertexSize - i - 1)))
 				{
 					return false;
 				}
@@ -840,8 +843,8 @@ namespace Sibelia
 							if (selfRevComp)
 							{
 								bifurcation = bifurcation ||
-									baseCandidate.prev != VertexEnumeratorImpl::DnaString::ReverseChar(nextCandidate.extend) ||
-									baseCandidate.extend != VertexEnumeratorImpl::DnaString::ReverseChar(nextCandidate.prev);
+									baseCandidate.prev != ReverseChar(nextCandidate.extend) ||
+									baseCandidate.extend != ReverseChar(nextCandidate.prev);
 							}
 						}
 					}

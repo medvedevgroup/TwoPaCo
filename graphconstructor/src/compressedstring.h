@@ -10,7 +10,9 @@ namespace Sibelia
 	extern const std::string LITERAL;
 	extern const size_t UNIT_CAPACITY;
 
+	char ReverseChar(char ch);
 	std::string RevComp(const std::string & str);
+
 
 	template<size_t CAPACITY>
 	class CompressedString
@@ -113,24 +115,7 @@ namespace Sibelia
 		static char Id(char ch)
 		{
 			return ch;
-		}
-
-		static char ReverseChar(char ch)
-		{
-			switch (ch)
-			{
-			case 'A':
-				return 'T';
-			case 'T':
-				return 'A';
-			case 'C':
-				return 'G';
-			case 'G':
-				return 'C';
-			}
-
-			return 'N';
-		}
+		}		
 
 		CompressedString ReverseComplement(size_t stringSize) const
 		{
