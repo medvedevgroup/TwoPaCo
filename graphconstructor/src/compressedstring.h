@@ -23,6 +23,11 @@ namespace Sibelia
 			std::fill(str_, str_ + CAPACITY, 0);
 		}
 
+		size_t Bytes() const
+		{
+			return sizeof(str_[0] * CAPACITY);
+		}
+
 		CompressedString(const CompressedString & toCopy)
 		{
 			std::copy(toCopy.str_, toCopy.str_ + CAPACITY, str_);

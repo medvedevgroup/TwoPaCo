@@ -8,6 +8,11 @@
 #include <algorithm>
 #include <unordered_set>
 
+#include <stxxl.h>
+#include <stxxl/io>
+#include <stxxl/vector>
+#include <stxxl/stream>
+
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
@@ -177,6 +182,7 @@ namespace Sibelia
 					}
 				}
 
+				stxxl::vector<DnaString> candidate;
 				std::cout << "Ratio = " << double(realSize) / accumulated << std::endl;
 				uint64_t high = lowBoundary * BIN_SIZE;
 				{
@@ -206,12 +212,6 @@ namespace Sibelia
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);
 					boost::mutex tmpFileMutex;
-					std::ofstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
-					if (!tmpFile)
-					{
-						throw StreamFastaParser::Exception("Can't open the temporary file");
-					}
-
 					std::unique_ptr<StreamFastaParser::Exception> error;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
@@ -222,7 +222,7 @@ namespace Sibelia
 							vertexLength,
 							boost::ref(totalRecords),
 							boost::ref(*taskQueue[i]),
-							boost::ref(tmpFile),
+							boost::ref(candidate),
 							boost::ref(tmpFileMutex),
 							boost::ref(error));
 					}
@@ -242,34 +242,25 @@ namespace Sibelia
 				}
 
 				mark = time(0);
-				std::vector<DnaString> candidate(totalRecords);
-				std::ifstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
-				if (!tmpFile)
+				uint64_t falsePositives = 0;
 				{
-					throw StreamFastaParser::Exception("Can't open the temporary file");
+					const stxxl::internal_size_type memory = std::max(uint64_t(512 * 1024 * 1024), realSize / 8);
+					stxxl::sort(candidate.begin(), candidate.end(), VertexLess(vertexSize_), memory);
+					boost::mutex outMutex;				
+					RecordIterator begin = candidate.begin();
+					RecordIterator end = candidate.end();
+					/*
+					falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
+						uint64_t(0),
+						TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
+						std::plus<uint64_t>());/*/
+						
+
+					uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
 				}
 
-				if (totalRecords > 0)
-				{
-					tmpFile.read(reinterpret_cast<char*>(&candidate[0]), totalRecords * sizeof(candidate[0]));
-					if (!tmpFile)
-					{
-						throw StreamFastaParser::Exception("The temporary file is corrupted");
-					}
-				}
-
-				boost::mutex outMutex;
-				RecordIterator begin = candidate.begin();
-				RecordIterator end = candidate.end();
-				tbb::parallel_sort(begin, end, VertexLess(vertexSize_));
-				
-				uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
-					uint64_t(0),
-					TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
-					std::plus<uint64_t>());
-				//uint64_t falsePositives = TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_)(tbb::blocked_range<RecordIterator>(begin, end), 0);
 				std::cout << time(0) - mark << std::endl;
-				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
+				std::cout << "All Vertex count = " << candidate.size() << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
 				std::cout << "Records = " << candidate.size() << std::endl;
 				std::cout << std::string(80, '-') << std::endl;
@@ -408,7 +399,7 @@ namespace Sibelia
 			size_t vertexLength,
 			size_t & totalRecords,
 			TaskQueue & taskQueue,
-			std::ofstream & outFile,
+			stxxl::vector<DnaString> & out,
 			boost::mutex & outMutex,
 			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
@@ -536,17 +527,12 @@ namespace Sibelia
 					{
 						boost::lock_guard<boost::mutex> guard(outMutex);
 						totalRecords += output.size();
-						outFile.write(reinterpret_cast<const char*>(&output[0]), output.size() * sizeof(output[0]));
-						if (error != 0)
+						for (const DnaString & str : output)
 						{
-							return;
+							out.push_back(str);
 						}
 
-						if (!outFile)
-						{
-							error.reset(new StreamFastaParser::Exception("Can't write to the temporary file"));
-							return;
-						}
+						output.clear();
 					}
 				}
 			}
@@ -778,7 +764,7 @@ namespace Sibelia
 			}
 		}
 
-		typedef typename std::vector<DnaString>::iterator RecordIterator;
+		typedef typename stxxl::vector<DnaString>::iterator RecordIterator;
 
 		struct Candidate
 		{
@@ -811,17 +797,17 @@ namespace Sibelia
 		{
 			size_t vertexSize;
 			uint64_t falsePositives;
-			std::vector<DnaString> * candidate;
+			stxxl::vector<DnaString> * candidate;
 			std::vector<DnaString> * out;
 			boost::mutex * outMutex;
-			TrueBifurcations(std::vector<DnaString> * candidate,
+			TrueBifurcations(stxxl::vector<DnaString> * candidate,
 				std::vector<DnaString> * out,
 				boost::mutex * outMutex,
 				size_t vertexSize) :
-				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
+					candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
 
-			uint64_t operator()(const tbb::blocked_range<RecordIterator> & range, uint64_t init) const
-			{
+			uint64_t operator()(const tbb::blocked_range<RecordIterator> & range, uint64_t init) const			
+			{				
 				RecordIterator vectorBegin = candidate->begin();
 				RecordIterator vectorEnd = candidate->end();
 				RecordIterator base = range.begin();
@@ -833,6 +819,7 @@ namespace Sibelia
 					}
 				}
 
+				std::vector<DnaString> buf;
 				uint64_t falsePositives = init;
 				while (base < range.end())
 				{
@@ -861,9 +848,8 @@ namespace Sibelia
 
 					if (bifurcation)
 					{
-						boost::lock_guard<boost::mutex> guard(*outMutex);
-						out->push_back(VertexEnumeratorImpl::DnaString());
-						out->back().CopyPrefix(*base, vertexSize);
+						buf.push_back(VertexEnumeratorImpl::DnaString());
+						buf.back().CopyPrefix(*base, vertexSize);
 					}
 					else
 					{
@@ -871,6 +857,12 @@ namespace Sibelia
 					}
 
 					base = next;
+				}
+
+				if (buf.size() > 0)
+				{
+					boost::lock_guard<boost::mutex> lock(*outMutex);
+					out->insert(out->end(), buf.begin(), buf.end());
 				}
 
 				return falsePositives;
@@ -887,11 +879,41 @@ namespace Sibelia
 
 			bool operator() (const DnaString & v1, const DnaString & v2) const
 			{
-				return DnaString::LessPrefix(v1, v2, vertexSize_);
+				char minMax1 = v1.GetChar(vertexSize_ + MIN_MAX_SHIFT);
+				char minMax2 = v2.GetChar(vertexSize_ + MIN_MAX_SHIFT);
+				if (minMax1 == NORMAL && minMax2 == NORMAL)
+				{
+					return DnaString::LessPrefix(v1, v2, vertexSize_);
+				}
+
+				if (minMax1 == MIN)
+				{
+					return minMax2 == MIN ? false : true;
+				}
+
+				return false;
+			}
+
+			DnaString min_value()
+			{
+				DnaString ret;
+				ret.SetChar(vertexSize_ + MIN_MAX_SHIFT, MIN);
+				return ret;
+			}
+
+			DnaString max_value()
+			{
+				DnaString ret;
+				ret.SetChar(vertexSize_ + MIN_MAX_SHIFT, MAX);
+				return ret;
 			}
 
 		private:
-			size_t vertexSize_;
+			size_t vertexSize_;			
+			static const char MIN = 'C';
+			static const char MAX = 'T';
+			static const char NORMAL = 'A';
+			static const size_t MIN_MAX_SHIFT = 3;
 		};
 
 		size_t vertexSize_;

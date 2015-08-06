@@ -24,7 +24,7 @@ namespace Sibelia
 			size_t aggregationThreads,
 			const std::string & tmpFileName)
 		{
-			size_t bufSize = vertexLength + 2;
+			size_t bufSize = vertexLength + 4;
 			size_t neededCapacity = bufSize / UNIT_CAPACITY + (bufSize % UNIT_CAPACITY == 0 ? 0 : 1);
 			if (CAPACITY == neededCapacity)
 			{
