@@ -852,7 +852,7 @@ namespace Sibelia
 					DnaString base = *(*candidate);
 					Candidate baseCandidate(Dereference(vertexSize, base));
 					bool selfRevComp = IsSelfRevComp(vertexSize, base);
-					for (; !candidate->empty(); (*candidate)++)
+					for (; !candidate->empty(); ++(*candidate))
 					{
 						DnaString next = **candidate;
 						Candidate nextCandidate(Dereference(vertexSize, next));
