@@ -8,10 +8,9 @@
 #include <algorithm>
 #include <unordered_set>
 
-#include <stxxl.h>
-#include <stxxl/io>
-#include <stxxl/sorter>
-#include <stxxl/stream>
+#include <tpie/tpie.h>
+#include <tpie/sort.h>
+#include <tpie/file_stream.h>
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
@@ -19,6 +18,7 @@
 #include <tbb/concurrent_vector.h>
 
 #include <boost/ref.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
 #include "ngramhashing/cyclichash.h"
@@ -60,7 +60,6 @@ namespace Sibelia
 		static const size_t BUF_SIZE = 1 << 24;
 	public:
 		typedef CompressedString<CAPACITY> DnaString;
-		typedef stxxl::sorter<DnaString, VertexLess> Sorter;
 
 		size_t GetVerticesCount() const
 		{
@@ -163,12 +162,14 @@ namespace Sibelia
 				}
 			}
 
+			tpie::tpie_init(tpie::ALL);
+			tpie::get_memory_manager().set_limit(std::max(uint64_t(1024 * 1024 * 1024), realSize / 8));
 			std::cout << "Round size = " << realSize / roundSize << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
 			uint64_t high = 0;
 			size_t lowBoundary = 0;
-			uint64_t totalFpCount = 0;
+			uint64_t totalFpCount = 0;		
 			for (size_t round = 0; round < rounds; round++)
 			{
 				size_t totalRecords = 0;
@@ -213,14 +214,10 @@ namespace Sibelia
 					}
 
 					std::cout << time(0) - mark << "\t";
-					mark = time(0);
+					mark = time(0);				
 					boost::mutex tmpFileMutex;
-					std::ofstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
-					if (!tmpFile)
-					{
-						throw StreamFastaParser::Exception("Can't open the temporary file");
-					}
-
+					tpie::file_stream<DnaString> tmpFile;
+					tmpFile.open(tmpFileName.c_str(), tpie::access_write);
 					std::unique_ptr<StreamFastaParser::Exception> error;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
@@ -251,50 +248,24 @@ namespace Sibelia
 				}
 
 				mark = time(0);
-				std::ifstream tmpFile(tmpFileName.c_str(), std::ios_base::binary);
-				if (!tmpFile)
-				{
-					throw StreamFastaParser::Exception("Can't open the temporary file");
-				}
-				
-				Sorter sorter(VertexLess(vertexSize_), std::max(uint64_t(1024 * 1024 * 512), realSize / 8));
-				if (totalRecords > 0)
-				{
-					uint64_t rest = totalRecords;					
-					std::vector<DnaString> buf;
-					while (rest > 0)
-					{
-						uint64_t nowRead = std::min(BUF_SIZE, rest);
-						buf.resize(nowRead);
-						tmpFile.read(reinterpret_cast<char*>(&buf[0]), nowRead * sizeof(buf[0]));
-						for (const DnaString & str : buf)
-						{
-							sorter.push(str);
-						}
-
-						rest -= nowRead;
-					}
-					
-					if (!tmpFile)
-					{
-						throw StreamFastaParser::Exception("The temporary file is corrupted");
-					}
-				}
-
-				sorter.sort();
+				tpie::file_stream<DnaString> tmpFile;
+				tmpFile.open(tmpFileName.c_str());
+				tpie::progress_indicator_null pi;
+				tpie::sort(tmpFile, tmpFile, VertexLess(vertexSize_), pi);
 				boost::mutex outMutex;
-				size_t records = sorter.size();
 				/*
 				uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
 					uint64_t(0),
 					TrueBifurcations(&candidate, &bifurcation_, &outMutex, vertexSize_),
 					std::plus<uint64_t>());*/
 				
-				uint64_t falsePositives = TrueBifurcations(&sorter, &bifurcation_, &outMutex, vertexSize_)(0);
+				tmpFile.seek(0);
+				uint64_t falsePositives = TrueBifurcations(&tmpFile, &bifurcation_, &outMutex, vertexSize_)(totalRecords, 0);				
+//				uint64_t falsePositives = 0;
 				std::cout << time(0) - mark << std::endl;
 				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
-				std::cout << "Records = " << records << std::endl;
+				std::cout << "Records = " << totalRecords << std::endl;
 				std::cout << std::string(80, '-') << std::endl;
 				totalFpCount += falsePositives;
 				low = high + 1;
@@ -431,7 +402,7 @@ namespace Sibelia
 			size_t vertexLength,
 			size_t & totalRecords,
 			TaskQueue & taskQueue,
-			std::ofstream & outFile,
+			tpie::file_stream<DnaString> & outFile,
 			boost::mutex & outMutex,
 			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
@@ -559,17 +530,22 @@ namespace Sibelia
 					{
 						boost::lock_guard<boost::mutex> guard(outMutex);
 						totalRecords += output.size();
-						outFile.write(reinterpret_cast<const char*>(&output[0]), output.size() * sizeof(output[0]));
+						for (const DnaString & str : output)
+						{
+							if (!outFile.is_writable())
+							{
+								error.reset(new StreamFastaParser::Exception("Can't write to the temporary file"));
+								break;
+							}
+
+							outFile.write(str);
+						}
+						
+						output.clear();
 						if (error != 0)
 						{
 							return;
-						}
-
-						if (!outFile)
-						{
-							error.reset(new StreamFastaParser::Exception("Can't write to the temporary file"));
-							return;
-						}
+						}						
 					}
 				}
 			}
@@ -833,28 +809,38 @@ namespace Sibelia
 		struct TrueBifurcations
 		{
 			size_t vertexSize;
-			Sorter * candidate;
+			tpie::file_stream<DnaString> * candidate;
 			uint64_t falsePositives;			
 			std::vector<DnaString> * out;
 			boost::mutex * outMutex;
-			TrueBifurcations(Sorter * candidate,
+			TrueBifurcations(tpie::file_stream<DnaString> * candidate,
 				std::vector<DnaString> * out,
 				boost::mutex * outMutex,
 				size_t vertexSize) :
 				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
 
-			uint64_t operator()(uint64_t init) const
-			{
-				uint64_t falsePositives = init;
-				while (!candidate->empty())
-				{
-					bool bifurcation = false;
-					DnaString base = *(*candidate);
-					Candidate baseCandidate(Dereference(vertexSize, base));
-					bool selfRevComp = IsSelfRevComp(vertexSize, base);
-					for (; !candidate->empty(); (*candidate)++)
+			uint64_t operator()(uint64_t records, uint64_t init) const
+			{		
+				DnaString base;
+				DnaString next;
+				uint64_t falsePositives = init;				
+				for (uint64_t nowRecord = 0; nowRecord < records;)
+				{					
+					if (nowRecord == 0)
 					{
-						DnaString next = **candidate;
+						++nowRecord;
+						base = candidate->read();
+					}
+					else
+					{
+						base = next;
+					}
+
+					bool bifurcation = false;
+					Candidate baseCandidate(Dereference(vertexSize, base));
+					bool selfRevComp = IsSelfRevComp(vertexSize, base);					
+					for (next = base; ;)
+					{
 						Candidate nextCandidate(Dereference(vertexSize, next));
 						if (!(VertexEnumeratorImpl::DnaString::EqualPrefix(vertexSize, base, next)))
 						{
@@ -869,6 +855,16 @@ namespace Sibelia
 									baseCandidate.prev != ReverseChar(nextCandidate.extend) ||
 									baseCandidate.extend != ReverseChar(nextCandidate.prev);
 							} 
+						}
+
+						if (nowRecord < records)
+						{
+							++nowRecord;
+							next = candidate->read();
+						}
+						else
+						{
+							break;
 						}
 					}
 
