@@ -10,6 +10,7 @@
 
 #include <tpie/tpie.h>
 #include <tpie/sort.h>
+#include <tpie/dummy_progress.h>
 #include <tpie/file_stream.h>
 
 #include <tbb/blocked_range.h>
@@ -251,7 +252,7 @@ namespace Sibelia
 				tpie::file_stream<DnaString> tmpFile;
 				tmpFile.open(tmpFileName.c_str());
 				tpie::progress_indicator_null pi;
-				tpie::sort(tmpFile, tmpFile, VertexLess(vertexSize_), pi);
+				tpie::sort(tmpFile, VertexLess(vertexSize_), pi);
 				boost::mutex outMutex;
 				/*
 				uint64_t falsePositives = tbb::parallel_reduce(tbb::blocked_range<RecordIterator>(begin, end),
