@@ -165,14 +165,15 @@ namespace Sibelia
 				}
 			}
 
-			tpie::tpie_init(tpie::ALL);			
+			tpie::tpie_init(tpie::ALL);
+			tpie::progress_indicator_null pi;
 			tpie::get_memory_manager().set_limit(std::max(uint64_t(1024 * 1024 * 1024), realSize / 8));
 			tpie::file_stream<VertexRecord> outFile;
-		//	outFile.open(outFileName.c_str(), tpie::access_write);
+			outFile.open(outFileName.c_str(), tpie::access_write);
 			std::cout << "Round size = " << realSize / roundSize << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
-			uint64_t high = 0;			
+			uint64_t high = 0;	
 			size_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
 			uint64_t verticesCount = 0;			
@@ -254,15 +255,12 @@ namespace Sibelia
 				}
 
 				mark = time(0);
-				tpie::progress_indicator_null pi;
 				tpie::file_stream<InitialRecord> tmpFile;
-				tmpFile.open(tmpFileName.c_str(), tpie::access_read);
+				tmpFile.open(tmpFileName.c_str());
 				tpie::sort(tmpFile, VertexLess(vertexSize_), pi);
 				boost::mutex outMutex;
 			 	tmpFile.seek(0);
-				uint64_t falsePositives = TrueBifurcations(&tmpFile, &bifurcation_, &outMutex, vertexSize_)(totalRecords, 0, verticesCount, outFile);
-				outFile.seek(0);
-				tpie::sort(outFile, pi);
+				uint64_t falsePositives = TrueBifurcations(&tmpFile, &bifurcation_, &outMutex, vertexSize_)(totalRecords, 0, verticesCount, outFile);								
 				std::cout << time(0) - mark << std::endl;
 				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
@@ -272,6 +270,9 @@ namespace Sibelia
 				low = high + 1;
 			}
 
+			outFile.close();
+			outFile.open(outFileName.c_str());
+			tpie::sort(outFile, pi);
 			delete[] binCounter;
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
 			tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end(), DnaStringLess(vertexSize_));
