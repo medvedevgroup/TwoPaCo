@@ -22,7 +22,8 @@ namespace Sibelia
 			size_t rounds,
 			size_t threads,
 			size_t aggregationThreads,
-			const std::string & tmpFileName)
+			const std::string & tmpFileName,
+			const std::string & outFileName)
 		{
 			size_t bufSize = vertexLength + 4;
 			size_t neededCapacity = bufSize / UNIT_CAPACITY + (bufSize % UNIT_CAPACITY == 0 ? 0 : 1);
@@ -35,7 +36,8 @@ namespace Sibelia
 					rounds,
 					threads,
 					aggregationThreads,
-					tmpFileName));
+					tmpFileName,
+					outFileName));
 			}
 			
 			return CreateEnumeratorImpl<CAPACITY + 1>(fileName,
@@ -45,7 +47,8 @@ namespace Sibelia
 				rounds,
 				threads,
 				aggregationThreads,
-				tmpFileName);
+				tmpFileName,
+				outFileName);
 		}
 
 		template<>
@@ -56,7 +59,8 @@ namespace Sibelia
 			size_t rounds,
 			size_t threads,
 			size_t aggregationThreads,
-			const std::string & tmpFileName)
+			const std::string & tmpFileName,
+			const std::string & outFileName)
 		{
 			return 0;
 		}
@@ -69,7 +73,8 @@ namespace Sibelia
 		size_t rounds,
 		size_t threads,
 		size_t aggregationThreads,
-		const std::string & tmpFileName)
+		const std::string & tmpFileName,
+		const std::string & outFileName)
 	{
 		return CreateEnumeratorImpl<1>(fileName,
 			vertexLength,
@@ -78,6 +83,7 @@ namespace Sibelia
 			rounds,
 			threads,
 			aggregationThreads,
-			tmpFileName);
+			tmpFileName,
+			outFileName);
 	}
 }

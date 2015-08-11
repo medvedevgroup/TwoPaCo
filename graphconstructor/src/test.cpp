@@ -87,7 +87,7 @@ namespace Sibelia
 	{
 		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
-		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp");
+		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp", "de_bruijn.bin");
 
 		for (const std::string & nowFileName : fileName)
 		{
