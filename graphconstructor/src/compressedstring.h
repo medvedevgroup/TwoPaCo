@@ -7,11 +7,7 @@
 
 namespace Sibelia
 {
-	extern const std::string LITERAL;
 	extern const size_t UNIT_CAPACITY;
-
-	char ReverseChar(char ch);
-	std::string RevComp(const std::string & str);
 
 
 	template<size_t CAPACITY>
@@ -127,7 +123,7 @@ namespace Sibelia
 			CompressedString ret;
 			for (size_t i = 0; i < stringSize; i++)
 			{
-				ret.SetChar(i, ReverseChar(GetChar(stringSize - i - 1)));
+				ret.SetChar(i, DnaChar::ReverseChar(GetChar(stringSize - i - 1)));
 			}
 
 			return ret;
@@ -146,7 +142,7 @@ namespace Sibelia
 		{
 			uint64_t element = TranslateIdx(idx);
 			uint64_t charIdx = str_[element] >> (2 * idx);
-			return LITERAL[charIdx & 0x3];
+			return DnaChar::LITERAL[charIdx & 0x3];
 		}
 
 		std::string ToString(size_t size) const
@@ -167,7 +163,7 @@ namespace Sibelia
 
 		void CopyFromReverseString(std::string::const_iterator it, size_t size)
 		{
-			StrCpy(std::string::const_reverse_iterator(it + size), 0, 0, size, ReverseChar);
+			StrCpy(std::string::const_reverse_iterator(it + size), 0, 0, size, DnaChar::ReverseChar);
 		}
 
 	private:
@@ -196,7 +192,7 @@ namespace Sibelia
 
 		static uint64_t MakeUpChar(char ch)
 		{
-			switch (ch)
+			switch (ch)	
 			{
 			case 'A':
 				return 0;

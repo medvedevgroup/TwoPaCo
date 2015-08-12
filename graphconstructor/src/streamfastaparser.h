@@ -1,10 +1,11 @@
 #ifndef _STREAM_FASTA_PARSER_H_
 #define _STREAM_FASTA_PARSER_H_
 
+#include <vector>
 #include <fstream>
 #include <stdexcept>
 
-#include <boost/thread.hpp>
+#include "dnachar.h"
 
 namespace Sibelia
 {
@@ -23,8 +24,7 @@ namespace Sibelia
 		std::string GetErrorMessage() const;
 		std::string GetCurrentHeader() const;
 		StreamFastaParser(const std::string & fileName);
-	private:		
-		static const std::string VALID_CHARS;
+	private:				
 		static const size_t BUF_SIZE = 1 << 20;
 
 		bool Peek(char & ch);
@@ -36,7 +36,6 @@ namespace Sibelia
 		char * buffer_;
 		size_t bufferSize_;
 		size_t bufferPos_;
-		std::vector<char> isValid_;
 	};
 }
 

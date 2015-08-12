@@ -10,79 +10,6 @@
 
 namespace Sibelia
 {
-	//void DnaStringTest(size_t n, std::ostream & log)
-	//{
-	//	size_t size = 300;
-	//	DnaString str0(size, size);
-	//	for (size_t i = 0; i < n; i++)
-	//	{
-	//		size_t idx = rand() % str0.GetSize();			
-	//		char newChar = DnaString::LITERAL[rand() % DnaString::LITERAL.size()];
-	//		log << "Setting char, str(" << idx << ") = " << newChar << std::endl;
-	//		str0.SetChar(idx, newChar);
-	//		log << "Got char " << str0.GetChar(idx) << std::endl;
-	//		assert(str0.GetChar(idx) == newChar);
-	//	}
-	//	
-	//	std::string str2;
-	//	DnaString str1(300, uint64_t(0));
-	//	
-	//	for (size_t i = 0; i < n; i++)
-	//	{
-	//		log << i << '\t';
- //			if (str1.GetSize() < str1.MaxSize() && rand() % 2)
-	//		{
-	//			char ch = DnaString::LITERAL[rand() % DnaString::LITERAL.size()];
-	//			if (rand() % 2)
-	//			{
-	//				log << "Appending back";
-	//				str1.AppendBack(ch);
-	//				str2.push_back(ch);
-	//			}
-	//			else
-	//			{
-	//				log << "Appending front";
-	//				str1.AppendFront(ch);
-	//				str2.insert(str2.begin(), ch);
-	//			}
-	//		}
-	//		else if (str1.GetSize() > 0)
-	//		{
-	//			if (rand() % 2)
-	//			{
-	//				log << "Popping back";
-	//				str1.PopBack();
-	//				str2.erase(str2.end() - 1);
-	//			}
-	//			else
-	//			{
-	//				log << "Popping front";
-	//				str1.PopFront();
-	//				str2.erase(str2.begin());
-	//			}
-	//		}
-
-	//		log << "\tSize=" << str1.GetSize() << std::endl;				
-	//		std::string str1b = str1.ToString();
-	//		log << str1b << std::endl << str2 << std::endl;
-	//		assert(str1b == str2);
-
-	//		std::string str2r = DnaString::RevComp(str2);
-	//		DnaString str1r = str1.RevComp();
-	//		std::string str1br = str1r.ToString();
-	//		assert(str1br == str2r);
-	//		/*
-	//		size_t prefix = rand() % (str1.GetSize() + 1);
-	//		DnaString str1pr = str1.Prefix(prefix);
-	//		std::string str2pr(str2.begin(), str2.begin() + prefix);
-	//		log << "Checking prefix, size = " << prefix << std::endl;
-	//		
-	//		log << str1pr.ToString() << std::endl;
-	//		log << str2pr << std::endl;
-	//		assert(str1pr.ToString() == str2pr);*/
-	//	}
-	//}
-
 	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log)
 	{
 		std::set<std::string> edges;
@@ -106,7 +33,7 @@ namespace Sibelia
 					while (true)
 					{
 						edges.insert(edge);
-						edges.insert(RevComp(edge));
+						edges.insert(DnaChar::ReverseCompliment(edge));
 						if (parser.GetChar(ch))
 						{
 							edge.push_back(ch);
@@ -136,15 +63,15 @@ namespace Sibelia
 				if (vertex.size() >= vertexLength)
 				{
 					bif.insert(vertex);
-					bif.insert(RevComp(vertex));
+					bif.insert(DnaChar::ReverseCompliment(vertex));
 					while (true)
 					{
-						std::string candVertex[] = { vertex, RevComp(vertex) };
+						std::string candVertex[] = { vertex, DnaChar::ReverseCompliment(vertex) };
 						for (const std::string cand : candVertex)
 						{
 							size_t inCount = 0;
 							size_t outCount = 0;
-							for (char ch : LITERAL)
+							for (char ch : DnaChar::LITERAL)
 							{
 								std::string inEdge = ch + cand;
 								std::string outEdge = cand + ch;
@@ -154,7 +81,7 @@ namespace Sibelia
 
 							if (inCount != 1 || outCount != 1)
 							{
-								assert(vid->GetId(cand) != VertexEnumerator::INVALID_VERTEX || vid->GetId(RevComp(cand)) != VertexEnumerator::INVALID_VERTEX);
+								assert(vid->GetId(cand) != VertexEnumerator::INVALID_VERTEX || vid->GetId(DnaChar::ReverseCompliment(cand)) != VertexEnumerator::INVALID_VERTEX);
 								bif.insert(cand);
 							}
 						}						
@@ -167,7 +94,7 @@ namespace Sibelia
 						else
 						{
 							bif.insert(vertex);
-							bif.insert(RevComp(vertex));
+							bif.insert(DnaChar::ReverseCompliment(vertex));
 							break;
 						}
 					}
@@ -181,7 +108,7 @@ namespace Sibelia
 		std::cout << "Diff:" << std::endl;
 		for (const std::string & v : vidSet)
 		{
-			if (bif.count(v) == 0 && bif.count(RevComp(v)) == 0)
+			if (bif.count(v) == 0 && bif.count(DnaChar::ReverseCompliment(v)) == 0)
 			{
 				std::cout << v << std::endl;
 			}
