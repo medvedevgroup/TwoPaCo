@@ -10,38 +10,79 @@
 
 namespace Sibelia
 {
+
+	bool IsDefinite(int ch)
+	{
+		return ch == 'A' || ch == 'C' || ch == 'G' || ch == 'T';
+	}
+
 	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log)
 	{
-		std::set<std::string> edges;
 		size_t edgeLength = vertexLength + 1;
 		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp", "de_bruijn.bin");
-
+		
+		int unknownCount = CHAR_MAX;
+		typedef std::vector<int> DnaString;
+		std::set<DnaString> edges;
+		std::vector<DnaString> genome;
 		for (const std::string & nowFileName : fileName)
 		{
 			bool start = true;			
 			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); start = true)
 			{
 				char ch;
-				std::string edge;
-				for (size_t j = 0; j < edgeLength && parser.GetChar(ch); j++)
+				DnaString nowGenome;
+				nowGenome.push_back(unknownCount++);
+				while(parser.GetChar(ch))
 				{
-					edge.push_back(ch);
+					if (IsDefinite(ch))
+					{
+						nowGenome.push_back(ch);
+					}
+					else
+					{
+						nowGenome.push_back(unknownCount++);
+					}
 				}
 
-				if (edge.size() >= edgeLength)
+				nowGenome.push_back(unknownCount++);
+				genome.push_back(nowGenome);
+				DnaString nowGenomeReverse;
+				for (DnaString::const_reverse_iterator it = nowGenome.rbegin(); it != nowGenome.rend(); ++it)
 				{
-					while (true)
+					if (IsDefinite(*it))
 					{
-						edges.insert(edge);
-						edges.insert(DnaChar::ReverseCompliment(edge));
-						if (parser.GetChar(ch))
+						nowGenomeReverse.push_back(DnaChar::ReverseChar(*it));
+					}
+					else
+					{
+						nowGenomeReverse.push_back(unknownCount++);
+					}
+				}
+
+				genome.push_back(nowGenomeReverse);
+			}
+		}
+
+		std::map<DnaString, std::set<int> > inEdge;
+		std::map<DnaString, std::set<int> > outEdge;
+		for (const DnaString & g : genome)
+		{
+			if (g.size() >= vertexLength)
+			{
+				for (size_t i = 0; i <= g.size() - vertexLength; i++)
+				{
+					DnaString vertex(g.begin() + i, g.begin() + i + vertexLength);
+					if (std::count_if(vertex.begin(), vertex.end(), IsDefinite) == vertexLength)
+					{
+						if (i + vertexLength < g.size())
 						{
-							edge.push_back(ch);
-							edge.erase(edge.begin());
+							outEdge[vertex].insert(g[i + vertexLength]);
 						}
-						else
+
+						if (i > 0)
 						{
-							break;
+							inEdge[vertex].insert(g[i - 1]);
 						}
 					}
 				}
@@ -49,59 +90,21 @@ namespace Sibelia
 		}
 
 		std::set<std::string> bif;
-		for (const std::string & nowFileName : fileName)
+		std::map<DnaString, std::set<int> > * edge[] = { &inEdge, &outEdge };
+		for (std::map<DnaString, std::set<int> > * e : edge)
 		{
-			for (StreamFastaParser parser(nowFileName); parser.ReadRecord();)
+			for (auto it = e->begin(); it != e->end(); ++it)
 			{
-				char ch;
-				std::string vertex;
-				for (size_t j = 0; j < vertexLength && parser.GetChar(ch); j++)
-				{
-					vertex.push_back(ch);
-				}
-
-				if (vertex.size() >= vertexLength)
-				{
-					bif.insert(vertex);
-					bif.insert(DnaChar::ReverseCompliment(vertex));
-					while (true)
-					{
-						std::string candVertex[] = { vertex, DnaChar::ReverseCompliment(vertex) };
-						for (const std::string cand : candVertex)
-						{
-							size_t inCount = 0;
-							size_t outCount = 0;
-							for (char ch : DnaChar::LITERAL)
-							{
-								std::string inEdge = ch + cand;
-								std::string outEdge = cand + ch;
-								inCount += edges.count(inEdge);
-								outCount += edges.count(outEdge);
-							}
-
-							if (inCount != 1 || outCount != 1)
-							{
-								assert(vid->GetId(cand) != VertexEnumerator::INVALID_VERTEX || vid->GetId(DnaChar::ReverseCompliment(cand)) != VertexEnumerator::INVALID_VERTEX);
-								bif.insert(cand);
-							}
-						}						
-
-						if (parser.GetChar(ch))
-						{
-							vertex.push_back(ch);
-							vertex.erase(vertex.begin());
-						}
-						else
-						{
-							bif.insert(vertex);
-							bif.insert(DnaChar::ReverseCompliment(vertex));
-							break;
-						}
-					}
+				if (it->second.size() > 1)
+				{					
+					std::string cand(it->first.begin(), it->first.end());
+					bif.insert(cand);
+					bif.insert(DnaChar::ReverseCompliment(cand));
+					assert(vid->GetId(cand) != VertexEnumerator::INVALID_VERTEX || vid->GetId(DnaChar::ReverseCompliment(cand)) != VertexEnumerator::INVALID_VERTEX);
 				}
 			}
 		}
-
+		
 		std::cout << "TP = " << bif.size() << std::endl;
 		std::vector<std::string> vidSet;
 		vid->Dump(vidSet);

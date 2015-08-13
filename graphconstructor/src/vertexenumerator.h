@@ -393,7 +393,7 @@ namespace Sibelia
 				out.back().vertexBody.SetChar(vertexLength, posExtend);
 				out.back().vertexBody.SetChar(vertexLength + 1, posPrev);
 			}
-			else
+			 else
 			{
 				out.back().vertexBody.CopyFromReverseString(pos, vertexLength);
 				out.back().vertexBody.SetChar(vertexLength, DnaChar::ReverseChar(posPrev));

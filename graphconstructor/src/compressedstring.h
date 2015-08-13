@@ -9,7 +9,6 @@ namespace Sibelia
 {
 	extern const size_t UNIT_CAPACITY;
 
-
 	template<size_t CAPACITY>
 	class CompressedString
 	{
