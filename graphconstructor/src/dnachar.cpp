@@ -13,6 +13,22 @@ namespace Sibelia
 		DnaChar helper;
 	}
 	
+	size_t DnaChar::MakeUpChar(char ch)
+	{
+		switch (ch)
+		{
+		case 'A':
+			return 0;
+		case 'C':
+			return 1;
+		case 'G':
+			return 2;
+		case 'T':
+			return 3;
+		}
+
+		return 0;
+	}
 
 	DnaChar::DnaChar()
 	{

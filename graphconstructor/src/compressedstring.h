@@ -134,7 +134,7 @@ namespace Sibelia
 			uint64_t charIdx = str_[element] >> (2 * idx);
 			uint64_t mask = uint64_t(0x3) << (idx * 2);
 			str_[element] &= ~(mask);
-			str_[element] |= MakeUpChar(ch) << (2 * idx++);
+			str_[element] |= DnaChar::MakeUpChar(ch) << (2 * idx++);
 		}
 
 		char GetChar(uint64_t idx) const
@@ -142,6 +142,12 @@ namespace Sibelia
 			uint64_t element = TranslateIdx(idx);
 			uint64_t charIdx = str_[element] >> (2 * idx);
 			return DnaChar::LITERAL[charIdx & 0x3];
+		}
+
+		char RawChar(uint64_t idx) const
+		{
+			uint64_t element = TranslateIdx(idx);
+			return charIdx = str_[element] >> (2 * idx);			
 		}
 
 		std::string ToString(size_t size) const
@@ -173,7 +179,7 @@ namespace Sibelia
 		{
 			for (size_t i = 0; i < size; i++)
 			{
-				str_[element] |= MakeUpChar(f(*src++)) << (2 * idx++);
+				str_[element] |= DnaChar::MakeUpChar(f(*src++)) << (2 * idx++);
 				if (idx >= UNIT_CAPACITY)
 				{
 					idx = 0;
@@ -187,24 +193,7 @@ namespace Sibelia
 			uint64_t ret = idx >> 5;
 			idx = idx & ((uint64_t(1) << uint64_t(5)) - 1);
 			return ret;
-		}
-
-		static uint64_t MakeUpChar(char ch)
-		{
-			switch (ch)	
-			{
-			case 'A':
-				return 0;
-			case 'C':
-				return 1;
-			case 'G':
-				return 2;
-			case 'T':
-				return 3;
-			}
-
-			return 0;
-		}
+		}		
 	};
 
 }

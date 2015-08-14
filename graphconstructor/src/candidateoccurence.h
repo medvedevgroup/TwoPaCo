@@ -25,7 +25,7 @@ namespace Sibelia
 			size_t vertexLength,
 			char posExtend,
 			char posPrev)
-		{		
+		{	
 			position_ = pos - begin;
 			sequenceId_ = sequenceId;
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, vertexLength)))
@@ -33,23 +33,27 @@ namespace Sibelia
 				body_.CopyFromString(pos, vertexLength);
 				body_.SetChar(NEXT_POS, posExtend);
 				body_.SetChar(PREV_POS, posPrev);
+				body_.SetChar(NMASK_POS, EncodeNmask(posExtend, posPrev));
 			}
 			else
 			{
 				body_.CopyFromReverseString(pos, vertexLength);
 				body_.SetChar(NEXT_POS, DnaChar::ReverseChar(posPrev));
 				body_.SetChar(PREV_POS, DnaChar::ReverseChar(posExtend));
+				body_.SetChar(NMASK_POS, EncodeNmask(posPrev, posExtend));
 			}
 		}
 
 		char Prev() const
 		{
-			return body_.GetChar(PREV_POS);
+			char nmask = body_.GetChar(NMASK_POS);
+			return nmask & 2 ? 'N' : body_.GetChar(PREV_POS);
 		}
 
 		char Next() const
 		{
-			return body_.GetChar(NEXT_POS);
+			char nmask = body_.GetChar(NMASK_POS);
+			return nmask & 1 ? 'N' : body_.GetChar(NEXT_POS);
 		}
 
 		uint32_t GetSequenceId() const
@@ -93,6 +97,11 @@ namespace Sibelia
 		}
 		
 	private:
+		char EncodeNmask(char next, char prev)
+		{
+			return DnaChar::LITERAL[(next == 'N' ? 0 : 1) | (prev == 'N' ? 0 : 2)];
+		}
+
 		uint32_t sequenceId_;
 		uint32_t position_;
 		CompressedString<CAPACITY> body_;
@@ -100,7 +109,7 @@ namespace Sibelia
 
 	inline size_t CalculateNeededCapacity(size_t vertexLength)
 	{
-		size_t bufSize = vertexLength + 3;
+		size_t bufSize = vertexLength + CandidateOccurence<1>::ADDITIONAL_CHAR;
 		return bufSize / UNIT_CAPACITY + (bufSize % UNIT_CAPACITY == 0 ? 0 : 1);
 	}
 }
