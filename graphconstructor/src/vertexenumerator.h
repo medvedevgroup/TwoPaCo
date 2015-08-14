@@ -469,7 +469,7 @@ namespace Sibelia
 										task.start + pos - 1,
 										posVertexHash[0]->hashvalue,
 										negVertexHash[0]->hashvalue,
-										task.str.begin(),
+										task.str.begin() + pos,
 										vertexLength,
 										posExtend,
 										posPrev);
