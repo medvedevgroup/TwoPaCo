@@ -13,8 +13,9 @@ namespace Sibelia
 		static const std::string VALID_CHARS;
 		static bool IsValid(char ch);
 		static bool IsDefinite(char ch);
-		static char DnaChar::ReverseChar(char ch);
+		static char DnaChar::ReverseChar(char ch);		
 		static std::string ReverseCompliment(const std::string & str);
+		static bool LessSelfReverseComplement(std::string::const_iterator pit, size_t vertexSize);
 	private:
 		static const size_t CHAR_SIZE = 1 << 8;
 		static bool isValid_[CHAR_SIZE];

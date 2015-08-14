@@ -59,4 +59,22 @@ namespace Sibelia
 
 		return ret;
 	}
+
+	bool DnaChar::LessSelfReverseComplement(std::string::const_iterator pit, size_t vertexSize)
+	{
+		std::string::const_reverse_iterator nit(pit + vertexSize);
+		for (size_t i = 0; i < vertexSize; i++)
+		{
+			char reverse = DnaChar::ReverseChar(*nit);
+			if (*pit != reverse)
+			{
+				return *pit < reverse;
+			}
+
+			++nit;
+			++pit;
+		}
+
+		return false;
+	}
 }

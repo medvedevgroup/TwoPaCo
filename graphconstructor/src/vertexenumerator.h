@@ -24,8 +24,8 @@
 
 #include "ngramhashing/cyclichash.h"
 
-#include "compressedstring.h"
 #include "streamfastaparser.h"
+#include "candidateoccurence.h"
 #include "concurrentbitvector.h"
 
 namespace Sibelia
@@ -62,6 +62,7 @@ namespace Sibelia
 		static const size_t BUF_SIZE = 1 << 24;
 	public:
 		typedef CompressedString<CAPACITY> DnaString;
+		typedef CandidateOccurence<CAPACITY> Occurence;
 
 		size_t GetVerticesCount() const
 		{
@@ -223,7 +224,7 @@ namespace Sibelia
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);				
 					boost::mutex tmpFileMutex;
-					tpie::file_stream<InitialRecord> tmpFile;
+					tpie::file_stream<Occurence> tmpFile;
 					tmpFile.open(tmpFileName.c_str(), tpie::access_write);
 					std::unique_ptr<StreamFastaParser::Exception> error;
 					for (size_t i = 0; i < workerThread.size(); i++)
@@ -255,9 +256,9 @@ namespace Sibelia
 				}
 
 				mark = time(0);
-				tpie::file_stream<InitialRecord> tmpFile;
+				tpie::file_stream<Occurence> tmpFile;
 				tmpFile.open(tmpFileName.c_str());
-				tpie::sort(tmpFile, VertexLess(vertexSize_), pi);
+				tpie::sort(tmpFile);
 				boost::mutex outMutex;
 			 	tmpFile.seek(0);
 				uint64_t falsePositives = TrueBifurcations(&tmpFile, &bifurcation_, &outMutex, vertexSize_)(totalRecords, 0, verticesCount, outFile);								
@@ -299,41 +300,12 @@ namespace Sibelia
 			Task() {}
 			Task(uint64_t seqId, uint64_t start, bool isFinal, std::string && str) : 
 				seqId(seqId), start(start), isFinal(isFinal), str(std::move(str)) {}
-		};
-
-		static bool CompareWithReverseComplement(std::string::const_iterator pit, size_t vertexSize)
-		{
-			std::string::const_reverse_iterator nit(pit + vertexSize);
-			for (size_t i = 0; i < vertexSize; i++)
-			{
-				char reverse = DnaChar::ReverseChar(*nit);
-				if (*pit != reverse)
-				{
-					return *pit < reverse;
-				}
-
-				++nit;
-				++pit;
-			}
-
-			return false;
-		}
+		};		
 
 		typedef CyclicHash<uint64_t> HashFunction;
 		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
-
-		struct InitialRecord
-		{
-			DnaString vertexBody;
-			uint32_t sequenceId;
-			uint32_t position;
-
-			InitialRecord() {}
-			InitialRecord(DnaString vertexBody, uint32_t sequenceId, uint32_t position) :
-				vertexBody(vertexBody), sequenceId(sequenceId), position(position) {}
-		};
 
 		struct VertexRecord
 		{
@@ -375,32 +347,6 @@ namespace Sibelia
 			return hvalue >= low && hvalue <= high;
 		}
 
-		static void WriteCanonicalRecord(uint64_t seqId,			
-			uint64_t posHash0,
-			uint64_t negHash0,
-			std::string::const_iterator begin,
-			std::string::const_iterator pos,
-			size_t vertexLength,
-			size_t capacity,
-			char posExtend,
-			char posPrev,
-			std::vector<InitialRecord> & out)
-		{
-			out.push_back(InitialRecord(DnaString(), seqId, pos - begin));
-			if (posHash0 < negHash0 || (posHash0 == negHash0 && CompareWithReverseComplement(pos, vertexLength)))
-			{
-				out.back().vertexBody.CopyFromString(pos, vertexLength);
-				out.back().vertexBody.SetChar(vertexLength, posExtend);
-				out.back().vertexBody.SetChar(vertexLength + 1, posPrev);
-			}
-			 else
-			{
-				out.back().vertexBody.CopyFromReverseString(pos, vertexLength);
-				out.back().vertexBody.SetChar(vertexLength, DnaChar::ReverseChar(posPrev));
-				out.back().vertexBody.SetChar(vertexLength + 1, DnaChar::ReverseChar(posExtend));
-			}
-		}
-
 		static void InitializeHashFunctions(const std::vector<HashFunctionPtr> & seed,
 			std::vector<HashFunctionPtr> & posEdgeHash,
 			std::vector<HashFunctionPtr> & negEdgeHash,
@@ -434,13 +380,13 @@ namespace Sibelia
 			size_t vertexLength,
 			size_t & totalRecords,
 			TaskQueue & taskQueue,
-			tpie::file_stream<InitialRecord> & outFile,
+			tpie::file_stream<Occurence> & outFile,
 			boost::mutex & outMutex,
 			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
 			uint64_t low = bound.first;
 			uint64_t high = bound.second;
-			std::vector<InitialRecord> output;
+			std::vector<Occurence> output;
 			while (true)
 			{
 				Task task;
@@ -463,8 +409,20 @@ namespace Sibelia
 						uint64_t negHash0 = hashFunction[0]->hash(DnaChar::ReverseCompliment(task.str.substr(0, vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							WriteCanonicalRecord(task.seqId, posHash0, negHash0, task.str.begin(), task.str.begin(), vertexLength, CAPACITY, 'A', 'A', output);
-							WriteCanonicalRecord(task.seqId, posHash0, negHash0, task.str.begin(), task.str.begin(), vertexLength, CAPACITY, 'A', 'C', output);
+							output.push_back(Occurence(task.seqId,
+								posHash0,
+								negHash0,
+								task.str.begin(),
+								task.str.begin(),
+								vertexLength,
+								'A', 'A'));
+							output.push_back(Occurence(task.seqId,
+								posHash0,
+								negHash0,
+								task.str.begin(),
+								task.str.begin(),
+								vertexLength,
+								'A', 'C'));
 						}
 					}
 
@@ -474,8 +432,20 @@ namespace Sibelia
 						uint64_t negHash0 = hashFunction[0]->hash(DnaChar::ReverseCompliment(task.str.substr(task.str.size() - vertexLength, vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							WriteCanonicalRecord(task.seqId, posHash0, negHash0, task.str.begin(), task.str.end() - vertexLength, vertexLength, CAPACITY, 'A', 'A', output);
-							WriteCanonicalRecord(task.seqId, posHash0, negHash0, task.str.begin(), task.str.end() - vertexLength, vertexLength, CAPACITY, 'A', 'C', output);
+							output.push_back(Occurence(task.seqId,
+								posHash0,
+								negHash0,
+								task.str.begin(),
+								task.str.end() - vertexLength,
+								vertexLength,								
+								'A', 'A'));
+							output.push_back(Occurence(task.seqId,
+								posHash0,
+								negHash0,
+								task.str.begin(),
+								task.str.end() - vertexLength,
+								vertexLength,								
+								'A', 'C'));
 						}
 					}
 
@@ -533,7 +503,14 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									WriteCanonicalRecord(task.seqId, posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue, task.str.begin(), task.str.begin() + pos, vertexLength, CAPACITY, posExtend, posPrev, output);
+									output.push_back(Occurence(task.seqId,
+										posVertexHash[0]->hashvalue,
+										negVertexHash[0]->hashvalue,
+										task.str.begin(),
+										task.str.begin() + pos,
+										vertexLength,
+										posExtend,
+										posPrev));
 								}
 							}
 
@@ -561,7 +538,7 @@ namespace Sibelia
 					{
 						boost::lock_guard<boost::mutex> guard(outMutex);
 						totalRecords += output.size();
-						for (const InitialRecord & str : output)
+						for (const Occurence & str : output)
 						{
 							if (!outFile.is_writable())
 							{
@@ -622,7 +599,7 @@ namespace Sibelia
 
 						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
-							if (posHash0 < negHash0 || (posHash0 == negHash0 && CompareWithReverseComplement(task.str.begin() + pos, vertexLength)))
+							if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(task.str.begin() + pos, vertexLength)))
 							{
 								hvalue[i] = posVertexHash[i]->hash_extend(nextCh);
 							}
@@ -705,7 +682,7 @@ namespace Sibelia
 
 						for (size_t i = 0; i < hashFunction.size(); i++)
 						{
-							if (posHash0 < negHash0 || (posHash0 == negHash0 && CompareWithReverseComplement(task.str.begin() + pos, vertexLength)))
+							if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(task.str.begin() + pos, vertexLength)))
 							{
 								hvalue = posVertexHash[i]->hash_extend(nextCh);
 							}
@@ -808,41 +785,15 @@ namespace Sibelia
 			}
 		}
 
-		struct Candidate
-		{
-			char prev;
-			char extend;
-		};
-
-		static Candidate Dereference(size_t size, DnaString it)
-		{
-			Candidate ret;
-			ret.extend = it.GetChar(size);
-			ret.prev = it.GetChar(size + 1);
-			return ret;
-		}
-
-		static bool IsSelfReverseCompliment(size_t vertexSize, const DnaString & str)
-		{
-			for (size_t i = 0; i < vertexSize; i++)
-			{
-				if (str.GetChar(i) != DnaChar::ReverseChar(str.GetChar(vertexSize - i - 1)))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
 
 		struct TrueBifurcations
 		{
 			size_t vertexSize;
-			tpie::file_stream<InitialRecord> * candidate;
+			tpie::file_stream<Occurence> * candidate;
 			uint64_t falsePositives;			
 			std::vector<DnaString> * out;
 			boost::mutex * outMutex;
-			TrueBifurcations(tpie::file_stream<InitialRecord> * candidate,
+			TrueBifurcations(tpie::file_stream<Occurence> * candidate,
 				std::vector<DnaString> * out,
 				boost::mutex * outMutex,
 				size_t vertexSize) :
@@ -850,10 +801,10 @@ namespace Sibelia
 
 			uint64_t operator()(uint64_t records, uint64_t init, uint64_t & verticesCount, tpie::file_stream<VertexRecord> & outFile) const
 			{		
-				InitialRecord base;
-				InitialRecord next;				
-				uint64_t falsePositives = init;
-				std::vector<InitialRecord> store;
+				Occurence base;
+				Occurence next;	
+				std::vector<Occurence> store;
+				uint64_t falsePositives = init;				
 				for (uint64_t nowRecord = 0; nowRecord < records;)
 				{					
 					if (nowRecord == 0)
@@ -868,12 +819,10 @@ namespace Sibelia
 
 					store.clear();
 					bool bifurcation = false;
-					Candidate baseCandidate(Dereference(vertexSize, base.vertexBody));
-					bool selfReverseCompliment = IsSelfReverseCompliment(vertexSize, base.vertexBody);
+					bool selfReverseCompliment = base.IsSelfReverseCompliment(vertexSize);
 					for (next = base; ;)
 					{						
-						Candidate nextCandidate(Dereference(vertexSize, next.vertexBody));
-						if (!(VertexEnumeratorImpl::DnaString::EqualPrefix(vertexSize, base.vertexBody, next.vertexBody)))
+						if (!base.EqualBase(next))
 						{
 							break;
 						}
@@ -881,12 +830,12 @@ namespace Sibelia
 						store.push_back(next);
 						if (!bifurcation)
 						{
-							bifurcation = baseCandidate.prev != nextCandidate.prev || baseCandidate.extend != nextCandidate.extend;
+							bifurcation = base.Prev() != next.Prev() || base.Next() != next.Next();
 							if (selfReverseCompliment)
 							{
 								bifurcation = bifurcation ||
-									baseCandidate.prev != DnaChar::ReverseChar(nextCandidate.extend) ||
-									baseCandidate.extend != DnaChar::ReverseChar(nextCandidate.prev);
+									base.Prev() != DnaChar::ReverseChar(next.Next()) ||
+									base.Next() != DnaChar::ReverseChar(next.Prev());
 							} 
 						}
 
@@ -904,11 +853,10 @@ namespace Sibelia
 					if (bifurcation)
 					{
 						boost::lock_guard<boost::mutex> guard(*outMutex);
-						out->push_back(VertexEnumeratorImpl::DnaString());
-						out->back().CopyPrefix(base.vertexBody, vertexSize);						
-						for (const InitialRecord & record : store)
+						out->push_back(base.GetBase());
+						for (const Occurence & record : store)
 						{
-							VertexRecord vertex(verticesCount, record.sequenceId, record.position);
+							VertexRecord vertex(verticesCount, record.GetSequenceId(), record.GetPosition());
 							outFile.write(vertex);
 						}
 
@@ -940,53 +888,7 @@ namespace Sibelia
 		private:
 			size_t vertexSize_;
 		};
-
-		class VertexLess
-		{
-		public:
-			VertexLess(size_t vertexSize) : vertexSize_(vertexSize)
-			{
-
-			}
-
-			bool operator() (const InitialRecord & v1, const InitialRecord & v2) const
-			{
-				char minMax1 = v1.vertexBody.GetChar(vertexSize_ + MIN_MAX_SHIFT);
-				char minMax2 = v2.vertexBody.GetChar(vertexSize_ + MIN_MAX_SHIFT);
-				if (minMax1 == NORMAL && minMax2 == NORMAL)
-				{
-					return DnaString::LessPrefix(v1.vertexBody, v2.vertexBody, vertexSize_);
-				}
-
-				if (minMax1 == MIN)
-				{
-					return minMax2 == MIN ? false : true;
-				}
-
-				return false;
-			}
-
-			InitialRecord min_value()
-			{
-				InitialRecord ret;
-				ret.vertexBody.SetChar(vertexSize_ + MIN_MAX_SHIFT, MIN);
-				return ret;
-			}
-
-			InitialRecord max_value()
-			{
-				InitialRecord ret;
-				ret.vertexBody.SetChar(vertexSize_ + MIN_MAX_SHIFT, MAX);
-				return ret;
-			}
-
-		private:
-			size_t vertexSize_;
-			static const char MIN = 'C';
-			static const char MAX = 'T';
-			static const char NORMAL = 'A';
-			static const size_t MIN_MAX_SHIFT = 3;
-		};
+		
 
 		size_t vertexSize_;
 		std::vector<DnaString> bifurcation_;

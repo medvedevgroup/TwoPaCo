@@ -85,7 +85,7 @@ namespace Sibelia
 			return false;
 		}
 
-		void CopyPrefix(const CompressedString & copy, size_t prefix)
+		void CopyPrefixFrom(const CompressedString & copy, size_t prefix)
 		{
 			size_t remain = prefix;
 			for (size_t i = 0; remain > 0; i++)

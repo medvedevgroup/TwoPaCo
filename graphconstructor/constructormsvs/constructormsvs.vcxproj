@@ -166,6 +166,7 @@
     <ClCompile Include="..\src\vertexenumerator.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\candidateoccurence.h" />
     <ClInclude Include="..\src\compressedstring.h" />
     <ClInclude Include="..\src\concurrentbitvector.h" />
     <ClInclude Include="..\src\dnachar.h" />

@@ -25,8 +25,7 @@ namespace Sibelia
 			const std::string & tmpFileName,
 			const std::string & outFileName)
 		{
-			size_t bufSize = vertexLength + 4;
-			size_t neededCapacity = bufSize / UNIT_CAPACITY + (bufSize % UNIT_CAPACITY == 0 ? 0 : 1);
+			size_t neededCapacity = CalculateNeededCapacity(vertexLength);
 			if (CAPACITY == neededCapacity)
 			{
 				return std::unique_ptr<VertexEnumerator>(new VertexEnumeratorImpl<CAPACITY>(fileName,
