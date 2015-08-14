@@ -18,15 +18,15 @@ namespace Sibelia
 
 		CandidateOccurence(){}
 		void Set(uint64_t sequenceId,
+			uint64_t position,
 			uint64_t posHash0,
-			uint64_t negHash0,
-			std::string::const_iterator begin,
+			uint64_t negHash0,			
 			std::string::const_iterator pos,
 			size_t vertexLength,
 			char posExtend,
 			char posPrev)
 		{	
-			position_ = pos - begin;
+			position_ = position;
 			sequenceId_ = sequenceId;
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, vertexLength)))
 			{
