@@ -17,15 +17,17 @@ namespace Sibelia
 		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;
 
 		CandidateOccurence(){}
-		CandidateOccurence(uint64_t sequenceId,
+		void Set(uint64_t sequenceId,
 			uint64_t posHash0,
 			uint64_t negHash0,
 			std::string::const_iterator begin,
 			std::string::const_iterator pos,
 			size_t vertexLength,
 			char posExtend,
-			char posPrev) : sequenceId_(sequenceId), position_(pos - begin)
-		{			
+			char posPrev)
+		{		
+			position_ = pos - begin;
+			sequenceId_ = sequenceId;
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, vertexLength)))
 			{
 				body_.CopyFromString(pos, vertexLength);

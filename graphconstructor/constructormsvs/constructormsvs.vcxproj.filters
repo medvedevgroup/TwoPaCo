@@ -65,6 +65,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="test.fasta" />
-    <None Include="teste.fasta" />
   </ItemGroup>
 </Project>

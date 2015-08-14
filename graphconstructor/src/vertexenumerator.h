@@ -97,7 +97,6 @@ namespace Sibelia
 			toCopy.assign(ret.begin(), ret.end());
 		}
 
-
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
 			size_t vertexLength,
 			size_t filterSize,
@@ -409,20 +408,21 @@ namespace Sibelia
 						uint64_t negHash0 = hashFunction[0]->hash(DnaChar::ReverseCompliment(task.str.substr(0, vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							output.push_back(Occurence(task.seqId,
+							output.insert(output.end(), 2, Occurence());
+							output[output.size() - 2].Set(task.seqId,
 								posHash0,
 								negHash0,
 								task.str.begin(),
 								task.str.begin(),
 								vertexLength,
-								'A', 'A'));
-							output.push_back(Occurence(task.seqId,
+								'A', 'A');
+							output[output.size() - 1].Set(task.seqId,
 								posHash0,
 								negHash0,
 								task.str.begin(),
 								task.str.begin(),
 								vertexLength,
-								'A', 'C'));
+								'A', 'C');
 						}
 					}
 
@@ -432,20 +432,21 @@ namespace Sibelia
 						uint64_t negHash0 = hashFunction[0]->hash(DnaChar::ReverseCompliment(task.str.substr(task.str.size() - vertexLength, vertexLength)));
 						if (Within(std::min(negHash0, posHash0), low, high))
 						{
-							output.push_back(Occurence(task.seqId,
+							output.insert(output.end(), 2, Occurence());
+							output[output.size() - 2].Set(task.seqId,
+								posHash0,
+								negHash0,
+								task.str.begin(),
+								task.str.end() - vertexLength,
+								vertexLength,
+								'A', 'A');
+							output[output.size() - 1].Set(task.seqId,
 								posHash0,
 								negHash0,
 								task.str.begin(),
 								task.str.end() - vertexLength,
 								vertexLength,								
-								'A', 'A'));
-							output.push_back(Occurence(task.seqId,
-								posHash0,
-								negHash0,
-								task.str.begin(),
-								task.str.end() - vertexLength,
-								vertexLength,								
-								'A', 'C'));
+								'A', 'C');
 						}
 					}
 
@@ -503,14 +504,15 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									output.push_back(Occurence(task.seqId,
+									output.push_back(Occurence());
+									output.back().Set(task.seqId,
 										posVertexHash[0]->hashvalue,
 										negVertexHash[0]->hashvalue,
 										task.str.begin(),
 										task.str.begin() + pos,
 										vertexLength,
 										posExtend,
-										posPrev));
+										posPrev);
 								}
 							}
 
