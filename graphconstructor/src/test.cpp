@@ -10,7 +10,6 @@
 
 namespace Sibelia
 {
-
 	bool IsDefinite(int ch)
 	{
 		return ch == 'A' || ch == 'C' || ch == 'G' || ch == 'T';
@@ -19,7 +18,7 @@ namespace Sibelia
 	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log)
 	{
 		size_t edgeLength = vertexLength + 1;
-		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 4, 4, 1, "graphconstructor.tmp", "de_bruijn.bin");
+		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 4, 1, 1, "graphconstructor.tmp", "de_bruijn.bin");
 		
 		int unknownCount = CHAR_MAX;
 		typedef std::vector<int> DnaString;

@@ -9,12 +9,14 @@ namespace Sibelia
 	class CandidateOccurence
 	{
 	public:
+		static const size_t IS_PREV_N = 1;
+		static const size_t IS_NEXT_N = 2;
 		static const size_t ADDITIONAL_CHAR = 3;
 		static const size_t MAX_SIZE = CAPACITY * 32;
 		static const size_t NEXT_POS = MAX_SIZE - ADDITIONAL_CHAR;
 		static const size_t PREV_POS = NEXT_POS + 1;
 		static const size_t NMASK_POS = NEXT_POS + 2;
-		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;
+		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;		
 
 		CandidateOccurence(){}
 		void Set(uint64_t sequenceId,
@@ -47,13 +49,13 @@ namespace Sibelia
 		char Prev() const
 		{
 			char nmask = body_.GetChar(NMASK_POS);
-			return nmask & 2 ? 'N' : body_.GetChar(PREV_POS);
+			return nmask & IS_PREV_N ? 'N' : body_.GetChar(PREV_POS);
 		}
 
 		char Next() const
 		{
 			char nmask = body_.GetChar(NMASK_POS);
-			return nmask & 1 ? 'N' : body_.GetChar(NEXT_POS);
+			return nmask & IS_NEXT_N ? 'N' : body_.GetChar(NEXT_POS);
 		}
 
 		uint32_t GetSequenceId() const
@@ -99,7 +101,7 @@ namespace Sibelia
 	private:
 		char EncodeNmask(char next, char prev)
 		{
-			return DnaChar::LITERAL[(next == 'N' ? 0 : 1) | (prev == 'N' ? 0 : 2)];
+			return DnaChar::LITERAL[(next == 'N' ? IS_NEXT_N : 0) | (prev == 'N' ? IS_PREV_N : 0)];
 		}
 
 		uint32_t sequenceId_;

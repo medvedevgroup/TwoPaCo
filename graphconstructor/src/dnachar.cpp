@@ -1,3 +1,4 @@
+#include <cassert>
 #include "dnachar.h"
 
 namespace Sibelia
@@ -6,6 +7,7 @@ namespace Sibelia
 	bool DnaChar::isDefinite_[CHAR_SIZE];
 	char DnaChar::reverseTable_[CHAR_SIZE];
 	const std::string DnaChar::LITERAL = "ACGT";
+	const std::string DnaChar::EXT_LITERAL = "ACGTN";
 	const std::string DnaChar::VALID_CHARS = "ACGTURYKMSWBDHWNX";
 	
 	namespace
@@ -76,10 +78,10 @@ namespace Sibelia
 		return ret;
 	}
 
-	bool DnaChar::LessSelfReverseComplement(std::string::const_iterator pit, size_t vertexSize)
+	bool DnaChar::LessSelfReverseComplement(std::string::const_iterator pit, size_t size)
 	{
-		std::string::const_reverse_iterator nit(pit + vertexSize);
-		for (size_t i = 0; i < vertexSize; i++)
+		std::string::const_reverse_iterator nit(pit + size);
+		for (size_t i = 0; i < size; i++)
 		{
 			char reverse = DnaChar::ReverseChar(*nit);
 			if (*pit != reverse)
