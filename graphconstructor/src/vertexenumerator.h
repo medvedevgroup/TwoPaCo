@@ -491,7 +491,7 @@ namespace Sibelia
 												CountEdge(inCount, inUndefCount, nextCh);
 											}
 										}
-										else if (result == negativeLess)
+										else
 										{
 											if (IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_extend, revNextCh))
 											{
