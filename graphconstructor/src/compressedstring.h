@@ -147,7 +147,7 @@ namespace Sibelia
 		char RawChar(uint64_t idx) const
 		{
 			uint64_t element = TranslateIdx(idx);
-			return charIdx = str_[element] >> (2 * idx);			
+			return str_[element] >> (2 * idx);			
 		}
 
 		std::string ToString(size_t size) const

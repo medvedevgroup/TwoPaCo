@@ -48,13 +48,13 @@ namespace Sibelia
 
 		char Prev() const
 		{
-			char nmask = body_.GetChar(NMASK_POS);
+			char nmask = body_.RawChar(NMASK_POS);
 			return nmask & IS_PREV_N ? 'N' : body_.GetChar(PREV_POS);
 		}
 
 		char Next() const
 		{
-			char nmask = body_.GetChar(NMASK_POS);
+			char nmask = body_.RawChar(NMASK_POS);
 			return nmask & IS_NEXT_N ? 'N' : body_.GetChar(NEXT_POS);
 		}
 

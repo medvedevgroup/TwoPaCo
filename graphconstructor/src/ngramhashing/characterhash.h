@@ -47,7 +47,7 @@ class CharacterHash {
          mersenneRNG randomgenerator(maxval>>32);
          mersenneRNG randomgeneratorbase((maxval>>32) ==0 ? maxval : 0xFFFFFFFFU);
   	     for(size_t k =0; k<nbrofchars; ++k) 
-  	        hashvalues[k] = static_cast<hashvaluetype>(randomgeneratorbase()) 
+ 	        hashvalues[k] = static_cast<hashvaluetype>(randomgeneratorbase()) 
   	           | (static_cast<hashvaluetype>(randomgenerator()) << 32);
 
   	} else throw runtime_error("unsupported hash value type");

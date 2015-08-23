@@ -360,12 +360,25 @@ namespace Sibelia
 			}
 		};
 
-		template<class F>
-		static bool IsInBloomFilter(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, F f, char farg)
+		static bool IsInBloomFilterExtend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
 		{
 			for (size_t i = 0; i < hf.size(); i++)
 			{
-				uint64_t hvalue = ((*hf[i]).*f)(farg);
+				uint64_t hvalue = hf[i]->hash_extend(farg);
+				if (!filter.Get(hvalue))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		static bool IsInBloomFilterPrepend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
+		{
+			for (size_t i = 0; i < hf.size(); i++)
+			{
+				uint64_t hvalue = hf[i]->hash_prepend(farg);
 				if (!filter.Get(hvalue))
 				{
 					return false;
@@ -473,7 +486,7 @@ namespace Sibelia
 								size_t outUndefCount = 0;
 
 							//	bool x = std::string(task.str.begin() + pos, task.str.begin() + pos + vertexLength) == "AGGTGCAT";
-								for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
+								for (int i = 0; i < DnaChar::EXT_LITERAL.size() && inCount < 2 && outCount < 2; i++)
 								{
 									char nextCh = DnaChar::EXT_LITERAL[i];
 									char revNextCh = DnaChar::ReverseChar(nextCh);
@@ -486,14 +499,14 @@ namespace Sibelia
 										StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, nextCh, revNextCh);
 										if (result == positiveLess || result == tie)
 										{
-											if (IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_prepend, nextCh))
+											if (IsInBloomFilterPrepend(bitVector, posVertexHash, nextCh))
 											{
 												CountEdge(inCount, inUndefCount, nextCh);
 											}
 										}
 										else
 										{
-											if (IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_extend, revNextCh))
+											if (IsInBloomFilterExtend(bitVector, negVertexHash, revNextCh))
 											{
 												CountEdge(inCount, inUndefCount, nextCh);
 											}
@@ -509,14 +522,14 @@ namespace Sibelia
 										StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
 										if (result == positiveLess || result == tie)
 										{
-											if (IsInBloomFilter(bitVector, posVertexHash, &HashFunction::hash_extend, nextCh))
+											if (IsInBloomFilterExtend(bitVector, posVertexHash,  nextCh))
 											{
 												CountEdge(outCount, outUndefCount, nextCh);
 											}
 										}
 										else 
 										{
-											if (IsInBloomFilter(bitVector, negVertexHash, &HashFunction::hash_prepend, revNextCh))
+											if (IsInBloomFilterPrepend(bitVector, negVertexHash, revNextCh))
 											{
 												CountEdge(outCount, outUndefCount, nextCh);
 											}											
@@ -859,8 +872,9 @@ namespace Sibelia
 						{
 							break;
 						}
-
-						//bool x = base.GetBase().ToString(vertexSize) == "AGGTGCAT" || base.GetBase().ReverseComplement(vertexSize).ToString(vertexSize) == "AGGTGCAT";
+						
+		//				bool x = base.GetBase().ToString(vertexSize) == "TACGT" || base.GetBase().ReverseComplement(vertexSize).ToString(vertexSize) == "TACGT";
+	//					char prev = next.Prev();
 						inUnknownCount += DnaChar::IsDefinite(next.Prev()) ? 0 : 1;
 						outUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;
 						store.push_back(next);
