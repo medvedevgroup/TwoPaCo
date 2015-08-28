@@ -71,16 +71,16 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash\windows;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash;C:\Soft\Dev\tbb43_20150424oss\include;C:\Soft\Dev\boost_1_57_0;C:\Projects\Sibelia4\graphconstructor\src;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12;C:\Soft\Dev\boost_1_57_0\lib64-msvc-12.0;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Soft\Dev\tpie\include;C:\Soft\Dev\stxxl\include;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash\windows;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash;C:\Soft\Dev\tbb43_20150424oss\include;C:\Soft\Dev\boost_1_57_0;C:\Projects\Sibelia4\graphconstructor\src;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Soft\Dev\tpie\lib;C:\Soft\Dev\stxxl\lib;C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12;C:\Soft\Dev\boost_1_57_0\lib64-msvc-12.0;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash\windows;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash;C:\Soft\Dev\tbb43_20150424oss\include;C:\Soft\Dev\boost_1_57_0;C:\Projects\Sibelia4\graphconstructor\src;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12;C:\Soft\Dev\boost_1_57_0\lib64-msvc-12.0;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Soft\Dev\tpie\include;C:\Soft\Dev\stxxl\include;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash\windows;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash;C:\Soft\Dev\tbb43_20150424oss\include;C:\Soft\Dev\boost_1_57_0;C:\Projects\Sibelia4\graphconstructor\src;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Soft\Dev\tpie\lib;C:\Soft\Dev\stxxl\lib;C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12;C:\Soft\Dev\boost_1_57_0\lib64-msvc-12.0;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -90,6 +90,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>false</SDLCheck>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -105,10 +106,12 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>false</SDLCheck>
       <OpenMPSupport>true</OpenMPSupport>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>stxxl_debug.lib;tpie_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,12 +124,14 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>false</SDLCheck>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -140,27 +145,31 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>false</SDLCheck>
       <OpenMPSupport>true</OpenMPSupport>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <Profile>true</Profile>
+      <AdditionalDependencies>stxxl.lib;tpie.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\compressedstring.cpp" />
     <ClCompile Include="..\src\concurrentbitvector.cpp" />
     <ClCompile Include="..\src\constructor.cpp" />
-    <ClCompile Include="..\src\dnastring.cpp" />
-    <ClCompile Include="..\src\lib\SpookyV2.cpp" />
+    <ClCompile Include="..\src\dnachar.cpp" />
     <ClCompile Include="..\src\streamfastaparser.cpp" />
     <ClCompile Include="..\src\test.cpp" />
     <ClCompile Include="..\src\vertexenumerator.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\candidateoccurence.h" />
+    <ClInclude Include="..\src\compressedstring.h" />
     <ClInclude Include="..\src\concurrentbitvector.h" />
-    <ClInclude Include="..\src\dnastring.h" />
-    <ClInclude Include="..\src\lib\SpookyV2.h" />
+    <ClInclude Include="..\src\dnachar.h" />
     <ClInclude Include="..\src\ngramhashing\cyclichash.h" />
     <ClInclude Include="..\src\streamfastaparser.h" />
     <ClInclude Include="..\src\test.h" />
@@ -168,7 +177,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="test.fasta" />
-    <None Include="teste.fasta" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

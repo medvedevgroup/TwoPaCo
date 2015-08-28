@@ -1,7 +1,9 @@
 #ifndef _TEST_H_
+#define _TEST_H_
 
-#include "dnastring.h"
-#include "vertexenumerator.h"
+#include <vector>
+#include <string>
+#include <iostream>
 
 namespace Sibelia
 {

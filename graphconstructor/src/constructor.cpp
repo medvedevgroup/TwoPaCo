@@ -28,9 +28,7 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-	
 	assert(Sibelia::Runtests());
-	
 	try
 	{
 		TCLAP::CmdLine cmd("Program for condensed de Bruijn graph construction", ' ', "0");
@@ -103,29 +101,32 @@ int main(int argc, char * argv[])
 			"fasta files with genomes",
 			cmd);
 
+		TCLAP::ValueArg<std::string> outFileName("o",
+			"outfile",
+			"Output file name",
+			true,
+			"de_bruijn.bin",
+			"file name",
+			cmd);
 
 		cmd.parse(argc, argv);
 		
 		size_t aggThreads = aggregationThreads.isSet() ? aggregationThreads.getValue() : threads.getValue();
-		Sibelia::VertexEnumerator vid(fileName.getValue(),
+		std::unique_ptr<Sibelia::VertexEnumerator> vid = Sibelia::CreateEnumerator(fileName.getValue(),
 			kvalue.getValue(), filterSize.getValue(),
 			hashFunctions.getValue(),
 			rounds.getValue(),
 			threads.getValue(),
 			aggThreads,
-			tmpFileName.getValue());
+			tmpFileName.getValue(),
+			outFileName.getValue());
 
-		std::cout << "Distinct = " << vid.GetVerticesCount() << std::endl;
+		std::cout << "Distinct = " << vid->GetVerticesCount() << std::endl;
 		
 		if (countAll.isSet())
 		{
 			std::vector<std::string> all;
-			vid.Dump(std::back_inserter(all));
-			std::vector<std::string> rev;
-			std::transform(all.begin(), all.end(), std::back_inserter(rev), static_cast<std::string(*)(const std::string&)>(Sibelia::DnaString::RevComp));
-			all.insert(all.begin(), rev.begin(), rev.end());
-			std::sort(all.begin(), all.end());
-			all.erase(std::unique(all.begin(), all.end()), all.end());
+			vid->Dump(all);
 			std::cout << "All = " << all.size() << std::endl;
 		}
 
