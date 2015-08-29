@@ -257,7 +257,8 @@ namespace Sibelia
 				mark = time(0);
 				tpie::file_stream<Occurence> tmpFile;
 				tmpFile.open(tmpFileName.c_str());
-				tpie::sort(tmpFile);
+				tpie::progress_indicator_null pi;
+				tpie::sort<Occurence>(tmpFile, pi);
 				boost::mutex outMutex;
 			 	tmpFile.seek(0);
 				uint64_t falsePositives = TrueBifurcations(&tmpFile, &bifurcation_, &outMutex, vertexSize_)(totalRecords, 0, verticesCount, outFile);								
