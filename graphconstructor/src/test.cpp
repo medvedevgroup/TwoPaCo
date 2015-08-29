@@ -128,10 +128,7 @@ namespace Sibelia
 	//	VertexEnumeratorTest(fileName, 4, 16, ss);
 	
 		fileName.clear();
-		fileName.push_back("g00.fasta");
-	//	fileName.push_back("g1.fasta");
-	//	fileName.push_back("g2.fasta");
-	//	fileName.push_back("g3.fasta");
+		fileName.push_back("ntest.fasta");
 		for (size_t k = 5; k <= 28; k++)
 		{
 			VertexEnumeratorTest(fileName, k, 20, ss);
