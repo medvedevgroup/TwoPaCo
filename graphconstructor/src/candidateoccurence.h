@@ -19,17 +19,13 @@ namespace Sibelia
 		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;		
 
 		CandidateOccurence(){}
-		void Set(uint64_t sequenceId,
-			uint64_t position,
-			uint64_t posHash0,
+		void Set(uint64_t posHash0,
 			uint64_t negHash0,			
 			std::string::const_iterator pos,
 			size_t vertexLength,
 			char posExtend,
 			char posPrev)
 		{	
-			position_ = position;
-			sequenceId_ = sequenceId;
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, vertexLength)))
 			{
 				body_.CopyFromString(pos, vertexLength);
@@ -58,14 +54,14 @@ namespace Sibelia
 			return nmask & IS_NEXT_N ? 'N' : body_.GetChar(NEXT_POS);
 		}
 
-		uint32_t GetSequenceId() const
+		bool EqualBase(const CandidateOccurence & occurence) const
 		{
-			return sequenceId_;
+			return typename CompressedString<CAPACITY>::EqualPrefix(VERTEX_SIZE, occurence.body_, body_);
 		}
 
-		uint32_t GetPosition() const
+		uint64_t Hash() const
 		{
-			return position_;
+			return body_.HashPrefix(VERTEX_SIZE);
 		}
 
 		CompressedString<CAPACITY> GetBase() const
@@ -78,11 +74,6 @@ namespace Sibelia
 		bool operator < (const CandidateOccurence & other) const
 		{
 			return CompressedString<CAPACITY>::LessPrefix(body_, other.body_, VERTEX_SIZE);
-		}
-
-		bool EqualBase(const CandidateOccurence & other) const
-		{
-			return CompressedString<CAPACITY>::EqualPrefix(VERTEX_SIZE, body_, other.body_);
 		}
 
 		bool IsSelfReverseCompliment(size_t vertexSize) const
@@ -104,8 +95,6 @@ namespace Sibelia
 			return DnaChar::LITERAL[(next == 'N' ? IS_NEXT_N : 0) | (prev == 'N' ? IS_PREV_N : 0)];
 		}
 
-		uint32_t sequenceId_;
-		uint32_t position_;
 		CompressedString<CAPACITY> body_;
 	};
 

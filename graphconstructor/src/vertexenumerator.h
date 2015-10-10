@@ -8,17 +8,14 @@
 #include <algorithm>
 #include <unordered_set>
 
-#include <tpie/tpie.h>
-#include <tpie/sort.h>
-#include <tpie/dummy_progress.h>
-#include <tpie/file_stream.h>
-
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
-#include <tbb/concurrent_vector.h>
+#include <tbb/concurrent_unordered_set.h>
+#include <tbb/concurrent_unordered_map.h>
 
 #include <boost/ref.hpp>
+#include <boost/thread.hpp>
 #include <boost/filesystem.hpp> 
 #include <boost/lockfree/spsc_queue.hpp>
 
@@ -63,6 +60,26 @@ namespace Sibelia
 	public:
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
+
+		class OccurenceHash
+		{
+		public:
+			uint64_t operator()(const Occurence & occurence) const
+			{
+				return occurence.Hash();
+			}
+		};
+
+		class OccurenceEquality
+		{
+		public:
+			bool operator()(const Occurence & occurence1, const Occurence & occurence2) const
+			{
+				return occurence1.EqualBase(occurence2);
+			}
+		};
+
+		typedef tbb::concurrent_unordered_multiset<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
 
 		size_t GetVerticesCount() const
 		{
@@ -165,18 +182,14 @@ namespace Sibelia
 				}
 			}
 
-			tpie::tpie_init(tpie::ALL);
-			tpie::progress_indicator_null pi;
-			tpie::get_memory_manager().set_limit(std::max(uint64_t(1024 * 1024 * 1024), realSize / 8));
-			tpie::file_stream<VertexRecord> outFile;
-			outFile.open(outFileName.c_str(), tpie::access_write);
 			std::cout << "Round size = " << realSize / roundSize << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
 			uint64_t high = 0;	
 			size_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
-			uint64_t verticesCount = 0;			
+			uint64_t verticesCount = 0;
+			OccurenceSet occurenceSet(1 << 20);
 			for (size_t round = 0; round < rounds; round++)
 			{
 				size_t totalRecords = 0;
@@ -221,11 +234,8 @@ namespace Sibelia
 					}
 
 					std::cout << time(0) - mark << "\t";
-					mark = time(0);				
-					boost::mutex tmpFileMutex;
-					tpie::file_stream<Occurence> tmpFile;
-					tmpFile.open(tmpFileName.c_str(), tpie::access_write);
-					std::unique_ptr<StreamFastaParser::Exception> error;
+					mark = time(0);
+					std::unique_ptr<StreamFastaParser::Exception> error;					
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
 						workerThread[i] = boost::thread(CandidateCheckingWorker,
@@ -235,8 +245,7 @@ namespace Sibelia
 							vertexLength,
 							boost::ref(totalRecords),
 							boost::ref(*taskQueue[i]),
-							boost::ref(tmpFile),
-							boost::ref(tmpFileMutex),
+							boost::ref(occurenceSet),
 							boost::ref(error));
 					}
 
@@ -255,33 +264,22 @@ namespace Sibelia
 				}
 
 				mark = time(0);
-				tpie::file_stream<Occurence> tmpFile;
-				tmpFile.open(tmpFileName.c_str());
-				tpie::progress_indicator_null pi;
-				tpie::sort<Occurence>(tmpFile, pi);
-				boost::mutex outMutex;
-			 	tmpFile.seek(0);
-				uint64_t falsePositives = TrueBifurcations(&tmpFile, &bifurcation_, &outMutex, vertexSize_)(totalRecords, 0, verticesCount, outFile);								
-				std::cout << time(0) - mark << std::endl;
+				uint64_t falsePositives = TrueBifurcations(occurenceSet, bifurcation_, vertexSize_);
+				std::cout << time(0) - mark << std::endl;				
 				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
-				std::cout << "Records = " << totalRecords << std::endl;
+				std::cout << "Records = " << occurenceSet.size() << std::endl;
 				std::cout << std::string(80, '-') << std::endl;
 				totalFpCount += falsePositives;
 				low = high + 1;
 			}
 
-			outFile.close();
-			outFile.open(outFileName.c_str());
-			tpie::sort(outFile, pi);
 			delete[] binCounter;
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
 			tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end(), DnaStringLess(vertexSize_));
 		}
 
 	private:
-
-		
 
 		static const size_t QUEUE_CAPACITY = 16;
 		static const uint64_t BINS_COUNT = 1 << 24;
@@ -432,19 +430,16 @@ namespace Sibelia
 			size_t vertexLength,
 			size_t & totalRecords,
 			TaskQueue & taskQueue,
-			tpie::file_stream<Occurence> & outFile,
-			boost::mutex & outMutex,
+			OccurenceSet & occurenceSet,
 			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
 			uint64_t low = bound.first;
 			uint64_t high = bound.second;
-			std::vector<Occurence> output;
 			while (true)
 			{
 				Task task;
 				if (taskQueue.pop(task))
 				{
-					output.clear();
 					if (task.start == Task::GAME_OVER)
 					{
 						break;
@@ -471,7 +466,6 @@ namespace Sibelia
 							{
 								size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
 								size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
-							//	bool x = std::string(task.str.begin() + pos, task.str.begin() + pos + vertexLength) == "AGGTGCAT";
 								for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 								{
 									char nextCh = DnaChar::LITERAL[i];
@@ -523,19 +517,36 @@ namespace Sibelia
 									}
 								}
 
-							//	std::cout << std::string(task.str.begin() + pos, task.str.begin() + pos + vertexLength) << std::endl;
-							//	std::cout << inCount << ' ' << outCount << std::endl;
 								if (inCount > 1 || outCount > 1)
 								{
-									output.push_back(Occurence());
-									output.back().Set(task.seqId,
-										task.start + pos - 1,
-										posVertexHash[0]->hashvalue,
+									Occurence now;
+									now.Set(posVertexHash[0]->hashvalue,
 										negVertexHash[0]->hashvalue,
 										task.str.begin() + pos,
 										vertexLength,
 										posExtend,
 										posPrev);
+									
+									std::pair<OccurenceSet::iterator, OccurenceSet::iterator> range = occurenceSet.equal_range(now);									
+									bool allEqual = true;
+									bool newEqual = true;
+									for (auto it = range.first; it != range.second; ++it)
+									{
+										if (allEqual && (it->Next() != range.first->Next() || it->Prev() != range.first->Prev()))
+										{
+											allEqual = false;
+										}
+
+										if (newEqual && (it->Next() != now.Next() || it->Prev() != now.Prev()))
+										{
+											newEqual = false;
+										}
+									}
+
+									if (range.first == range.second || (allEqual && !newEqual))
+									{
+										occurenceSet.insert(now);
+									}
 								}
 							}
 
@@ -558,28 +569,6 @@ namespace Sibelia
 								break;
 							}
 						}
-					}
-
-					if (output.size() > 0)
-					{
-						boost::lock_guard<boost::mutex> guard(outMutex);
-						totalRecords += output.size();
-						for (const Occurence & str : output)
-						{
-							if (!outFile.is_writable())
-							{
-								error.reset(new StreamFastaParser::Exception("Can't write to the temporary file"));
-								break;
-							}
-
-							outFile.write(str);
-						}
-						
-						output.clear();
-						if (error != 0)
-						{
-							return;
-						}						
 					}
 				}
 			}
@@ -879,100 +868,58 @@ namespace Sibelia
 				taskQueue[i]->push(Task(0, Task::GAME_OVER, true, std::string()));
 			}
 		}
-
-		struct TrueBifurcations
-		{
-			size_t vertexSize;
-			tpie::file_stream<Occurence> * candidate;
-			uint64_t falsePositives;			
-			std::vector<DnaString> * out;
-			boost::mutex * outMutex;
-			TrueBifurcations(tpie::file_stream<Occurence> * candidate,
-				std::vector<DnaString> * out,
-				boost::mutex * outMutex,
-				size_t vertexSize) :
-				candidate(candidate), out(out), vertexSize(vertexSize), outMutex(outMutex), falsePositives(0) {}
-
-			uint64_t operator()(uint64_t records, uint64_t init, uint64_t & verticesCount, tpie::file_stream<VertexRecord> & outFile) const
-			{		
-				Occurence base;
-				Occurence next;	
-				std::vector<Occurence> store;
-				uint64_t falsePositives = init;				
-				for (uint64_t nowRecord = 0; nowRecord < records;)
-				{					
-					if (nowRecord == 0)
+		
+		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::vector<DnaString> & out, size_t vertexSize) const
+		{			
+			uint64_t falsePositives = 0;
+			std::vector<Occurence> store;			
+			for (auto it = occurenceSet.begin(); it != occurenceSet.end(); )
+			{
+				Occurence base = *it;
+				size_t inUnknownCount = 0;
+				size_t outUnknownCount = 0;
+				bool bifurcation = false;
+				bool selfReverseCompliment = base.IsSelfReverseCompliment(vertexSize);
+				auto jt = it;
+				for (; jt != occurenceSet.end(); ++jt)
+				{
+					Occurence next = *jt;
+					if (!base.EqualBase(next))
 					{
-						++nowRecord;
-						base = candidate->read();
-					}
-					else
-					{
-						base = next;
+						break;
 					}
 
-					store.clear();
-					size_t inUnknownCount = 0;
-					size_t outUnknownCount = 0;
-					bool bifurcation = false;					
-					bool selfReverseCompliment = base.IsSelfReverseCompliment(vertexSize);
-					for (next = base; ;)
-					{						
-						if (!base.EqualBase(next))
-						{
-							break;
-						}
-						
-		//				bool x = base.GetBase().ToString(vertexSize) == "TACGT" || base.GetBase().ReverseComplement(vertexSize).ToString(vertexSize) == "TACGT";
- 	//					char prev = next.Prev();
-						inUnknownCount += DnaChar::IsDefinite(next.Prev()) ? 0 : 1;
-						outUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;
-						store.push_back(next);
-						if (!bifurcation)
-						{
-							bifurcation = base.Prev() != next.Prev() || base.Next() != next.Next();
-							if (selfReverseCompliment)
-							{
-								inUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;
-								outUnknownCount += DnaChar::IsDefinite(next.Prev()) ? 0 : 1;
-								bifurcation = bifurcation ||
-									base.Prev() != DnaChar::ReverseChar(next.Next()) ||
-									base.Next() != DnaChar::ReverseChar(next.Prev());
-							} 
-						}
-
-						if (nowRecord < records)
-						{
-							++nowRecord;
-							next = candidate->read();
-						}
-						else
-						{
-							break;
-						}
-					}
-
-					if (bifurcation || inUnknownCount > 1 || outUnknownCount > 1)
+					inUnknownCount += DnaChar::IsDefinite(next.Prev()) ? 0 : 1;
+					outUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;					
+					if (!bifurcation)
 					{
-						boost::lock_guard<boost::mutex> guard(*outMutex);
-						out->push_back(base.GetBase());
-						for (const Occurence & record : store)
+						bifurcation = base.Prev() != next.Prev() || base.Next() != next.Next();
+						if (selfReverseCompliment)
 						{
-							VertexRecord vertex(verticesCount, record.GetSequenceId(), record.GetPosition());
-							outFile.write(vertex);
+							inUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;
+							outUnknownCount += DnaChar::IsDefinite(next.Prev()) ? 0 : 1;
+							bifurcation = bifurcation ||
+								base.Prev() != DnaChar::ReverseChar(next.Next()) ||
+								base.Next() != DnaChar::ReverseChar(next.Prev());
 						}
-
-						++verticesCount;
-					}
-					else
-					{
-						falsePositives++;
 					}
 				}
 
-				return falsePositives;
+				if (bifurcation || inUnknownCount > 1 || outUnknownCount > 1)
+				{
+					out.push_back(it->GetBase());
+				}
+				else
+				{
+					falsePositives++;
+				}
+
+				it = jt;
 			}
-		};
+
+			return falsePositives;
+		}
+
 
 		class DnaStringLess
 		{

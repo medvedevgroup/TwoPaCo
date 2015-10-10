@@ -161,6 +161,7 @@
     <ClCompile Include="..\src\concurrentbitvector.cpp" />
     <ClCompile Include="..\src\constructor.cpp" />
     <ClCompile Include="..\src\dnachar.cpp" />
+    <ClCompile Include="..\src\SpookyV2.cpp" />
     <ClCompile Include="..\src\streamfastaparser.cpp" />
     <ClCompile Include="..\src\test.cpp" />
     <ClCompile Include="..\src\vertexenumerator.cpp" />
@@ -171,6 +172,7 @@
     <ClInclude Include="..\src\concurrentbitvector.h" />
     <ClInclude Include="..\src\dnachar.h" />
     <ClInclude Include="..\src\ngramhashing\cyclichash.h" />
+    <ClInclude Include="..\src\SpookyV2.h" />
     <ClInclude Include="..\src\streamfastaparser.h" />
     <ClInclude Include="..\src\test.h" />
     <ClInclude Include="..\src\vertexenumerator.h" />

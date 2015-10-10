@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <algorithm>
 
+#include "SpookyV2.h"
+
 namespace Sibelia
 {
 	extern const size_t UNIT_CAPACITY;
@@ -115,7 +117,14 @@ namespace Sibelia
 		static char Id(char ch)
 		{
 			return ch;
-		}		
+		}
+
+		uint64_t HashPrefix(size_t prefix) const
+		{
+			CompressedString buf;
+			buf.CopyPrefixFrom(*this, prefix);
+			return SpookyHash::Hash64(buf.str_, sizeof(str_[0]) * CAPACITY, 0);
+		}
 
 		CompressedString ReverseComplement(size_t stringSize) const
 		{
