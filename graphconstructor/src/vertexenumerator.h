@@ -16,7 +16,8 @@
 
 #include <boost/ref.hpp>
 #include <boost/thread.hpp>
-#include <boost/filesystem.hpp> 
+#include <boost/filesystem.hpp>
+#include <boost/dynamic_bitset.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
 #include "ngramhashing/cyclichash.h"
@@ -121,7 +122,7 @@ namespace Sibelia
 			size_t rounds,
 			size_t threads,
 			size_t aggregationThreads,
-			const std::string & tmpFileName,
+			const std::string & tmpDirName,
 			const std::string & outFileName) :
 			vertexSize_(vertexLength)
 		{
@@ -188,11 +189,9 @@ namespace Sibelia
 			uint64_t high = 0;	
 			size_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
-			uint64_t verticesCount = 0;
-			OccurenceSet occurenceSet(1 << 20);
+			uint64_t verticesCount = 0;			
 			for (size_t round = 0; round < rounds; round++)
 			{
-				size_t totalRecords = 0;
 				time_t mark = time(0);
 				uint64_t accumulated = binCounter[lowBoundary];				
 				for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
@@ -207,12 +206,12 @@ namespace Sibelia
 					}
 				}
 
+				std::vector<TaskQueuePtr> taskQueue;
+				std::vector<boost::thread> workerThread(threads);
 				std::cout << "Ratio = " << double(realSize) / accumulated << std::endl;
 				uint64_t high = lowBoundary * BIN_SIZE;
 				{
-					std::vector<TaskQueuePtr> taskQueue;
 					ConcurrentBitVector bitVector(realSize);
-					std::vector<boost::thread> workerThread(threads);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 					for (size_t i = 0; i < workerThread.size(); i++)
@@ -243,9 +242,8 @@ namespace Sibelia
 							boost::cref(hashFunction),
 							boost::cref(bitVector),
 							vertexLength,
-							boost::ref(totalRecords),
 							boost::ref(*taskQueue[i]),
-							boost::ref(occurenceSet),
+							boost::cref(tmpDirName),
 							boost::ref(error));
 					}
 
@@ -264,6 +262,30 @@ namespace Sibelia
 				}
 
 				mark = time(0);
+				OccurenceSet occurenceSet(1 << 20);
+				std::unique_ptr<StreamFastaParser::Exception> error;
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					workerThread[i] = boost::thread(CandidateFilteringWorker,
+						vertexLength,
+						boost::ref(*taskQueue[i]),
+						boost::ref(occurenceSet),
+						boost::cref(tmpDirName),
+						boost::ref(error));
+				}
+
+				if (error != 0)
+				{
+					throw StreamFastaParser::Exception(*error);
+				}
+
+				DistributeTasks(fileName, vertexLength + 1, taskQueue);
+				for (size_t i = 0; i < taskQueue.size(); i++)
+				{
+					workerThread[i].join();
+				}
+
+				std::cout << time(0) - mark << "\t";
 				uint64_t falsePositives = TrueBifurcations(occurenceSet, bifurcation_, vertexSize_);
 				std::cout << time(0) - mark << std::endl;				
 				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
@@ -292,10 +314,10 @@ namespace Sibelia
 			uint64_t seqId;
 			std::string str;
 #ifdef _DEBUG
-			static const size_t TASK_SIZE = 36;
+			static const size_t TASK_SIZE = 32;
 #else
 			static const size_t TASK_SIZE = 1 << 18;
-#endif			
+#endif					
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
 			Task(uint64_t seqId, uint64_t start, bool isFinal, std::string && str) : 
@@ -424,17 +446,25 @@ namespace Sibelia
 			}
 		}
 
+		static std::string CandidateMaskFileName(const std::string & directory, size_t sequence, size_t pos)
+		{
+			std::stringstream ss;
+			ss << directory << "/" << sequence << "_" << pos << ".tmp";
+			return ss.str();
+		}
+
 		static void CandidateCheckingWorker(std::pair<uint64_t, uint64_t> bound,
 			const std::vector<HashFunctionPtr> & hashFunction,
 			const ConcurrentBitVector & bitVector,
 			size_t vertexLength,
-			size_t & totalRecords,
 			TaskQueue & taskQueue,
-			OccurenceSet & occurenceSet,
+			const std::string & tmpDirectory,
 			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
 			uint64_t low = bound.first;
 			uint64_t high = bound.second;
+			typedef uint32_t BITSET_BLOCK_TYPE;
+			boost::dynamic_bitset<BITSET_BLOCK_TYPE> candidateMask(Task::TASK_SIZE);
 			while (true)
 			{
 				Task task;
@@ -449,10 +479,11 @@ namespace Sibelia
 					{
 						continue;
 					}
-
+					
  					size_t edgeLength = vertexLength + 1;					
 					if (task.str.size() >= vertexLength + 2)
 					{
+						candidateMask.reset();
 						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
 						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());						
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
@@ -519,34 +550,7 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
-									Occurence now;
-									now.Set(posVertexHash[0]->hashvalue,
-										negVertexHash[0]->hashvalue,
-										task.str.begin() + pos,
-										vertexLength,
-										posExtend,
-										posPrev);
-									
-									auto range = occurenceSet.equal_range(now);									
-									bool allEqual = true;
-									bool newEqual = true;
-									for (auto it = range.first; it != range.second; ++it)
-									{
-										if (allEqual && (it->Next() != range.first->Next() || it->Prev() != range.first->Prev()))
-										{
-											allEqual = false;
-										}
-
-										if (newEqual && (it->Next() != now.Next() || it->Prev() != now.Prev()))
-										{
-											newEqual = false;
-										}
-									}
-
-									if (range.first == range.second || (allEqual && !newEqual))
-									{
-										occurenceSet.insert(now);
-									}
+									candidateMask.set(pos);
 								}
 							}
 
@@ -569,6 +573,85 @@ namespace Sibelia
 								break;
 							}
 						}
+
+						std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
+						std::ofstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
+						boost::to_block_range(candidateMask, buf.begin());
+						candidateMaskFile.write(reinterpret_cast<const char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
+					}
+				}
+			}
+		}
+
+		static void CandidateFilteringWorker(size_t vertexLength,
+			TaskQueue & taskQueue,
+			OccurenceSet & occurenceSet,
+			const std::string & tmpDirectory,
+			std::unique_ptr<StreamFastaParser::Exception> & error)
+		{
+			typedef uint32_t BITSET_BLOCK_TYPE;
+			boost::dynamic_bitset<BITSET_BLOCK_TYPE> candidateMask(Task::TASK_SIZE);
+			while (true)
+			{
+				Task task;
+				if (taskQueue.pop(task))
+				{
+					if (task.start == Task::GAME_OVER)
+					{
+						break;
+					}
+
+					if (task.str.size() < vertexLength)
+					{
+						continue;
+					}
+
+					size_t edgeLength = vertexLength + 1;
+					if (task.str.size() >= vertexLength + 2)
+					{
+						
+								if (inCount > 1 || outCount > 1)
+								{
+									candidateMask.set(pos);
+									/*
+									Occurence now;
+									now.Set(posVertexHash[0]->hashvalue,
+									negVertexHash[0]->hashvalue,
+									task.str.begin() + pos,
+									vertexLength,
+									posExtend,
+									posPrev);
+
+									auto range = occurenceSet.equal_range(now);
+									bool allEqual = true;
+									bool newEqual = true;
+									for (auto it = range.first; it != range.second; ++it)
+									{
+										if (allEqual && (it->Next() != range.first->Next() || it->Prev() != range.first->Prev()))
+										{
+											allEqual = false;
+										}
+
+										if (newEqual && (it->Next() != now.Next() || it->Prev() != now.Prev()))
+										{
+										newEqual = false;
+										}
+									}
+
+									if (range.first == range.second || (allEqual && !newEqual))
+									{
+										occurenceSet.insert(now);
+									}*/
+								}
+							}
+
+							
+						}
+
+						std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
+						std::ofstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
+						boost::to_block_range(candidateMask, buf.begin());
+						candidateMaskFile.write(reinterpret_cast<const char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
 					}
 				}
 			}
