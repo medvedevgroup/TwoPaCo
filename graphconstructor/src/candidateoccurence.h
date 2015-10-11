@@ -56,7 +56,7 @@ namespace Sibelia
 
 		bool EqualBase(const CandidateOccurence & occurence) const
 		{
-			return typename CompressedString<CAPACITY>::EqualPrefix(VERTEX_SIZE, occurence.body_, body_);
+			return CompressedString<CAPACITY>::EqualPrefix(VERTEX_SIZE, occurence.body_, body_);
 		}
 
 		uint64_t Hash() const

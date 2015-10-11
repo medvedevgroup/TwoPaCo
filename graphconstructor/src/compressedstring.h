@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <algorithm>
 
+#include "dnachar.h"
 #include "SpookyV2.h"
 
 namespace Sibelia

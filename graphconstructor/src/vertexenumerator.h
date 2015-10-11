@@ -527,7 +527,7 @@ namespace Sibelia
 										posExtend,
 										posPrev);
 									
-									std::pair<OccurenceSet::iterator, OccurenceSet::iterator> range = occurenceSet.equal_range(now);									
+									auto range = occurenceSet.equal_range(now);									
 									bool allEqual = true;
 									bool newEqual = true;
 									for (auto it = range.first; it != range.second; ++it)
