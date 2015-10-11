@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <unordered_set>
 
+#include <tbb/spin_rw_mutex.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
@@ -262,6 +263,7 @@ namespace Sibelia
 				}
 
 				mark = time(0);
+				tbb::spin_rw_mutex mutex;
 				OccurenceSet occurenceSet(1 << 20);
 				std::unique_ptr<StreamFastaParser::Exception> error;
 				for (size_t i = 0; i < workerThread.size(); i++)
@@ -271,6 +273,7 @@ namespace Sibelia
 						vertexLength,
 						boost::ref(*taskQueue[i]),
 						boost::ref(occurenceSet),
+						boost::ref(mutex),
 						boost::cref(tmpDirName),
 						boost::ref(error));
 				}
@@ -588,6 +591,7 @@ namespace Sibelia
 			size_t vertexLength,
 			TaskQueue & taskQueue,
 			OccurenceSet & occurenceSet,
+			tbb::spin_rw_mutex & mutex,
 			const std::string & tmpDirectory,
 			std::unique_ptr<StreamFastaParser::Exception> & error)
 		{
@@ -632,28 +636,62 @@ namespace Sibelia
 									task.str.begin() + pos,
 									vertexLength,
 									posExtend,
-									posPrev);
+									posPrev,
+									false);
 								
+								size_t count = 0;
+								bool newBifurcation = false;
+								bool alreadyBifurction = false;
+								mutex.lock_read();
 								auto range = occurenceSet.equal_range(now);
-								bool allEqual = true;
-								bool newEqual = true;
 								for (auto it = range.first; it != range.second; ++it)
 								{
-									if (allEqual && (it->Next() != range.first->Next() || it->Prev() != range.first->Prev()))
+									++count;
+									if (!alreadyBifurction && it->IsBifurcation())
 									{
-										allEqual = false;
+										alreadyBifurction = true;
 									}
 
-									if (newEqual && (it->Next() != now.Next() || it->Prev() != now.Prev()))
+									if (it->Next() != now.Next() || it->Prev() != now.Prev())
 									{
-										newEqual = false;
+										newBifurcation = true;
 									}
 								}
 
-								if (range.first == range.second || (allEqual && !newEqual))
+								if (count == 0)
 								{
 									occurenceSet.insert(now);
 								}
+								else
+								{
+									if (newBifurcation && !alreadyBifurction)
+									{
+										now.MakeBifurcation();
+										mutex.unlock();
+										mutex.lock();
+										occurenceSet.unsafe_erase(range.first, range.second);
+										occurenceSet.insert(now);
+									}
+
+									if (alreadyBifurction && count > 1)
+									{
+										now.MakeBifurcation();
+										mutex.unlock();
+										mutex.lock();
+										occurenceSet.unsafe_erase(range.first, range.second);
+										occurenceSet.insert(now);
+									}
+
+									if (!alreadyBifurction && !newBifurcation && count > 1)
+									{
+										mutex.unlock();
+										mutex.lock();
+										occurenceSet.unsafe_erase(range.first, range.second);
+										occurenceSet.insert(now);
+									}
+								}
+
+								mutex.unlock();
 							}
 
 							if (pos + edgeLength < task.str.size())
@@ -983,7 +1021,7 @@ namespace Sibelia
 				Occurence base = *it;
 				size_t inUnknownCount = 0;
 				size_t outUnknownCount = 0;
-				bool bifurcation = false;
+				bool bifurcation = it->IsBifurcation();
 				bool selfReverseCompliment = base.IsSelfReverseCompliment(vertexSize);
 				auto jt = it;
 				for (; jt != occurenceSet.end(); ++jt)
@@ -998,7 +1036,7 @@ namespace Sibelia
 					outUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;					
 					if (!bifurcation)
 					{
-						bifurcation = base.Prev() != next.Prev() || base.Next() != next.Next();
+						bifurcation = jt->IsBifurcation() || base.Prev() != next.Prev() || base.Next() != next.Next();
 						if (selfReverseCompliment)
 						{
 							inUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;

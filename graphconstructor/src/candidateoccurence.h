@@ -11,11 +11,14 @@ namespace Sibelia
 	public:
 		static const size_t IS_PREV_N = 1;
 		static const size_t IS_NEXT_N = 2;
-		static const size_t ADDITIONAL_CHAR = 3;
+		static const char TRUE_BIF = 'A';
+		static const char FAKE_BIF = 'C';
+		static const size_t ADDITIONAL_CHAR = 4;
 		static const size_t MAX_SIZE = CAPACITY * 32;
 		static const size_t NEXT_POS = MAX_SIZE - ADDITIONAL_CHAR;
 		static const size_t PREV_POS = NEXT_POS + 1;
 		static const size_t NMASK_POS = NEXT_POS + 2;
+		static const size_t IS_BIF_POS = NEXT_POS + 3;
 		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;		
 
 		CandidateOccurence(){}
@@ -24,7 +27,8 @@ namespace Sibelia
 			std::string::const_iterator pos,
 			size_t vertexLength,
 			char posExtend,
-			char posPrev)
+			char posPrev,
+			bool isBifurcation)
 		{	
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, vertexLength)))
 			{
@@ -40,6 +44,8 @@ namespace Sibelia
 				body_.SetChar(PREV_POS, DnaChar::ReverseChar(posExtend));
 				body_.SetChar(NMASK_POS, EncodeNmask(posPrev, posExtend));
 			}
+
+			body_.SetChar(IS_BIF_POS, isBifurcation ? TRUE_BIF : FAKE_BIF);
 		}
 
 		char Prev() const
@@ -52,6 +58,16 @@ namespace Sibelia
 		{
 			char nmask = body_.RawChar(NMASK_POS);
 			return nmask & IS_NEXT_N ? 'N' : body_.GetChar(NEXT_POS);
+		}
+
+		bool IsBifurcation() const
+		{
+			return body_.GetChar(IS_BIF_POS) == TRUE_BIF;
+		}
+
+		void MakeBifurcation()
+		{
+			body_.SetChar(IS_BIF_POS, TRUE_BIF);
 		}
 
 		bool EqualBase(const CandidateOccurence & occurence) const
