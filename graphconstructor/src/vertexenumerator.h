@@ -640,6 +640,8 @@ namespace Sibelia
 									false);
 								
 								size_t count = 0;
+								size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
+								size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 								bool newBifurcation = false;
 								bool alreadyBifurcation = false;
 
@@ -648,12 +650,14 @@ namespace Sibelia
 								for (auto it = range.first; it != range.second; ++it)
 								{
 									++count;
+									inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
+									outUnknownCount += DnaChar::IsDefinite(it->Next()) ? 0 : 1;
 									if (!alreadyBifurcation && it->IsBifurcation())
 									{
 										alreadyBifurcation = true;
 									}
 
-									if (it->Next() != now.Next() || it->Prev() != now.Prev())
+									if (it->Next() != now.Next() || it->Prev() != now.Prev() || inUnknownCount > 1 || outUnknownCount > 1)
 									{
 										newBifurcation = true;
 									}

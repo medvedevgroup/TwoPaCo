@@ -125,11 +125,11 @@ namespace Sibelia
 		std::vector<std::string> fileName;
 
 		fileName.clear();
-		fileName.push_back("test1.fasta");
+		fileName.push_back("test.fasta");
 		VertexEnumeratorTest(fileName, 4, 16, ss);
 	
 		fileName.clear();
-		fileName.push_back("g00.fasta");
+		fileName.push_back("ntest.fasta");
 		for (size_t k = 5; k <= 28; k++)
 		{
 			VertexEnumeratorTest(fileName, k, 20, ss);
