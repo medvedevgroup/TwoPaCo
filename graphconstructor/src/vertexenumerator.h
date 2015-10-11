@@ -267,6 +267,7 @@ namespace Sibelia
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(CandidateFilteringWorker,
+						boost::cref(hashFunction),
 						vertexLength,
 						boost::ref(*taskQueue[i]),
 						boost::ref(occurenceSet),
@@ -285,7 +286,6 @@ namespace Sibelia
 					workerThread[i].join();
 				}
 
-				std::cout << time(0) - mark << "\t";
 				uint64_t falsePositives = TrueBifurcations(occurenceSet, bifurcation_, vertexSize_);
 				std::cout << time(0) - mark << std::endl;				
 				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
@@ -578,12 +578,14 @@ namespace Sibelia
 						std::ofstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
 						boost::to_block_range(candidateMask, buf.begin());
 						candidateMaskFile.write(reinterpret_cast<const char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
+						candidateMaskFile.close();
 					}
 				}
 			}
 		}
 
-		static void CandidateFilteringWorker(size_t vertexLength,
+		static void CandidateFilteringWorker(const std::vector<HashFunctionPtr> & hashFunction,
+			size_t vertexLength,
 			TaskQueue & taskQueue,
 			OccurenceSet & occurenceSet,
 			const std::string & tmpDirectory,
@@ -605,53 +607,73 @@ namespace Sibelia
 					{
 						continue;
 					}
-
+					std::vector<HashFunctionPtr> posVertexHash(1);
+					std::vector<HashFunctionPtr> negVertexHash(1);
 					size_t edgeLength = vertexLength + 1;
 					if (task.str.size() >= vertexLength + 2)
 					{
+						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+						{
+							std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
+							std::ifstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
+							candidateMaskFile.read(reinterpret_cast<char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
+							boost::from_block_range(buf.begin(), buf.end(), candidateMask);
+						}
 						
-								if (inCount > 1 || outCount > 1)
-								{
-									candidateMask.set(pos);
-									/*
-									Occurence now;
-									now.Set(posVertexHash[0]->hashvalue,
+						for (size_t pos = 1;; ++pos)
+						{
+							char posPrev = task.str[pos - 1];
+							char posExtend = task.str[pos + vertexLength];
+							if (candidateMask.test(pos))
+							{
+								Occurence now;
+								now.Set(posVertexHash[0]->hashvalue,
 									negVertexHash[0]->hashvalue,
 									task.str.begin() + pos,
 									vertexLength,
 									posExtend,
 									posPrev);
-
-									auto range = occurenceSet.equal_range(now);
-									bool allEqual = true;
-									bool newEqual = true;
-									for (auto it = range.first; it != range.second; ++it)
+								
+								auto range = occurenceSet.equal_range(now);
+								bool allEqual = true;
+								bool newEqual = true;
+								for (auto it = range.first; it != range.second; ++it)
+								{
+									if (allEqual && (it->Next() != range.first->Next() || it->Prev() != range.first->Prev()))
 									{
-										if (allEqual && (it->Next() != range.first->Next() || it->Prev() != range.first->Prev()))
-										{
-											allEqual = false;
-										}
-
-										if (newEqual && (it->Next() != now.Next() || it->Prev() != now.Prev()))
-										{
-										newEqual = false;
-										}
+										allEqual = false;
 									}
 
-									if (range.first == range.second || (allEqual && !newEqual))
+									if (newEqual && (it->Next() != now.Next() || it->Prev() != now.Prev()))
 									{
-										occurenceSet.insert(now);
-									}*/
+										newEqual = false;
+									}
+								}
+
+								if (range.first == range.second || (allEqual && !newEqual))
+								{
+									occurenceSet.insert(now);
 								}
 							}
 
-							
+							if (pos + edgeLength < task.str.size())
+							{
+								char negExtend = DnaChar::ReverseChar(posExtend);
+								char posPrev = task.str[pos];
+								char negPrev = DnaChar::ReverseChar(task.str[pos]);
+								for (size_t i = 0; i < 1; i++)
+								{
+									posVertexHash[i]->update(posPrev, posExtend);
+									negVertexHash[i]->reverse_update(negExtend, negPrev);
+									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+								}
+							}
+							else
+							{
+								break;
+							}
 						}
-
-						std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
-						std::ofstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
-						boost::to_block_range(candidateMask, buf.begin());
-						candidateMaskFile.write(reinterpret_cast<const char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
 					}
 				}
 			}
@@ -927,7 +949,7 @@ namespace Sibelia
 											buf.push_back('N');
 										}
 
-										q->push(Task(file, prev, over, std::move(buf)));
+										q->push(Task(record, prev, over, std::move(buf)));
 										prev = start - overlapSize + 1;
 										buf.swap(overlap);
 										found = true;

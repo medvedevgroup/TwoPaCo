@@ -79,8 +79,8 @@ int main(int argc, char * argv[])
 			"integer",
 			cmd);
 
-		TCLAP::ValueArg<std::string> tmpFileName("",
-			"tmpfile",
+		TCLAP::ValueArg<std::string> tmpDirName("",
+			"tmpdir",
 			"Temporary file name",
 			false,
 			"graphconstructor.tmp",
@@ -118,7 +118,7 @@ int main(int argc, char * argv[])
 			rounds.getValue(),
 			threads.getValue(),
 			aggThreads,
-			tmpFileName.getValue(),
+			tmpDirName.getValue(),
 			outFileName.getValue());
 
 		std::cout << "Distinct = " << vid->GetVerticesCount() << std::endl;
