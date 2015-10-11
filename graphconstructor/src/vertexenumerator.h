@@ -468,6 +468,7 @@ namespace Sibelia
 			uint64_t high = bound.second;
 			typedef uint32_t BITSET_BLOCK_TYPE;
 			boost::dynamic_bitset<BITSET_BLOCK_TYPE> candidateMask(Task::TASK_SIZE);
+			std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
 			while (true)
 			{
 				Task task;
@@ -577,7 +578,6 @@ namespace Sibelia
 							}
 						}
 
-						std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
 						std::ofstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
 						boost::to_block_range(candidateMask, buf.begin());
 						candidateMaskFile.write(reinterpret_cast<const char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
@@ -597,6 +597,7 @@ namespace Sibelia
 		{
 			typedef uint32_t BITSET_BLOCK_TYPE;
 			boost::dynamic_bitset<BITSET_BLOCK_TYPE> candidateMask(Task::TASK_SIZE);
+			std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
 			while (true)
 			{
 				Task task;
@@ -618,7 +619,6 @@ namespace Sibelia
 					{
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						{
-							std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
 							std::ifstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
 							candidateMaskFile.read(reinterpret_cast<char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
 							boost::from_block_range(buf.begin(), buf.end(), candidateMask);
@@ -641,15 +641,16 @@ namespace Sibelia
 								
 								size_t count = 0;
 								bool newBifurcation = false;
-								bool alreadyBifurction = false;
+								bool alreadyBifurcation = false;
+
 								mutex.lock_read();
 								auto range = occurenceSet.equal_range(now);
 								for (auto it = range.first; it != range.second; ++it)
 								{
 									++count;
-									if (!alreadyBifurction && it->IsBifurcation())
+									if (!alreadyBifurcation && it->IsBifurcation())
 									{
-										alreadyBifurction = true;
+										alreadyBifurcation = true;
 									}
 
 									if (it->Next() != now.Next() || it->Prev() != now.Prev())
@@ -664,28 +665,12 @@ namespace Sibelia
 								}
 								else
 								{
-									if (newBifurcation && !alreadyBifurction)
+									if ((newBifurcation && !alreadyBifurcation) || (alreadyBifurcation && count > 1))
 									{
 										now.MakeBifurcation();
 										mutex.unlock();
 										mutex.lock();
-										occurenceSet.unsafe_erase(range.first, range.second);
-										occurenceSet.insert(now);
-									}
-
-									if (alreadyBifurction && count > 1)
-									{
-										now.MakeBifurcation();
-										mutex.unlock();
-										mutex.lock();
-										occurenceSet.unsafe_erase(range.first, range.second);
-										occurenceSet.insert(now);
-									}
-
-									if (!alreadyBifurction && !newBifurcation && count > 1)
-									{
-										mutex.unlock();
-										mutex.lock();
+										range = occurenceSet.equal_range(now);
 										occurenceSet.unsafe_erase(range.first, range.second);
 										occurenceSet.insert(now);
 									}
