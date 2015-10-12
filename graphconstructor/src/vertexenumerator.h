@@ -320,6 +320,7 @@ namespace Sibelia
 
 			delete[] binCounter;
 			bifurcationTempWrite.close();
+			bifurcationKey_.swap(BifurcationMap(verticesCount));
 			std::ifstream bifurcationTempRead((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
 			if (!bifurcationTempRead)
 			{
