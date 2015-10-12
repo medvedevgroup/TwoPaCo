@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cstdint>
+#include <fstream>
 #include <algorithm>
 
 #include "dnachar.h"
@@ -21,9 +22,14 @@ namespace Sibelia
 			std::fill(str_, str_ + CAPACITY, 0);
 		}
 
-		size_t Bytes() const
+		void WriteToFile(std::ofstream & out) const
 		{
-			return sizeof(str_[0] * CAPACITY);
+			out.write(reinterpret_cast<const char*>(str_), sizeof(str_[0]) * CAPACITY);
+		}
+
+		void ReadFromFile(std::ifstream & in)
+		{
+			in.read(reinterpret_cast<char*>(str_), sizeof(str_[0]) * CAPACITY);
 		}
 
 		CompressedString(const CompressedString & toCopy)
@@ -120,11 +126,16 @@ namespace Sibelia
 			return ch;
 		}
 
+		uint64_t Hash() const
+		{
+			return SpookyHash::Hash64(str_, sizeof(str_[0]) * CAPACITY, 0);
+		}
+
 		uint64_t HashPrefix(size_t prefix) const
 		{
 			CompressedString buf;
 			buf.CopyPrefixFrom(*this, prefix);
-			return SpookyHash::Hash64(buf.str_, sizeof(str_[0]) * CAPACITY, 0);
+			return SpookyHash::Hash64(buf.str_, sizeof(buf.str_[0]) * CAPACITY, 0);
 		}
 
 		CompressedString ReverseComplement(size_t stringSize) const

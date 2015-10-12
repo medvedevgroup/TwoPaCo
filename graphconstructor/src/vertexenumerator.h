@@ -57,9 +57,8 @@ namespace Sibelia
 	class VertexEnumeratorImpl : public VertexEnumerator
 	{
 	private:
-		class VertexLess;
 		static const size_t BUF_SIZE = 1 << 24;
-	public:
+
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
 
@@ -72,6 +71,15 @@ namespace Sibelia
 			}
 		};
 
+		class DnaStringHash
+		{
+		public:
+			uint64_t operator()(const DnaString & dnaString) const
+			{
+				return dnaString.Hash();
+			}
+		};
+
 		class OccurenceEquality
 		{
 		public:
@@ -81,28 +89,31 @@ namespace Sibelia
 			}
 		};
 
+		typedef tbb::concurrent_unordered_map<DnaString, uint64_t, DnaStringHash> BifurcationMap;
 		typedef tbb::concurrent_unordered_multiset<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
+
+	public:
 
 		size_t GetVerticesCount() const
 		{
-			return bifurcation_.size();
+			return bifurcationKey_.size();
 		}
 
 		size_t GetId(const std::string & vertex) const
 		{
 			DnaString str;
 			str.CopyFromString(vertex.begin(), vertexSize_);
-			typename std::vector<DnaString>::const_iterator it = std::lower_bound(bifurcation_.begin(), bifurcation_.end(), str, DnaStringLess(vertexSize_));
-			if (it != bifurcation_.end() && *it == str)
+			typename BifurcationMap::const_iterator it = bifurcationKey_.find(str);
+			if (it != bifurcationKey_.end())
 			{
-				return it - bifurcation_.begin();
+				return it->second;
 			}
 
 			return INVALID_VERTEX;
 		}
 
 		virtual void Dump(std::vector<std::string> & toCopy) const
-		{
+		{/*
 			std::set<std::string> ret;
 			for (const DnaString & str : bifurcation_)
 			{
@@ -113,7 +124,7 @@ namespace Sibelia
 				ret.insert(neg);
 			}
 
-			toCopy.assign(ret.begin(), ret.end());
+			toCopy.assign(ret.begin(), ret.end());*/
 		}
 
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
@@ -190,7 +201,13 @@ namespace Sibelia
 			uint64_t high = 0;	
 			size_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
-			uint64_t verticesCount = 0;			
+			uint64_t verticesCount = 0;
+			std::ofstream bifurcationTempWrite((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
+			if (!bifurcationTempWrite)
+			{
+				throw StreamFastaParser::Exception("Can't create a temp file");
+			}
+
 			for (size_t round = 0; round < rounds; round++)
 			{
 				time_t mark = time(0);
@@ -289,19 +306,35 @@ namespace Sibelia
 					workerThread[i].join();
 				}
 
-				uint64_t falsePositives = TrueBifurcations(occurenceSet, bifurcation_, vertexSize_);
+				size_t falsePositives = 0;
+				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
 				std::cout << time(0) - mark << std::endl;				
-				std::cout << "Vertex count = " << bifurcation_.size() << std::endl;
+				std::cout << "Vertex count = " << truePositives << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
 				std::cout << "Records = " << occurenceSet.size() << std::endl;
 				std::cout << std::string(80, '-') << std::endl;
 				totalFpCount += falsePositives;
+				verticesCount += truePositives;
 				low = high + 1;
 			}
 
 			delete[] binCounter;
+			bifurcationTempWrite.close();
+			std::ifstream bifurcationTempRead((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
+			if (!bifurcationTempRead)
+			{
+				throw StreamFastaParser::Exception("Can't create a temp file");
+			}
+
+			DnaString buf;
+			for (size_t i = 0; i < verticesCount; i++)
+			{
+				size_t key = bifurcationKey_.size();
+				buf.ReadFromFile(bifurcationTempRead);
+				bifurcationKey_[buf] = key;
+			}
+
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
-			tbb::parallel_sort(bifurcation_.begin(), bifurcation_.end(), DnaStringLess(vertexSize_));
 		}
 
 	private:
@@ -1001,9 +1034,9 @@ namespace Sibelia
 			}
 		}
 		
-		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::vector<DnaString> & out, size_t vertexSize) const
+		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t & falsePositives) const
 		{			
-			uint64_t falsePositives = 0;
+			uint64_t truePositives = falsePositives = 0;
 			std::vector<Occurence> store;			
 			for (auto it = occurenceSet.begin(); it != occurenceSet.end(); )
 			{
@@ -1039,7 +1072,8 @@ namespace Sibelia
 
 				if (bifurcation || inUnknownCount > 1 || outUnknownCount > 1)
 				{
-					out.push_back(it->GetBase());
+					++truePositives;
+					it->GetBase().WriteToFile(out);
 				}
 				else
 				{
@@ -1049,30 +1083,11 @@ namespace Sibelia
 				it = jt;
 			}
 
-			return falsePositives;
+			return truePositives;
 		}
 
-
-		class DnaStringLess
-		{
-		public:
-			DnaStringLess(size_t vertexSize) : vertexSize_(vertexSize)
-			{
-
-			}
-
-			bool operator() (const DnaString & v1, const DnaString & v2) const
-			{
-				return DnaString::LessPrefix(v1, v2, vertexSize_);
-			}
-
-		private:
-			size_t vertexSize_;
-		};
-		
-
 		size_t vertexSize_;
-		std::vector<DnaString> bifurcation_;
+		BifurcationMap bifurcationKey_;
 	};
 }
 
