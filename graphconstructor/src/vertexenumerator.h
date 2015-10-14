@@ -255,7 +255,6 @@ namespace Sibelia
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);
 					std::unique_ptr<StreamFastaParser::Exception> error;
-
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
 						workerThread[i] = boost::thread(CandidateCheckingWorker,
@@ -329,20 +328,12 @@ namespace Sibelia
 				throw StreamFastaParser::Exception("Can't open the temp file");
 			}
 
-			DnaString buf;
-			for (size_t i = 0; i < verticesCount; i++)
-			{
-				size_t key = bifurcationKey_.size();
-				buf.ReadFromFile(bifurcationTempRead);
-				bifurcationKey_[buf] = key;
-			}
-
 			uint64_t bitsPower = 0;
-			while (bifurcationKey_.size() * 8 >= (uint64_t(1) << bitsPower))
+			while (verticesCount * 8 >= (uint64_t(1) << bitsPower))
 			{
 				++bitsPower;
 			}
-			
+
 			hashFunction.clear();
 			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);
 			hashFunction.resize(double(bifurcationFilter.size()) / bifurcationKey_.size() * 0.7);
@@ -350,24 +341,21 @@ namespace Sibelia
 			{
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, bitsPower));
 			}
-			
-			std::string bufPos(vertexLength, ' ');
-			std::string bufNeg(vertexLength, ' ');
-			for (auto it = bifurcationKey_.begin(); it != bifurcationKey_.end(); ++it)
-			{
-				it->first.ToString(bufPos, vertexLength);
-				for (size_t i = 0; i < vertexLength; i++)
-				{
-					bufNeg[vertexLength - i - 1] = DnaChar::ReverseChar(bufPos[i]);
-				}
 
+			DnaString buf;
+			std::string stringBuf(vertexLength, ' ');
+			for (size_t i = 0; i < verticesCount; i++)
+			{
+				size_t key = bifurcationKey_.size();
+				buf.ReadFromFile(bifurcationTempRead);
+				bifurcationKey_[buf] = key;
+				buf.ToString(stringBuf, vertexLength);
 				for (HashFunctionPtr & ptr : hashFunction)
 				{
-					bifurcationFilter[ptr->hash(bufPos)] = bifurcationFilter[ptr->hash(bufNeg)] = true;
-				}				
+					bifurcationFilter[ptr->hash(stringBuf)] = true;
+				}
 			}
 
-			
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
 			std::ofstream compressedDbg(outFileName.c_str());
 			if (!compressedDbg)
@@ -376,8 +364,7 @@ namespace Sibelia
 			}
 
 			mark = time(0);
-			std::atomic<uint32_t> currentSeq = 0;
-			std::atomic<uint32_t> currentPos = 0;
+			std::atomic<uint32_t> currentPiece = 0;
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,
@@ -385,9 +372,9 @@ namespace Sibelia
 					vertexLength,
 					boost::ref(*taskQueue[i]),
 					boost::ref(bifurcationKey_),
+					boost::ref(bifurcationFilter),
 					boost::ref(compressedDbg),
-					boost::ref(currentSeq),
-					boost::ref(currentPos));
+					boost::ref(currentPiece));
 			}
 
 			std::cout << "Edges construction: " << time(0) - mark;
@@ -400,8 +387,9 @@ namespace Sibelia
 		static const uint32_t MAX_COUNTER = UINT32_MAX >> 1;
 
 		struct Task
-		{
+		{			
 			bool isFinal;
+			uint32_t piece;
 			uint64_t start;
 			uint64_t seqId;
 			std::string str;
@@ -412,8 +400,8 @@ namespace Sibelia
 #endif					
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
-			Task(uint64_t seqId, uint64_t start, bool isFinal, std::string && str) : 
-				seqId(seqId), start(start), isFinal(isFinal), str(std::move(str)) {}
+			Task(uint64_t seqId, uint64_t start, uint32_t piece, bool isFinal, std::string && str) : 
+				seqId(seqId), start(start), piece(piece), isFinal(isFinal), str(std::move(str)) {}
 		};		
 
 		typedef CyclicHash<uint64_t> HashFunction;
@@ -733,7 +721,6 @@ namespace Sibelia
 								size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 								bool newBifurcation = false;
 								bool alreadyBifurcation = false;
-
 								mutex.lock_read();
 								auto range = occurenceSet.equal_range(now);
 								for (auto it = range.first; it != range.second; ++it)
@@ -795,14 +782,23 @@ namespace Sibelia
 			}
 		}
 
+		struct EdgeResult
+		{
+			uint32_t pieceId;
+			std::vector<uint64_t> pos;
+			std::vector<uint64_t> bifId;
+		};
+
 		static void EdgeConstructionWorker(const std::vector<HashFunctionPtr> & hashFunction,
 			size_t vertexLength,
-			TaskQueue & taskQueue,
+			TaskQueue & taskQueue,			
 			BifurcationMap & bifurcationKey,
+			std::vector<bool> & bifurcationFilter,
 			std::ofstream & outFile,
-			std::atomic<uint32_t> & currentSeq,
-			std::atomic<uint32_t> & currentPos)
+			std::atomic<uint32_t> & currentPiece)
 		{
+			DnaString bitBuf;
+			std::deque<EdgeResult> result;
 			while (true)
 			{
 				Task task;
@@ -817,15 +813,101 @@ namespace Sibelia
 					{
 						continue;
 					}
+
+					std::vector<HashFunctionPtr> posVertexHash(1);
+					std::vector<HashFunctionPtr> negVertexHash(1);
+					size_t edgeLength = vertexLength + 1;
 					if (task.str.size() >= vertexLength + 2)
 					{
+						result.push_back(EdgeResult());
+						result.back().pieceId = task.piece;
+						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						for (size_t pos = 1;; ++pos)
-						{
+						{							
+							bool posFound = true;
+							bool negFound = true;
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];
+							for (size_t i = 0; i < posVertexHash.size() && (posFound || negFound); i++)
+							{
+								if (!bifurcationFilter[posVertexHash[i]->hashvalue])
+								{
+									posFound = false;
+								}
+
+								if (!bifurcationFilter[negVertexHash[i]->hashvalue])
+								{
+									negFound = false;
+								}
+							}
+
+							if (posFound)
+							{
+								posFound = false;
+								bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
+								auto it = bifurcationKey.find(bitBuf);
+								if (it != bifurcationKey.end())
+								{
+									posFound = true;
+									result.back().pos.push_back(pos - 1);
+									result.back().bifId.push_back(it->second);
+								}
+								
+							}
+
+							else if (!posFound && negFound)
+							{
+								bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
+								auto it = bifurcationKey.find(bitBuf);
+								if (it != bifurcationKey.end())
+								{
+									result.back().pos.push_back(pos - 1);
+									result.back().bifId.push_back(it->second);
+								}
+							}
+
+							if (pos + edgeLength < task.str.size())
+							{
+								char negExtend = DnaChar::ReverseChar(posExtend);
+								char posPrev = task.str[pos];
+								char negPrev = DnaChar::ReverseChar(task.str[pos]);
+								for (size_t i = 0; i < 1; i++)
+								{
+									posVertexHash[i]->update(posPrev, posExtend);
+									negVertexHash[i]->reverse_update(negExtend, negPrev);
+									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+								}
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						while (result.size() > 0 && result.front().pieceId == currentPiece)
+						{
+							for (size_t i = 0; i < result.front().pos.size(); i++)
+							{
+								outFile << result.front().pos[i] << " " << result.front().bifId[i] << std::endl;
+							}
+
+							++currentPiece;
+							result.pop_front();
 						}
 					}
 				}
+			}
+
+			while (result.size() > 0 && result.front().pieceId == currentPiece)
+			{
+				for (size_t i = 0; i < result.front().pos.size(); i++)
+				{
+					outFile << result.front().pos[i] << " " << result.front().bifId[i] << std::endl;
+				}
+
+				++currentPiece;
+				result.pop_front();
 			}
 		}
 
@@ -1061,6 +1143,7 @@ namespace Sibelia
 
 		static void DistributeTasks(const std::vector<std::string> & fileName, size_t overlapSize, std::vector<TaskQueuePtr> & taskQueue)
 		{
+			uint32_t pieceCount = 0;
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
 				size_t record = 0;
@@ -1099,7 +1182,7 @@ namespace Sibelia
 											buf.push_back('N');
 										}
 
-										q->push(Task(record, prev, over, std::move(buf)));
+										q->push(Task(record, prev, pieceCount++, over, std::move(buf)));
 										prev = start - overlapSize + 1;
 										buf.swap(overlap);
 										found = true;
@@ -1120,7 +1203,7 @@ namespace Sibelia
 					boost::this_thread::sleep_for(boost::chrono::nanoseconds(1000000));
 				}
 
-				taskQueue[i]->push(Task(0, Task::GAME_OVER, true, std::string()));
+				taskQueue[i]->push(Task(0, Task::GAME_OVER, 0, true, std::string()));
 			}
 		}
 		
