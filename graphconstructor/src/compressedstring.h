@@ -182,6 +182,15 @@ namespace Sibelia
 			return ret;
 		}
 
+		void ToString(std::string & buf, size_t size) const
+		{
+			buf.resize(size);
+			for (size_t i = 0; i < size; i++)
+			{
+				buf[i] = GetChar(i);
+			}
+		}
+
 		void CopyFromString(std::string::const_iterator it, size_t size)
 		{
 			StrCpy(it, 0, 0, size, Id);

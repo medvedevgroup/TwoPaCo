@@ -6,7 +6,7 @@
 #include <vector>
 #include <numeric>
 #include <algorithm>
-#include <unordered_set>
+#include <unordered_map>
 
 #include <tbb/spin_rw_mutex.h>
 #include <tbb/blocked_range.h>
@@ -89,7 +89,7 @@ namespace Sibelia
 			}
 		};
 
-		typedef tbb::concurrent_unordered_map<DnaString, uint64_t, DnaStringHash> BifurcationMap;
+		typedef std::unordered_map<DnaString, uint64_t, DnaStringHash> BifurcationMap;
 		typedef tbb::concurrent_unordered_multiset<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
 
 	public:
@@ -159,15 +159,15 @@ namespace Sibelia
 			}
 
 			size_t edgeLength = vertexLength + 1;
+			std::vector<TaskQueuePtr> taskQueue(threads);
+			std::vector<boost::thread> workerThread(threads);
 			std::atomic<uint32_t> * binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 			{
 				std::fill(binCounter, binCounter + BINS_COUNT, 0);
-				std::vector<boost::thread> workerThread(threads);
-				ConcurrentBitVector bitVector(realSize);
-				std::vector<TaskQueuePtr> taskQueue;
+				ConcurrentBitVector bitVector(realSize);				
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
+					taskQueue[i] = TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY));
 					workerThread[i] = boost::thread(InitialFilterFillerWorker,
 						BIN_SIZE,
 						boost::cref(hashFunction),
@@ -208,9 +208,11 @@ namespace Sibelia
 				throw StreamFastaParser::Exception("Can't create a temp file");
 			}
 
+			time_t mark;
+			std::unique_ptr<StreamFastaParser::Exception> error;
 			for (size_t round = 0; round < rounds; round++)
 			{
-				time_t mark = time(0);
+				mark = time(0);
 				uint64_t accumulated = binCounter[lowBoundary];				
 				for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
 				{
@@ -252,7 +254,8 @@ namespace Sibelia
 
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);
-					std::unique_ptr<StreamFastaParser::Exception> error;					
+					std::unique_ptr<StreamFastaParser::Exception> error;
+
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
 						workerThread[i] = boost::thread(CandidateCheckingWorker,
@@ -282,7 +285,6 @@ namespace Sibelia
 				mark = time(0);
 				tbb::spin_rw_mutex mutex;
 				OccurenceSet occurenceSet(1 << 20);
-				std::unique_ptr<StreamFastaParser::Exception> error;
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(CandidateFilteringWorker,
@@ -317,14 +319,14 @@ namespace Sibelia
 				verticesCount += truePositives;
 				low = high + 1;
 			}
-
+			
 			delete[] binCounter;
 			bifurcationTempWrite.close();
 			bifurcationKey_.swap(BifurcationMap(verticesCount));
 			std::ifstream bifurcationTempRead((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
 			if (!bifurcationTempRead)
 			{
-				throw StreamFastaParser::Exception("Can't create a temp file");
+				throw StreamFastaParser::Exception("Can't open the temp file");
 			}
 
 			DnaString buf;
@@ -335,7 +337,60 @@ namespace Sibelia
 				bifurcationKey_[buf] = key;
 			}
 
+			uint64_t bitsPower = 0;
+			while (bifurcationKey_.size() * 8 >= (uint64_t(1) << bitsPower))
+			{
+				++bitsPower;
+			}
+			
+			hashFunction.clear();
+			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);
+			hashFunction.resize(double(bifurcationFilter.size()) / bifurcationKey_.size() * 0.7);
+			for (HashFunctionPtr & ptr : hashFunction)
+			{
+				ptr = HashFunctionPtr(new HashFunction(vertexLength, bitsPower));
+			}
+			
+			std::string bufPos(vertexLength, ' ');
+			std::string bufNeg(vertexLength, ' ');
+			for (auto it = bifurcationKey_.begin(); it != bifurcationKey_.end(); ++it)
+			{
+				it->first.ToString(bufPos, vertexLength);
+				for (size_t i = 0; i < vertexLength; i++)
+				{
+					bufNeg[vertexLength - i - 1] = DnaChar::ReverseChar(bufPos[i]);
+				}
+
+				for (HashFunctionPtr & ptr : hashFunction)
+				{
+					bifurcationFilter[ptr->hash(bufPos)] = bifurcationFilter[ptr->hash(bufNeg)] = true;
+				}				
+			}
+
+			
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
+			std::ofstream compressedDbg(outFileName.c_str());
+			if (!compressedDbg)
+			{
+				throw StreamFastaParser::Exception("Can't create the output file");
+			}
+
+			mark = time(0);
+			std::atomic<uint32_t> currentSeq = 0;
+			std::atomic<uint32_t> currentPos = 0;
+			for (size_t i = 0; i < workerThread.size(); i++)
+			{
+				workerThread[i] = boost::thread(EdgeConstructionWorker,
+					boost::ref(hashFunction),
+					vertexLength,
+					boost::ref(*taskQueue[i]),
+					boost::ref(bifurcationKey_),
+					boost::ref(compressedDbg),
+					boost::ref(currentSeq),
+					boost::ref(currentPos));
+			}
+
+			std::cout << "Edges construction: " << time(0) - mark;
 		}
 
 	private:
@@ -734,6 +789,40 @@ namespace Sibelia
 							{
 								break;
 							}
+						}
+					}
+				}
+			}
+		}
+
+		static void EdgeConstructionWorker(const std::vector<HashFunctionPtr> & hashFunction,
+			size_t vertexLength,
+			TaskQueue & taskQueue,
+			BifurcationMap & bifurcationKey,
+			std::ofstream & outFile,
+			std::atomic<uint32_t> & currentSeq,
+			std::atomic<uint32_t> & currentPos)
+		{
+			while (true)
+			{
+				Task task;
+				if (taskQueue.pop(task))
+				{
+					if (task.start == Task::GAME_OVER)
+					{
+						break;
+					}
+
+					if (task.str.size() < vertexLength)
+					{
+						continue;
+					}
+					if (task.str.size() >= vertexLength + 2)
+					{
+						for (size_t pos = 1;; ++pos)
+						{
+							char posPrev = task.str[pos - 1];
+							char posExtend = task.str[pos + vertexLength];
 						}
 					}
 				}
