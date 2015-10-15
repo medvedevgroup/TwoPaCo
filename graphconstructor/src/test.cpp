@@ -106,16 +106,6 @@ namespace Sibelia
 		}
 		
 		std::cout << "TP = " << bif.size() << std::endl;
-		std::vector<std::string> vidSet;
-		vid->Dump(vidSet);
-		std::cout << "Diff:" << std::endl;
-		for (const std::string & v : vidSet)
-		{
-			if (bif.count(v) == 0 && bif.count(DnaChar::ReverseCompliment(v)) == 0)
-			{
-				std::cout << v << std::endl;
-			}
-		}
 	}
 
 	bool Runtests()
@@ -123,7 +113,7 @@ namespace Sibelia
 	//	DnaStringTest(100000, std::cerr);
 		std::stringstream ss;
 		std::vector<std::string> fileName;
-
+		/*
 		fileName.clear();
 		fileName.push_back("test.fasta");
 		VertexEnumeratorTest(fileName, 4, 16, 4, ss);
@@ -137,8 +127,11 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, 24, 4, ss);
+		VertexEnumeratorTest(fileName, 25, 24, 4, ss);*/
 		
+		fileName.push_back("ntest.fasta");
+		VertexEnumeratorTest(fileName, 10, 32, 4, ss);
+
 		return true;
 	}
 }

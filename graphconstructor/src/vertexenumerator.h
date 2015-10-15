@@ -35,7 +35,6 @@ namespace Sibelia
 		const static size_t INVALID_VERTEX = -1;
 		virtual size_t GetVerticesCount() const = 0;
 		virtual size_t GetId(const std::string & vertex) const = 0;
-		virtual void Dump(std::vector<std::string> & toCopy) const = 0;
 
 		virtual ~VertexEnumerator()
 		{
@@ -110,21 +109,6 @@ namespace Sibelia
 			}
 
 			return INVALID_VERTEX;
-		}
-
-		virtual void Dump(std::vector<std::string> & toCopy) const
-		{/*
-			std::set<std::string> ret;
-			for (const DnaString & str : bifurcation_)
-			{
-				std::string pos = str.ToString(vertexSize_);
-				std::string neg = DnaChar::ReverseCompliment(pos);
-				assert(ret.count(pos) == 0 && ret.count(neg) == 0);
-				ret.insert(pos);
-				ret.insert(neg);
-			}
-
-			toCopy.assign(ret.begin(), ret.end());*/
 		}
 
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
@@ -335,14 +319,17 @@ namespace Sibelia
 			}
 
 			hashFunction.clear();
+			bitsPower = std::min(bitsPower, size_t(28));			
 			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);
-			hashFunction.resize(double(bifurcationFilter.size()) / verticesCount * 0.7);
+			size_t hashFunctionNumber = std::max(size_t(double(bifurcationFilter.size()) / verticesCount * 0.7), size_t(4));
+			hashFunction.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
-				ptr = HashFunctionPtr(new HashFunction(vertexLength, bitsPower));
+				ptr.reset(new HashFunction(vertexLength, bitsPower));
 			}
 
 			DnaString buf;
+			mark = time(0);
 			std::string stringBuf(vertexLength, ' ');
 			for (size_t i = 0; i < verticesCount; i++)
 			{
@@ -352,7 +339,8 @@ namespace Sibelia
 				buf.ToString(stringBuf, vertexLength);
 				for (HashFunctionPtr & ptr : hashFunction)
 				{
-					bifurcationFilter[ptr->hash(stringBuf)] = true;
+					uint64_t hf = ptr->hash(stringBuf);
+					bifurcationFilter[hf] = true;
 				}
 			}
 
@@ -362,13 +350,12 @@ namespace Sibelia
 			{
 				throw StreamFastaParser::Exception("Can't create the output file");
 			}
-
-			mark = time(0);
+			
 			std::atomic<uint32_t> currentPiece = 0;
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,
-					boost::ref(hashFunction),
+					boost::cref(hashFunction),
 					vertexLength,
 					boost::ref(*taskQueue[i]),
 					boost::ref(bifurcationKey_),
@@ -866,7 +853,7 @@ namespace Sibelia
 								
 							}
 
-							if (!posFound && negFound)
+							if (negFound)
 							{
 								bitBuf.Clear();
 								bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
@@ -883,7 +870,7 @@ namespace Sibelia
 								char negExtend = DnaChar::ReverseChar(posExtend);
 								char posPrev = task.str[pos];
 								char negPrev = DnaChar::ReverseChar(task.str[pos]);
-								for (size_t i = 0; i < 1; i++)
+								for (size_t i = 0; i < hashFunction.size(); i++)
 								{
 									posVertexHash[i]->update(posPrev, posExtend);
 									negVertexHash[i]->reverse_update(negExtend, negPrev);
