@@ -336,7 +336,7 @@ namespace Sibelia
 
 			hashFunction.clear();
 			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);
-			hashFunction.resize(double(bifurcationFilter.size()) / bifurcationKey_.size() * 0.7);
+			hashFunction.resize(double(bifurcationFilter.size()) / verticesCount * 0.7);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, bitsPower));
@@ -377,7 +377,14 @@ namespace Sibelia
 					boost::ref(currentPiece));
 			}
 
-			std::cout << "Edges construction: " << time(0) - mark;
+			DistributeTasks(fileName, vertexLength + 1, taskQueue);
+			for (size_t i = 0; i < taskQueue.size(); i++)
+			{
+				workerThread[i].join();
+			}
+
+			std::cout << "Edges construction: " << time(0) - mark << std::endl;
+			std::cout << std::string(80, '-') << std::endl;
 		}
 
 	private:
@@ -566,7 +573,7 @@ namespace Sibelia
 					{
 						candidateMask.reset();
 						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());						
+						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 						for (size_t pos = 1;; ++pos)
@@ -689,6 +696,7 @@ namespace Sibelia
 					{
 						continue;
 					}
+
 					std::vector<HashFunctionPtr> posVertexHash(1);
 					std::vector<HashFunctionPtr> negVertexHash(1);
 					size_t edgeLength = vertexLength + 1;
@@ -784,8 +792,9 @@ namespace Sibelia
 
 		struct EdgeResult
 		{
-			uint32_t pieceId;
-			std::vector<uint64_t> pos;
+			uint32_t seqId;
+			uint32_t pieceId;			
+			std::vector<uint64_t> pos;			
 			std::vector<uint64_t> bifId;
 		};
 
@@ -801,7 +810,7 @@ namespace Sibelia
 			std::deque<EdgeResult> result;
 			while (true)
 			{
-				Task task;
+				Task task;				
 				if (taskQueue.pop(task))
 				{
 					if (task.start == Task::GAME_OVER)
@@ -814,12 +823,13 @@ namespace Sibelia
 						continue;
 					}
 
-					std::vector<HashFunctionPtr> posVertexHash(1);
-					std::vector<HashFunctionPtr> negVertexHash(1);
+					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 					size_t edgeLength = vertexLength + 1;
 					if (task.str.size() >= vertexLength + 2)
 					{
 						result.push_back(EdgeResult());
+						result.back().seqId = task.seqId;
 						result.back().pieceId = task.piece;
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						for (size_t pos = 1;; ++pos)
@@ -844,24 +854,26 @@ namespace Sibelia
 							if (posFound)
 							{
 								posFound = false;
+								bitBuf.Clear();
 								bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
 								auto it = bifurcationKey.find(bitBuf);
 								if (it != bifurcationKey.end())
 								{
 									posFound = true;
-									result.back().pos.push_back(pos - 1);
+									result.back().pos.push_back(task.start + pos - 1);
 									result.back().bifId.push_back(it->second);
 								}
 								
 							}
 
-							else if (!posFound && negFound)
+							if (!posFound && negFound)
 							{
+								bitBuf.Clear();
 								bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
 								auto it = bifurcationKey.find(bitBuf);
 								if (it != bifurcationKey.end())
 								{
-									result.back().pos.push_back(pos - 1);
+									result.back().pos.push_back(task.start + pos - 1);
 									result.back().bifId.push_back(it->second);
 								}
 							}
@@ -889,7 +901,7 @@ namespace Sibelia
 						{
 							for (size_t i = 0; i < result.front().pos.size(); i++)
 							{
-								outFile << result.front().pos[i] << " " << result.front().bifId[i] << std::endl;
+								outFile << result.front().seqId << " " << result.front().pos[i] << " " << result.front().bifId[i] << std::endl;
 							}
 
 							++currentPiece;

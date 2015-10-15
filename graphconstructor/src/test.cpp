@@ -16,10 +16,10 @@ namespace Sibelia
 		return ch == 'A' || ch == 'C' || ch == 'G' || ch == 'T';
 	}
 
-	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log)
+	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t threads, std::ostream & log)
 	{
 		size_t edgeLength = vertexLength + 1;
-		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 4, 1, 1, "tmp", "de_bruijn.bin");
+		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 4, threads, 1, "tmp", "de_bruijn.bin");
 		
 		int unknownCount = CHAR_MAX;
 		typedef std::vector<int> DnaString;
@@ -126,18 +126,18 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 4, 16, ss);
-	
+		VertexEnumeratorTest(fileName, 4, 16, 4, ss);
+		
 		fileName.clear();
 		fileName.push_back("ntest.fasta");
 		for (size_t k = 5; k <= 28; k++)
 		{
-			VertexEnumeratorTest(fileName, k, 20, ss);
+			VertexEnumeratorTest(fileName, k, 20, 4, ss);
 		}
 
 		fileName.clear();
 		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, 24, ss);
+		VertexEnumeratorTest(fileName, 25, 24, 4, ss);
 		
 		return true;
 	}

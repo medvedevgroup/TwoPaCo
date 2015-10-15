@@ -42,6 +42,11 @@ namespace Sibelia
 			return (uint64_t(1) << (prefix * 2)) - uint64_t(1);
 		}
 
+		void Clear()
+		{
+			std::fill(str_, str_ + CAPACITY, 0);
+		}
+
 		static bool EqualPrefix(size_t prefix, const CompressedString & it1, const CompressedString & it2)
 		{
 			size_t remain = prefix;
