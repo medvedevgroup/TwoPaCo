@@ -345,7 +345,7 @@ namespace Sibelia
 			}
 
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
-			std::ofstream compressedDbg(outFileName.c_str());
+			std::ofstream compressedDbg(outFileName.c_str(), std::ios::binary);
 			if (!compressedDbg)
 			{
 				throw StreamFastaParser::Exception("Can't create the output file");
@@ -390,7 +390,7 @@ namespace Sibelia
 #ifdef _DEBUG
 			static const size_t TASK_SIZE = 32;
 #else
-			static const size_t TASK_SIZE = 1 << 18;
+			static const size_t TASK_SIZE = 1 << 19;
 #endif					
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
@@ -888,7 +888,8 @@ namespace Sibelia
 						{
 							for (size_t i = 0; i < result.front().pos.size(); i++)
 							{
-								outFile << result.front().seqId << " " << result.front().pos[i] << " " << result.front().bifId[i] << std::endl;
+								outFile.write(reinterpret_cast<const char*>(&result.front().pos[i]), sizeof(result.front().pos[i]));
+								outFile.write(reinterpret_cast<const char*>(&result.front().bifId[i]), sizeof(result.front().bifId[i]));
 							}
 
 							++currentPiece;
@@ -898,15 +899,19 @@ namespace Sibelia
 				}
 			}
 
-			while (result.size() > 0 && result.front().pieceId == currentPiece)
+			while (result.size() > 0)
 			{
-				for (size_t i = 0; i < result.front().pos.size(); i++)
+				if (result.front().pieceId == currentPiece)
 				{
-					outFile << result.front().pos[i] << " " << result.front().bifId[i] << std::endl;
-				}
+					for (size_t i = 0; i < result.front().pos.size(); i++)
+					{
+						outFile.write(reinterpret_cast<const char*>(&result.front().pos[i]), sizeof(result.front().pos[i]));
+						outFile.write(reinterpret_cast<const char*>(&result.front().bifId[i]), sizeof(result.front().bifId[i]));
+					}
 
-				++currentPiece;
-				result.pop_front();
+					++currentPiece;
+					result.pop_front();
+				}
 			}
 		}
 
