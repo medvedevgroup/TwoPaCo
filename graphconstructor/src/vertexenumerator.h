@@ -1223,10 +1223,10 @@ namespace Sibelia
 			std::unique_ptr<StreamFastaParser::Exception> & error,
 			boost::mutex & errorMutex)
 		{
+			size_t record = 0;
 			uint32_t pieceCount = 0;
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
-				size_t record = 0;
 				const std::string & nowFileName = fileName[file];
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
