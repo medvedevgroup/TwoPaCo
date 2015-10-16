@@ -305,7 +305,7 @@ namespace Sibelia
 			
 			delete[] binCounter;
 			bifurcationTempWrite.close();
-			bifurcationKey_.swap(BifurcationMap(verticesCount));
+			bifurcationKey_.reserve(verticesCount);
 			std::ifstream bifurcationTempRead((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
 			if (!bifurcationTempRead)
 			{
@@ -351,7 +351,8 @@ namespace Sibelia
 				throw StreamFastaParser::Exception("Can't create the output file");
 			}
 			
-			std::atomic<uint32_t> currentPiece = 0;
+			std::atomic<uint32_t> currentPiece;
+			currentPiece = 0;
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,
