@@ -134,26 +134,33 @@ namespace Sibelia
 			{
 				std::cout << fn << std::endl;
 			}
-
-			const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
+			
+			boost::mutex errorMutex;
+			std::unique_ptr<StreamFastaParser::Exception> error;
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
 			}
 
-			boost::mutex errorMutex;
-			std::unique_ptr<StreamFastaParser::Exception> error;
+			
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
 			std::vector<boost::thread> workerThread(threads);
-			std::atomic<uint32_t> * binCounter = new std::atomic<uint32_t>[BINS_COUNT];
+			for (size_t i = 0; i < workerThread.size(); i++)
 			{
+				taskQueue[i].reset(new TaskQueue(QUEUE_CAPACITY));
+			}
+
+			const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
+			std::atomic<uint32_t> * binCounter = 0;
+			if (rounds > 1)
+			{
+				binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 				std::fill(binCounter, binCounter + BINS_COUNT, 0);
 				ConcurrentBitVector bitVector(realSize);				
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					taskQueue[i] = TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY));
 					workerThread[i] = boost::thread(InitialFilterFillerWorker,
 						BIN_SIZE,
 						boost::cref(hashFunction),
@@ -170,18 +177,12 @@ namespace Sibelia
 				}
 			}
 
-			rounds = 1;
 			double roundSize = 0;
-			for (;; ++rounds)
+			if (rounds > 1)
 			{
 				roundSize = double(std::accumulate(binCounter, binCounter + BINS_COUNT, size_t(0))) / rounds;
-				if (realSize / roundSize >= 8)
-				{
-					break;
-				}
 			}
-
-			std::cout << "Round size = " << realSize / roundSize << std::endl;
+			
 			std::cout << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
 			uint64_t high = 0;	
@@ -197,31 +198,35 @@ namespace Sibelia
 			time_t mark;					
 			for (size_t round = 0; round < rounds; round++)
 			{
-				mark = time(0);
-				uint64_t accumulated = binCounter[lowBoundary];				
-				for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
+				mark = time(0);				
+				if (rounds > 1)
 				{
-					if (accumulated <= roundSize || round + 1 == rounds)
+					uint64_t accumulated = binCounter[lowBoundary];
+					for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
 					{
-						accumulated += binCounter[lowBoundary];
+						if (accumulated <= roundSize || round + 1 == rounds)
+						{
+							accumulated += binCounter[lowBoundary];
+						}
+						else
+						{
+							break;
+						}
 					}
-					else
-					{
-						break;
-					}
+
+					high = lowBoundary * BIN_SIZE;
+				}
+				else
+				{
+					high = realSize;
 				}
 
-				std::vector<TaskQueuePtr> taskQueue;
-				std::vector<boost::thread> workerThread(threads);
-				std::cout << "Ratio = " << double(realSize) / accumulated << std::endl;
-				uint64_t high = lowBoundary * BIN_SIZE;
 				{
 					ConcurrentBitVector bitVector(realSize);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						taskQueue.push_back(TaskQueuePtr(new TaskQueue(QUEUE_CAPACITY)));
 						workerThread[i] = boost::thread(FilterFillerWorker,
 							low,
 							high,
@@ -306,7 +311,11 @@ namespace Sibelia
 				low = high + 1;
 			}
 			
-			delete[] binCounter;
+			if (rounds > 1)
+			{
+				delete[] binCounter;
+			}		
+
 			bifurcationTempWrite.close();
 			bifurcationKey_.reserve(verticesCount);
 			std::ifstream bifurcationTempRead((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
@@ -324,7 +333,7 @@ namespace Sibelia
 			hashFunction.clear();
 			bitsPower = std::min(bitsPower, size_t(28));			
 			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);
-			size_t hashFunctionNumber = std::max(size_t(double(bifurcationFilter.size()) / verticesCount * 0.7), size_t(4));
+			size_t hashFunctionNumber = std::min(size_t(double(bifurcationFilter.size()) / verticesCount * 0.7), size_t(8));
 			hashFunction.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
