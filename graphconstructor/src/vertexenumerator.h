@@ -815,12 +815,24 @@ namespace Sibelia
 					size_t edgeLength = vertexLength + 1;
 					if (task.str.size() >= vertexLength + 2)
 					{
-						result.push_back(EdgeResult());
-						result.back().seqId = task.seqId;
-						result.back().pieceId = task.piece;
+						EdgeResult currentResult;
+						currentResult.seqId = task.seqId;
+						currentResult.pieceId = task.piece;
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						for (size_t pos = 1;; ++pos)
-						{							
+						{
+							while (result.size() > 0 && result.front().pieceId == currentPiece)
+							{
+								for (size_t i = 0; i < result.front().pos.size(); i++)
+								{
+									outFile.write(reinterpret_cast<const char*>(&result.front().pos[i]), sizeof(result.front().pos[i]));
+									outFile.write(reinterpret_cast<const char*>(&result.front().bifId[i]), sizeof(result.front().bifId[i]));
+								}
+
+								++currentPiece;
+								result.pop_front();
+							}
+
 							bool posFound = true;
 							bool negFound = true;
 							char posPrev = task.str[pos - 1];
@@ -847,8 +859,8 @@ namespace Sibelia
 								if (it != bifurcationKey.end())
 								{
 									posFound = true;
-									result.back().pos.push_back(task.start + pos - 1);
-									result.back().bifId.push_back(it->second);
+									currentResult.pos.push_back(task.start + pos - 1);
+									currentResult.bifId.push_back(it->second);
 								}
 								
 							}
@@ -860,8 +872,8 @@ namespace Sibelia
 								auto it = bifurcationKey.find(bitBuf);
 								if (it != bifurcationKey.end())
 								{
-									result.back().pos.push_back(task.start + pos - 1);
-									result.back().bifId.push_back(it->second);
+									currentResult.pos.push_back(task.start + pos - 1);
+									currentResult.bifId.push_back(it->second);
 								}
 							}
 
@@ -884,6 +896,7 @@ namespace Sibelia
 							}
 						}
 
+						result.push_back(currentResult);
 						while (result.size() > 0 && result.front().pieceId == currentPiece)
 						{
 							for (size_t i = 0; i < result.front().pos.size(); i++)
