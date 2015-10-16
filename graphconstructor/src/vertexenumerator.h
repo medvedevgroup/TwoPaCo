@@ -318,7 +318,8 @@ namespace Sibelia
 
 			bifurcationTempWrite.close();
 			bifurcationKey_.reserve(verticesCount);
-			std::ifstream bifurcationTempRead((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
+			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
+			std::ifstream bifurcationTempRead(bifurcationTempReadName.c_str(), ios::binary);
 			if (!bifurcationTempRead)
 			{
 				throw StreamFastaParser::Exception("Can't open the temp file");
@@ -331,9 +332,9 @@ namespace Sibelia
 			}
 
 			hashFunction.clear();
-			bitsPower = std::min(bitsPower, size_t(28));			
-			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);
-			size_t hashFunctionNumber = std::min(size_t(double(bifurcationFilter.size()) / verticesCount * 0.7), size_t(8));
+			size_t hashFunctionNumber = 3;
+			bitsPower = std::min(bitsPower, size_t(28));
+			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);			
 			hashFunction.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
@@ -347,6 +348,11 @@ namespace Sibelia
 			{
 				size_t key = bifurcationKey_.size();
 				buf.ReadFromFile(bifurcationTempRead);
+				if (!bifurcationTempRead)
+				{
+					throw StreamFastaParser::Exception("Can't read from a temporary file");
+				}
+
 				bifurcationKey_[buf] = key;
 				buf.ToString(stringBuf, vertexLength);
 				for (HashFunctionPtr & ptr : hashFunction)
@@ -356,6 +362,8 @@ namespace Sibelia
 				}
 			}
 
+			bifurcationTempRead.close();
+			boost::filesystem::remove(bifurcationTempReadName);
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
 			std::ofstream compressedDbg(outFileName.c_str(), std::ios::binary);
 			if (!compressedDbg)
@@ -735,6 +743,8 @@ namespace Sibelia
 								}
 							}
 
+							candidateMaskFile.close();
+							boost::filesystem::remove(CandidateMaskFileName(tmpDirectory, task.seqId, task.start));
 							boost::from_block_range(buf.begin(), buf.end(), candidateMask);
 						}
 						
