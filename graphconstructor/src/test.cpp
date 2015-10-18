@@ -113,7 +113,7 @@ namespace Sibelia
 	//	DnaStringTest(100000, std::cerr);
 		std::stringstream ss;
 		std::vector<std::string> fileName;
-		/*
+		
 		fileName.clear();
 		fileName.push_back("test.fasta");
 		VertexEnumeratorTest(fileName, 4, 16, 4, ss);
@@ -127,7 +127,7 @@ namespace Sibelia
 
 		fileName.clear();
 		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, 24, 4, ss);*/
+		VertexEnumeratorTest(fileName, 25, 24, 4, ss);
 		
 		fileName.push_back("ntest.fasta");
 		VertexEnumeratorTest(fileName, 10, 32, 4, ss);

@@ -17,6 +17,7 @@
 
 #include <boost/ref.hpp>
 #include <boost/thread.hpp>
+#include <boost/locale.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
@@ -134,6 +135,12 @@ namespace Sibelia
 			{
 				std::cout << fn << std::endl;
 			}
+
+			std::ofstream logFile("log.txt");
+			if (!logFile)
+			{
+				throw StreamFastaParser::Exception("Can't open the log file");
+			}
 			
 			boost::mutex errorMutex;
 			std::unique_ptr<StreamFastaParser::Exception> error;
@@ -170,7 +177,7 @@ namespace Sibelia
 						binCounter);
 				}
 
-				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex);
+				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i].join();
@@ -236,7 +243,7 @@ namespace Sibelia
 							boost::ref(*taskQueue[i]));
 					}
 
-					DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex);
+					DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
 						workerThread[i].join();
@@ -263,7 +270,7 @@ namespace Sibelia
 						throw StreamFastaParser::Exception(*error);
 					}
 
-					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex);
+					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 					for (size_t i = 0; i < taskQueue.size(); i++)
 					{
 						workerThread[i].join();
@@ -293,7 +300,7 @@ namespace Sibelia
 					throw StreamFastaParser::Exception(*error);
 				}
 
-				DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex);
+				DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 				for (size_t i = 0; i < taskQueue.size(); i++)
 				{
 					workerThread[i].join();
@@ -387,7 +394,7 @@ namespace Sibelia
 					boost::ref(errorMutex));
 			}
 
-			DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex);
+			DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 			for (size_t i = 0; i < taskQueue.size(); i++)
 			{
 				workerThread[i].join();
@@ -1221,12 +1228,19 @@ namespace Sibelia
 			size_t overlapSize,
 			std::vector<TaskQueuePtr> & taskQueue,
 			std::unique_ptr<StreamFastaParser::Exception> & error,
-			boost::mutex & errorMutex)
+			boost::mutex & errorMutex,
+			std::ostream & logFile)
 		{
 			size_t record = 0;
+			size_t nowQueue = 0;
 			uint32_t pieceCount = 0;
+			boost::locale::generator gen;
+			std::locale::global(gen(""));
+			boost::locale::date_time now;			
+			logFile << "Starting a new stage" << std::endl;
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
+				logFile << "Reading " << fileName[file] << std::endl;
 				const std::string & nowFileName = fileName[file];
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
@@ -1237,6 +1251,11 @@ namespace Sibelia
 							throw *error;
 						}
 					}
+					
+					std::stringstream ss;
+					ss.imbue(std::locale());
+					ss << boost::locale::as::ftime("%H-%M-%S") << now;
+					logFile << "Processing sequence " << parser.GetCurrentHeader() << " " << ss.str() << std::endl;
 
 					char ch;					
 					uint64_t prev = 0;
@@ -1254,30 +1273,29 @@ namespace Sibelia
 
 						if (buf.size() >= overlapSize && (buf.size() == Task::TASK_SIZE || over))
 						{
-							for (bool found = false; !found;)
+							for (bool found = false; !found; nowQueue = nowQueue + 1 < taskQueue.size() ? nowQueue + 1 : 0)
 							{
-								for (TaskQueuePtr & q : taskQueue)
+								TaskQueuePtr & q = taskQueue[nowQueue];
+								if (q->write_available() > 0)
 								{
-									if (q->write_available() > 0)
+									std::string overlap;
+									if (!over)
 									{
-										std::string overlap;
-										if (!over)
-										{
-											overlap.assign(buf.end() - overlapSize, buf.end());
-										}
-										else
-										{
-											buf.push_back('N');
-										}
-
-										q->push(Task(record, prev, pieceCount++, over, std::move(buf)));
-										prev = start - overlapSize + 1;
-										buf.swap(overlap);
-										found = true;
-										break;
+										overlap.assign(buf.end() - overlapSize, buf.end());
 									}
+									else
+									{
+										buf.push_back('N');
+									}
+
+									q->push(Task(record, prev, pieceCount++, over, std::move(buf)));
+									logFile << "Passed chunk " << prev << " to worker " << nowQueue << std::endl;
+									prev = start - overlapSize + 1;
+									buf.swap(overlap);
+									found = true;
 								}
 							}
+							
 						}
 
 					} while (!over);

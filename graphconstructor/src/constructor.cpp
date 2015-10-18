@@ -28,7 +28,7 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-//	assert(Sibelia::Runtests());
+	assert(Sibelia::Runtests());
 	try
 	{
 		TCLAP::CmdLine cmd("Program for condensed de Bruijn graph construction", ' ', "0");
