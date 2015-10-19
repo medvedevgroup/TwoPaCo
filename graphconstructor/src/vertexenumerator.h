@@ -280,6 +280,7 @@ namespace Sibelia
 				}
 
 				mark = time(0);
+				tbb::spin_rw_mutex mutex;
 				OccurenceSet occurenceSet(1 << 20);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
@@ -288,6 +289,7 @@ namespace Sibelia
 						vertexLength,
 						boost::ref(*taskQueue[i]),
 						boost::ref(occurenceSet),
+						boost::ref(mutex),
 						boost::cref(tmpDirName),
 						boost::ref(error),
 						boost::ref(errorMutex));
@@ -698,6 +700,7 @@ namespace Sibelia
 			size_t vertexLength,
 			TaskQueue & taskQueue,
 			OccurenceSet & occurenceSet,
+			tbb::spin_rw_mutex & mutex,
 			const std::string & tmpDirectory,
 			std::unique_ptr<StreamFastaParser::Exception> & error,
 			boost::mutex & errorMutex)
@@ -772,6 +775,7 @@ namespace Sibelia
 								size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 								bool newBifurcation = false;
 								bool alreadyBifurcation = false;
+								mutex.lock_read();
 								auto range = occurenceSet.equal_range(now);
 								for (auto it = range.first; it != range.second; ++it)
 								{
@@ -795,12 +799,18 @@ namespace Sibelia
 								}
 								else
 								{
-									if (newBifurcation && !alreadyBifurcation)
+									if ((newBifurcation && !alreadyBifurcation) || (alreadyBifurcation && count > 1))
 									{
 										now.MakeBifurcation();
+										mutex.unlock();
+										mutex.lock();
+										range = occurenceSet.equal_range(now);
+										occurenceSet.unsafe_erase(range.first, range.second);
 										occurenceSet.insert(now);
 									}
 								}
+
+								mutex.unlock();
 							}
 
 							if (pos + edgeLength < task.str.size())
