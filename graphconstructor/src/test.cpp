@@ -120,7 +120,7 @@ namespace Sibelia
 		
 		fileName.clear();
 		fileName.push_back("ntest.fasta");
-		for (size_t k = 5; k <= 28; k++)
+		for (size_t k = 5; k <= 70; k++)
 		{
 			VertexEnumeratorTest(fileName, k, 20, 4, ss);
 		}
