@@ -1,7 +1,7 @@
 project(graphconstructor CXX)
 cmake_minimum_required(VERSION 2.8)
 
-find_package(Boost 1.54 COMPONENTS thread filesystem regex system REQUIRED)
+find_package(Boost 1.54 COMPONENTS locale thread filesystem regex system REQUIRED)
 message(status "** Boost Include: ${Boost_INCLUDE_DIR}")
 message(status "** Boost Libraries: ${Boost_LIBRARY_DIRS}")
 
