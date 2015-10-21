@@ -341,7 +341,7 @@ namespace Sibelia
 
 			hashFunction.clear();
 			size_t hashFunctionNumber = 3;
-			bitsPower = std::min(bitsPower, size_t(28));
+			bitsPower = std::max(bitsPower, size_t(28));
 			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);			
 			hashFunction.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction)
