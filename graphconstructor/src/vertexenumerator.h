@@ -103,10 +103,10 @@ namespace Sibelia
 		{
 			DnaString str;
 			str.CopyFromString(vertex.begin(), vertexSize_);
-			typename BifurcationMap::const_iterator it = bifurcationKey_.find(str);
-			if (it != bifurcationKey_.end())
+			auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), str, DnaString::Less);
+			if (it != bifurcationKey_.end() && *it == str)
 			{
-				return it->second;
+				return it - bifurcationKey_.begin();
 			}
 
 			return INVALID_VERTEX;
@@ -353,14 +353,13 @@ namespace Sibelia
 			std::string stringBuf(vertexLength, ' ');
 			for (size_t i = 0; i < verticesCount; i++)
 			{
-				size_t key = bifurcationKey_.size();
 				buf.ReadFromFile(bifurcationTempRead);
 				if (!bifurcationTempRead)
 				{
 					throw StreamFastaParser::Exception("Can't read from a temporary file");
 				}
 
-				bifurcationKey_[buf] = key;
+				bifurcationKey_.push_back(buf);
 				buf.ToString(stringBuf, vertexLength);
 				for (HashFunctionPtr & ptr : hashFunction)
 				{
@@ -847,7 +846,7 @@ namespace Sibelia
 		static void EdgeConstructionWorker(const std::vector<HashFunctionPtr> & hashFunction,
 			size_t vertexLength,
 			TaskQueue & taskQueue,			
-			BifurcationMap & bifurcationKey,
+			std::vector<DnaString> & bifurcationKey,
 			std::vector<bool> & bifurcationFilter,
 			std::ofstream & outFile,
 			std::atomic<uint32_t> & currentPiece,
@@ -924,12 +923,12 @@ namespace Sibelia
 								posFound = false;
 								bitBuf.Clear();
 								bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
-								auto it = bifurcationKey.find(bitBuf);
-								if (it != bifurcationKey.end())
+								auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
+								if (it != bifurcationKey.end() && *it == bitBuf)
 								{
 									posFound = true;
 									currentResult.pos.push_back(task.start + pos - 1);
-									currentResult.bifId.push_back(it->second);
+									currentResult.bifId.push_back(it - bifurcationKey.end());
 								}
 								
 							}
@@ -938,11 +937,11 @@ namespace Sibelia
 							{
 								bitBuf.Clear();
 								bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
-								auto it = bifurcationKey.find(bitBuf);
+								auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
 								if (it != bifurcationKey.end())
 								{
 									currentResult.pos.push_back(task.start + pos - 1);
-									currentResult.bifId.push_back(it->second);
+									currentResult.bifId.push_back(it - bifurcationKey.end());
 								}
 							}
 
@@ -1370,7 +1369,7 @@ namespace Sibelia
 		}
 
 		size_t vertexSize_;
-		BifurcationMap bifurcationKey_;
+		std::vector<DnaString> bifurcationKey_;
 	};
 }
 

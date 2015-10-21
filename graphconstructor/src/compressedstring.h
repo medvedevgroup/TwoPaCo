@@ -73,6 +73,19 @@ namespace Sibelia
 			return true;
 		}
 
+		static bool Less(const CompressedString & v1, const CompressedString & v2)
+		{
+			for (size_t i = 0; i < CAPACITY; i++)
+			{
+				if (v1.str_[i] != v2.str_[i])
+				{
+					return v1.str_[i] < v2.str_[i];
+				}
+			}
+
+			return false;
+		}
+
 		static bool LessPrefix(const CompressedString & v1, const CompressedString & v2, size_t prefix)
 		{
 			size_t remain = prefix;
