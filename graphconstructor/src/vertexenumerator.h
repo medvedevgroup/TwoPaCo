@@ -12,6 +12,7 @@
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
+#include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_unordered_set.h>
 #include <tbb/concurrent_unordered_map.h>
 
@@ -370,6 +371,8 @@ namespace Sibelia
 
 			bifurcationTempRead.close();
 			boost::filesystem::remove(bifurcationTempReadName);
+			tbb::task_scheduler_init init(threads);;
+			tbb::parallel_sort(bifurcationKey_.begin(), bifurcationKey_.end(), DnaString::Less);
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
 			std::ofstream compressedDbg(outFileName.c_str(), std::ios::binary);
 			if (!compressedDbg)
