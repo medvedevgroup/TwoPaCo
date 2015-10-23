@@ -12,6 +12,7 @@
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
+#include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_unordered_set.h>
 #include <tbb/concurrent_unordered_map.h>
 
@@ -103,10 +104,10 @@ namespace Sibelia
 		{
 			DnaString str;
 			str.CopyFromString(vertex.begin(), vertexSize_);
-			typename BifurcationMap::const_iterator it = bifurcationKey_.find(str);
-			if (it != bifurcationKey_.end())
+			auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), str, DnaString::Less);
+			if (it != bifurcationKey_.end() && *it == str)
 			{
-				return it->second;
+				return it - bifurcationKey_.begin();
 			}
 
 			return INVALID_VERTEX;
@@ -279,9 +280,9 @@ namespace Sibelia
 					std::cout << time(0) - mark << "\t";
 				}
 
-				mark = time(0);
+				mark = time(0);				
 				tbb::spin_rw_mutex mutex;
-				OccurenceSet occurenceSet(1 << 20);
+				OccurenceSet occurenceSet(1 << 20);				
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(CandidateFilteringWorker,
@@ -340,7 +341,7 @@ namespace Sibelia
 
 			hashFunction.clear();
 			size_t hashFunctionNumber = 3;
-			bitsPower = std::min(bitsPower, size_t(28));
+			bitsPower = std::max(bitsPower, size_t(28));
 			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);			
 			hashFunction.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction)
@@ -353,14 +354,13 @@ namespace Sibelia
 			std::string stringBuf(vertexLength, ' ');
 			for (size_t i = 0; i < verticesCount; i++)
 			{
-				size_t key = bifurcationKey_.size();
 				buf.ReadFromFile(bifurcationTempRead);
 				if (!bifurcationTempRead)
 				{
 					throw StreamFastaParser::Exception("Can't read from a temporary file");
 				}
 
-				bifurcationKey_[buf] = key;
+				bifurcationKey_.push_back(buf);
 				buf.ToString(stringBuf, vertexLength);
 				for (HashFunctionPtr & ptr : hashFunction)
 				{
@@ -371,6 +371,8 @@ namespace Sibelia
 
 			bifurcationTempRead.close();
 			boost::filesystem::remove(bifurcationTempReadName);
+			tbb::task_scheduler_init init(threads);;
+			tbb::parallel_sort(bifurcationKey_.begin(), bifurcationKey_.end(), DnaString::Less);
 			std::cout << "Total FPs = " << totalFpCount << std::endl;
 			std::ofstream compressedDbg(outFileName.c_str(), std::ios::binary);
 			if (!compressedDbg)
@@ -378,8 +380,10 @@ namespace Sibelia
 				throw StreamFastaParser::Exception("Can't create the output file");
 			}
 			
-			std::atomic<uint32_t> currentPiece;
-			currentPiece = 0;
+			std::atomic<uint64_t> occurence;
+			std::atomic<uint64_t> currentPiece;
+			occurence = 0;
+			currentPiece = 0;			
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,
@@ -388,8 +392,8 @@ namespace Sibelia
 					boost::ref(*taskQueue[i]),
 					boost::ref(bifurcationKey_),
 					boost::ref(bifurcationFilter),
-					boost::ref(compressedDbg),
-					boost::ref(currentPiece),
+					boost::ref(compressedDbg),					
+					std::make_pair(&currentPiece, &occurence),
 					boost::ref(error),
 					boost::ref(errorMutex));
 			}
@@ -405,6 +409,7 @@ namespace Sibelia
 				throw *error;
 			}
 
+			std::cout << "Occurences: " << occurence << std::endl;
 			std::cout << "Edges construction: " << time(0) - mark << std::endl;
 			std::cout << std::string(80, '-') << std::endl;			
 		}
@@ -847,15 +852,17 @@ namespace Sibelia
 		static void EdgeConstructionWorker(const std::vector<HashFunctionPtr> & hashFunction,
 			size_t vertexLength,
 			TaskQueue & taskQueue,			
-			BifurcationMap & bifurcationKey,
+			std::vector<DnaString> & bifurcationKey,
 			std::vector<bool> & bifurcationFilter,
 			std::ofstream & outFile,
-			std::atomic<uint32_t> & currentPiece,
+			std::pair<std::atomic<uint64_t>*, std::atomic<uint64_t>* > counters,			
 			std::unique_ptr<StreamFastaParser::Exception> & error,
 			boost::mutex & errorMutex)
 		{
 			DnaString bitBuf;
 			std::deque<EdgeResult> result;
+			std::atomic<uint64_t> & currentPiece = *counters.first;
+			std::atomic<uint64_t> & occurence = *counters.second;
 			while (true)
 			{
 				Task task;				
@@ -880,6 +887,8 @@ namespace Sibelia
 						currentResult.seqId = task.seqId;
 						currentResult.pieceId = task.piece;
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+
+						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
 						for (size_t pos = 1;; ++pos)
 						{
 							while (result.size() > 0 && result.front().pieceId == currentPiece)
@@ -906,44 +915,78 @@ namespace Sibelia
 							bool negFound = true;
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];
-							for (size_t i = 0; i < posVertexHash.size() && (posFound || negFound); i++)
+							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
+							if (definiteCount == vertexLength)
 							{
-								if (!bifurcationFilter[posVertexHash[i]->hashvalue])
+								for (size_t i = 0; i < posVertexHash.size() && (posFound || negFound); i++)
+								{
+									if (!bifurcationFilter[posVertexHash[i]->hashvalue])
+									{
+										posFound = false;
+									}
+
+									if (!bifurcationFilter[negVertexHash[i]->hashvalue])
+									{
+										negFound = false;
+									}
+								}
+
+								if (posFound)
 								{
 									posFound = false;
+									bitBuf.Clear();
+									bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
+									auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
+									if (it != bifurcationKey.end() && *it == bitBuf)
+									{
+										posFound = true;
+										currentResult.pos.push_back(task.start + pos - 1);
+										currentResult.bifId.push_back(it - bifurcationKey.end());
+									}
+
 								}
 
-								if (!bifurcationFilter[negVertexHash[i]->hashvalue])
+								if (negFound)
 								{
+									bitBuf.Clear();
 									negFound = false;
+									bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
+									auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
+									if (it != bifurcationKey.end() && *it == bitBuf)
+									{
+										negFound = true;
+										currentResult.pos.push_back(task.start + pos - 1);
+										currentResult.bifId.push_back(it - bifurcationKey.end());
+									}
 								}
-							}
 
-							if (posFound)
-							{
-								posFound = false;
-								bitBuf.Clear();
-								bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
-								auto it = bifurcationKey.find(bitBuf);
-								if (it != bifurcationKey.end())
+								if (posFound || negFound)
 								{
-									posFound = true;
-									currentResult.pos.push_back(task.start + pos - 1);
-									currentResult.bifId.push_back(it->second);
+									occurence++;
 								}
-								
-							}
+#ifdef _DEBUG
+								bool found = false;
+								for (size_t strand = 0; strand < 2; ++strand)
+								{
+									bitBuf.Clear();
+									if (strand == 0)
+									{
+										bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
+									}
+									else
+									{
+										bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
+									}
 
-							if (negFound)
-							{
-								bitBuf.Clear();
-								bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
-								auto it = bifurcationKey.find(bitBuf);
-								if (it != bifurcationKey.end())
-								{
-									currentResult.pos.push_back(task.start + pos - 1);
-									currentResult.bifId.push_back(it->second);
+									auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
+									if (it != bifurcationKey.end() && *it == bitBuf)
+									{
+										found = true;
+									}
 								}
+
+								assert(found == (posFound || negFound));
+#endif
 							}
 
 							if (pos + edgeLength < task.str.size())
@@ -951,6 +994,7 @@ namespace Sibelia
 								char negExtend = DnaChar::ReverseChar(posExtend);
 								char posPrev = task.str[pos];
 								char negPrev = DnaChar::ReverseChar(task.str[pos]);
+								definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
 								for (size_t i = 0; i < hashFunction.size(); i++)
 								{
 									posVertexHash[i]->update(posPrev, posExtend);
@@ -967,7 +1011,7 @@ namespace Sibelia
 
 						result.push_back(currentResult);						
 					}
-				}
+				}				
 			}
 
 			while (result.size() > 0)
@@ -1370,7 +1414,7 @@ namespace Sibelia
 		}
 
 		size_t vertexSize_;
-		BifurcationMap bifurcationKey_;
+		std::vector<DnaString> bifurcationKey_;
 	};
 }
 
