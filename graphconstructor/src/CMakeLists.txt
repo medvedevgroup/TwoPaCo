@@ -8,10 +8,10 @@ message(status "** Boost Libraries: ${Boost_LIBRARY_DIRS}")
 set(CMAKE_BUILD_TYPE Release)
 list(APPEND "CMAKE_CXX_FLAGS" "-std=c++0x -fopenmp")
 
-
 add_executable(graphconstructor dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp streamfastaparser.cpp test.cpp vertexenumerator.cpp SpookyV2.cpp)
-include_directories(${Boost_INCLUDE_DIRS} ${graphconstructor_SOURCE_DIR} ~/include) 
-target_link_libraries(graphconstructor ${Boost_LIBRARIES} "~/lib/libtbb.so")
+include_directories(${Boost_INCLUDE_DIRS} ${graphconstructor_SOURCE_DIR} ${TBB_INCLUDE_DIR}) 
+link_directories(${TBB_LINK_DIR})
+target_link_libraries(graphconstructor ${Boost_LIBRARIES} "libtbb.so")
 
 set(CMAKE_PROJECT_NAME graphconstructor)
 set(ROOT_DIR "${CMAKE_SOURCE_DIR}/../")
