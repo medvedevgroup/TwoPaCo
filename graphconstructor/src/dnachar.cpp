@@ -8,7 +8,7 @@ namespace Sibelia
 	char DnaChar::reverseTable_[CHAR_SIZE];
 	const std::string DnaChar::LITERAL = "ACGT";
 	const std::string DnaChar::EXT_LITERAL = "ACGTN";
-	const std::string DnaChar::VALID_CHARS = "ACGTURYKMSWBDHWNX";
+	const std::string DnaChar::VALID_CHARS = "ACGTURYKMSWBDHWNXV";
 	
 	namespace
 	{
