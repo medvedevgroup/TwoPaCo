@@ -167,6 +167,7 @@
     <ClCompile Include="..\src\vertexenumerator.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\bifurcationstorage.h" />
     <ClInclude Include="..\src\candidateoccurence.h" />
     <ClInclude Include="..\src\compressedstring.h" />
     <ClInclude Include="..\src\concurrentbitvector.h" />

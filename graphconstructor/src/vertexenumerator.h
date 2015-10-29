@@ -26,6 +26,7 @@
 #include "ngramhashing/cyclichash.h"
 
 #include "streamfastaparser.h"
+#include "bifurcationstorage.h"
 #include "candidateoccurence.h"
 #include "concurrentbitvector.h"
 
@@ -196,7 +197,7 @@ namespace Sibelia
 			uint64_t high = 0;	
 			size_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
-			uint64_t verticesCount = 0;
+			uint64_t verticesCount = 0;			
 			std::ofstream bifurcationTempWrite((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
 			if (!bifurcationTempWrite)
 			{
@@ -946,7 +947,7 @@ namespace Sibelia
 
 								}
 
-								if (negFound)
+								if (negFound && !posFound)
 								{
 									bitBuf.Clear();
 									negFound = false;
@@ -1415,6 +1416,7 @@ namespace Sibelia
 
 		size_t vertexSize_;
 		std::vector<DnaString> bifurcationKey_;
+		std::vector<DnaString> selfRevCompBifurcationKey_;
 	};
 }
 
