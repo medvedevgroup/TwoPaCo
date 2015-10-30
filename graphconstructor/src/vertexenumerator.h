@@ -23,8 +23,6 @@
 #include <boost/dynamic_bitset.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
-#include "ngramhashing/cyclichash.h"
-
 #include "streamfastaparser.h"
 #include "bifurcationstorage.h"
 #include "candidateoccurence.h"
@@ -60,7 +58,7 @@ namespace Sibelia
 	{
 	private:
 		static const size_t BUF_SIZE = 1 << 24;
-
+		BifurcationStorage<CAPACITY> bifStorage;
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
 
@@ -326,7 +324,6 @@ namespace Sibelia
 			}		
 
 			bifurcationTempWrite.close();
-			bifurcationKey_.reserve(verticesCount);
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
 			std::ifstream bifurcationTempRead(bifurcationTempReadName.c_str(), ios::binary);
 			if (!bifurcationTempRead)
@@ -343,7 +340,7 @@ namespace Sibelia
 			hashFunction.clear();
 			size_t hashFunctionNumber = 3;
 			bitsPower = std::max(bitsPower, size_t(28));
-			std::vector<bool> bifurcationFilter(uint64_t(1) << bitsPower);			
+			(uint64_t(1) << bitsPower);			
 			hashFunction.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
@@ -352,23 +349,7 @@ namespace Sibelia
 
 			DnaString buf;
 			mark = time(0);
-			std::string stringBuf(vertexLength, ' ');
-			for (size_t i = 0; i < verticesCount; i++)
-			{
-				buf.ReadFromFile(bifurcationTempRead);
-				if (!bifurcationTempRead)
-				{
-					throw StreamFastaParser::Exception("Can't read from a temporary file");
-				}
-
-				bifurcationKey_.push_back(buf);
-				buf.ToString(stringBuf, vertexLength);
-				for (HashFunctionPtr & ptr : hashFunction)
-				{
-					uint64_t hf = ptr->hash(stringBuf);
-					bifurcationFilter[hf] = true;
-				}
-			}
+			
 
 			bifurcationTempRead.close();
 			boost::filesystem::remove(bifurcationTempReadName);
@@ -439,8 +420,7 @@ namespace Sibelia
 				seqId(seqId), start(start), piece(piece), isFinal(isFinal), str(std::move(str)) {}
 		};		
 
-		typedef CyclicHash<uint64_t> HashFunction;
-		typedef std::unique_ptr<HashFunction> HashFunctionPtr;
+		
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 
@@ -1415,8 +1395,7 @@ namespace Sibelia
 		}
 
 		size_t vertexSize_;
-		std::vector<DnaString> bifurcationKey_;
-		std::vector<DnaString> selfRevCompBifurcationKey_;
+		
 	};
 }
 
