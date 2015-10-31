@@ -20,14 +20,14 @@ namespace Sibelia
 		CompressedString()
 		{
 			std::fill(str_, str_ + CAPACITY, 0);
-		}
+		}		
 
 		void WriteToFile(std::ofstream & out) const
 		{
 			out.write(reinterpret_cast<const char*>(str_), sizeof(str_[0]) * CAPACITY);
 		}
 
-		void ReadFromFile(std::ifstream & in)
+		void ReadFromFile(std::istream & in)
 		{
 			in.read(reinterpret_cast<char*>(str_), sizeof(str_[0]) * CAPACITY);
 		}

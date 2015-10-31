@@ -33,7 +33,6 @@ namespace Sibelia
 	class VertexEnumerator
 	{
 	public:
-		const static size_t INVALID_VERTEX = -1;
 		virtual size_t GetVerticesCount() const = 0;
 		virtual size_t GetId(const std::string & vertex) const = 0;
 
@@ -58,7 +57,7 @@ namespace Sibelia
 	{
 	private:
 		static const size_t BUF_SIZE = 1 << 24;
-		BifurcationStorage<CAPACITY> bifStorage;
+		BifurcationStorage<CAPACITY> bifStorage_;
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
 
@@ -96,11 +95,11 @@ namespace Sibelia
 
 		size_t GetVerticesCount() const
 		{
-			return bifurcationKey_.size();
+			return bifStorage_.GetVerticesCount();
 		}
 
 		size_t GetId(const std::string & vertex) const
-		{
+		{/*
 			DnaString str;
 			str.CopyFromString(vertex.begin(), vertexSize_);
 			auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), str, DnaString::Less);
@@ -108,7 +107,7 @@ namespace Sibelia
 			{
 				return it - bifurcationKey_.begin();
 			}
-
+			*/
 			return INVALID_VERTEX;
 		}
 
@@ -322,40 +321,21 @@ namespace Sibelia
 			{
 				delete[] binCounter;
 			}		
-
-			bifurcationTempWrite.close();
+			
+			mark = time(0);
+			bifurcationTempWrite.close();			
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
 			std::ifstream bifurcationTempRead(bifurcationTempReadName.c_str(), ios::binary);
 			if (!bifurcationTempRead)
 			{
 				throw StreamFastaParser::Exception("Can't open the temp file");
 			}
-
-			uint64_t bitsPower = 0;
-			while (verticesCount * 8 >= (uint64_t(1) << bitsPower))
-			{
-				++bitsPower;
-			}
-
-			hashFunction.clear();
-			size_t hashFunctionNumber = 3;
-			bitsPower = std::max(bitsPower, size_t(28));
-			(uint64_t(1) << bitsPower);			
-			hashFunction.resize(hashFunctionNumber);
-			for (HashFunctionPtr & ptr : hashFunction)
-			{
-				ptr.reset(new HashFunction(vertexLength, bitsPower));
-			}
-
-			DnaString buf;
-			mark = time(0);
 			
-
-			bifurcationTempRead.close();
+			bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, threads);
 			boost::filesystem::remove(bifurcationTempReadName);
-			tbb::task_scheduler_init init(threads);;
-			tbb::parallel_sort(bifurcationKey_.begin(), bifurcationKey_.end(), DnaString::Less);
-			std::cout << "Total FPs = " << totalFpCount << std::endl;
+			std::cout << "Reallocating bifurcations: " << time(0) - mark << std::endl;
+
+			mark = time(0);
 			std::ofstream compressedDbg(outFileName.c_str(), std::ios::binary);
 			if (!compressedDbg)
 			{
@@ -365,21 +345,20 @@ namespace Sibelia
 			std::atomic<uint64_t> occurence;
 			std::atomic<uint64_t> currentPiece;
 			occurence = 0;
-			currentPiece = 0;			
+			currentPiece = 0; 
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,
-					boost::cref(hashFunction),
 					vertexLength,
 					boost::ref(*taskQueue[i]),
-					boost::ref(bifurcationKey_),
-					boost::ref(bifurcationFilter),
+					boost::cref(bifStorage_),
 					boost::ref(compressedDbg),					
-					std::make_pair(&currentPiece, &occurence),
+					boost::ref(currentPiece),
+					boost::ref(occurence),
 					boost::ref(error),
 					boost::ref(errorMutex));
 			}
-
+			
 			DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 			for (size_t i = 0; i < taskQueue.size(); i++)
 			{
@@ -393,7 +372,7 @@ namespace Sibelia
 
 			std::cout << "Occurences: " << occurence << std::endl;
 			std::cout << "Edges construction: " << time(0) - mark << std::endl;
-			std::cout << std::string(80, '-') << std::endl;			
+			std::cout << std::string(80, '-') << std::endl;		
 		}
 
 	private:
@@ -830,20 +809,17 @@ namespace Sibelia
 			std::vector<uint64_t> bifId;
 		};
 
-		static void EdgeConstructionWorker(const std::vector<HashFunctionPtr> & hashFunction,
-			size_t vertexLength,
+		static void EdgeConstructionWorker(size_t vertexLength,
 			TaskQueue & taskQueue,			
-			std::vector<DnaString> & bifurcationKey,
-			std::vector<bool> & bifurcationFilter,
+			const BifurcationStorage<CAPACITY> & bifStorage,
 			std::ofstream & outFile,
-			std::pair<std::atomic<uint64_t>*, std::atomic<uint64_t>* > counters,			
+			std::atomic<uint64_t> & currentPiece,
+			std::atomic<uint64_t> & occurence,
 			std::unique_ptr<StreamFastaParser::Exception> & error,
 			boost::mutex & errorMutex)
 		{
 			DnaString bitBuf;
-			std::deque<EdgeResult> result;
-			std::atomic<uint64_t> & currentPiece = *counters.first;
-			std::atomic<uint64_t> & occurence = *counters.second;
+			std::deque<EdgeResult> result;			
 			while (true)
 			{
 				Task task;				
@@ -859,6 +835,7 @@ namespace Sibelia
 						continue;
 					}
 
+					const std::vector<HashFunctionPtr>& hashFunction = bifStorage.GetHashFunctions();
 					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
 					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 					size_t edgeLength = vertexLength + 1;
@@ -868,7 +845,6 @@ namespace Sibelia
 						currentResult.seqId = task.seqId;
 						currentResult.pieceId = task.piece;
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
-
 						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
 						for (size_t pos = 1;; ++pos)
 						{
@@ -891,11 +867,12 @@ namespace Sibelia
 								++currentPiece;
 								result.pop_front();
 							}
-
-							bool posFound = true;
-							bool negFound = true;
+														
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];
+							/*
+							bool posFound = true;
+							bool negFound = true;
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
@@ -968,7 +945,7 @@ namespace Sibelia
 
 								assert(found == (posFound || negFound));
 #endif
-							}
+							}*/
 
 							if (pos + edgeLength < task.str.size())
 							{

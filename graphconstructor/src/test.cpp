@@ -100,7 +100,7 @@ namespace Sibelia
 					std::string cand(it->first.begin(), it->first.end());
 					bif.insert(cand);
 					bif.insert(DnaChar::ReverseCompliment(cand));
-					assert(vid->GetId(cand) != VertexEnumerator::INVALID_VERTEX || vid->GetId(DnaChar::ReverseCompliment(cand)) != VertexEnumerator::INVALID_VERTEX);
+					assert(vid->GetId(cand) != INVALID_VERTEX || vid->GetId(DnaChar::ReverseCompliment(cand)) != INVALID_VERTEX);
 				}
 			}
 		}
