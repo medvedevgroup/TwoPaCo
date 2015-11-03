@@ -99,16 +99,8 @@ namespace Sibelia
 		}
 
 		size_t GetId(const std::string & vertex) const
-		{/*
-			DnaString str;
-			str.CopyFromString(vertex.begin(), vertexSize_);
-			auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), str, DnaString::Less);
-			if (it != bifurcationKey_.end() && *it == str)
-			{
-				return it - bifurcationKey_.begin();
-			}
-			*/
-			return INVALID_VERTEX;
+		{
+			return bifStorage_.GetId(vertex.begin());
 		}
 
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
@@ -323,15 +315,18 @@ namespace Sibelia
 			}		
 			
 			mark = time(0);
-			bifurcationTempWrite.close();			
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
-			std::ifstream bifurcationTempRead(bifurcationTempReadName.c_str(), ios::binary);
-			if (!bifurcationTempRead)
+			bifurcationTempWrite.close();
 			{
-				throw StreamFastaParser::Exception("Can't open the temp file");
-			}
+				std::ifstream bifurcationTempRead(bifurcationTempReadName.c_str(), ios::binary);
+				if (!bifurcationTempRead)
+				{
+					throw StreamFastaParser::Exception("Can't open the temp file");
+				}
 			
-			bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, threads);
+				bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, threads);
+			}
+
 			boost::filesystem::remove(bifurcationTempReadName);
 			std::cout << "Reallocating bifurcations: " << time(0) - mark << std::endl;
 
@@ -870,82 +865,16 @@ namespace Sibelia
 														
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];
-							/*
-							bool posFound = true;
-							bool negFound = true;
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
-								for (size_t i = 0; i < posVertexHash.size() && (posFound || negFound); i++)
+								uint64_t bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
+								if (bifId != INVALID_VERTEX)
 								{
-									if (!bifurcationFilter[posVertexHash[i]->hashvalue])
-									{
-										posFound = false;
-									}
-
-									if (!bifurcationFilter[negVertexHash[i]->hashvalue])
-									{
-										negFound = false;
-									}
+									currentResult.bifId.push_back(bifId);
+									currentResult.pos.push_back(task.start + pos - 1);									
 								}
-
-								if (posFound)
-								{
-									posFound = false;
-									bitBuf.Clear();
-									bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
-									auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
-									if (it != bifurcationKey.end() && *it == bitBuf)
-									{
-										posFound = true;
-										currentResult.pos.push_back(task.start + pos - 1);
-										currentResult.bifId.push_back(it - bifurcationKey.end());
-									}
-
-								}
-
-								if (negFound && !posFound)
-								{
-									bitBuf.Clear();
-									negFound = false;
-									bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
-									auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
-									if (it != bifurcationKey.end() && *it == bitBuf)
-									{
-										negFound = true;
-										currentResult.pos.push_back(task.start + pos - 1);
-										currentResult.bifId.push_back(it - bifurcationKey.end());
-									}
-								}
-
-								if (posFound || negFound)
-								{
-									occurence++;
-								}
-#ifdef _DEBUG
-								bool found = false;
-								for (size_t strand = 0; strand < 2; ++strand)
-								{
-									bitBuf.Clear();
-									if (strand == 0)
-									{
-										bitBuf.CopyFromString(task.str.begin() + pos, vertexLength);
-									}
-									else
-									{
-										bitBuf.CopyFromReverseString(task.str.begin() + pos, vertexLength);
-									}
-
-									auto it = std::lower_bound(bifurcationKey.begin(), bifurcationKey.end(), bitBuf, DnaString::Less);
-									if (it != bifurcationKey.end() && *it == bitBuf)
-									{
-										found = true;
-									}
-								}
-
-								assert(found == (posFound || negFound));
-#endif
-							}*/
+							}
 
 							if (pos + edgeLength < task.str.size())
 							{
