@@ -95,7 +95,7 @@ namespace Sibelia
 
 		size_t GetVerticesCount() const
 		{
-			return bifStorage_.GetVerticesCount();
+			return bifStorage_.GetUniqueVerticesCount();
 		}
 
 		size_t GetId(const std::string & vertex) const
@@ -339,8 +339,9 @@ namespace Sibelia
 			
 			std::atomic<uint64_t> occurence;
 			std::atomic<uint64_t> currentPiece;
-			occurence = 0;
-			currentPiece = 0; 
+			std::atomic<uint64_t> currentStubVertex;
+			occurence = currentPiece = 0;
+			currentStubVertex = bifStorage_.GetTotalVerticesCount();
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,
@@ -350,6 +351,7 @@ namespace Sibelia
 					boost::ref(compressedDbg),					
 					boost::ref(currentPiece),
 					boost::ref(occurence),
+					boost::ref(currentStubVertex),
 					boost::ref(error),
 					boost::ref(errorMutex));
 			}
@@ -800,7 +802,7 @@ namespace Sibelia
 		{
 			uint32_t seqId;
 			uint32_t pieceId;			
-			std::vector<uint32_t> pos;			
+			std::vector<uint32_t> pos;
 			std::vector<uint64_t> bifId;
 		};
 
@@ -809,7 +811,8 @@ namespace Sibelia
 			const BifurcationStorage<CAPACITY> & bifStorage,
 			std::ofstream & outFile,
 			std::atomic<uint64_t> & currentPiece,
-			std::atomic<uint64_t> & occurence,
+			std::atomic<uint64_t> & occurences,
+			std::atomic<uint64_t> & currentStubVertexId,
 			std::unique_ptr<StreamFastaParser::Exception> & error,
 			boost::mutex & errorMutex)
 		{
@@ -830,7 +833,7 @@ namespace Sibelia
 						continue;
 					}
 
-					const std::vector<HashFunctionPtr>& hashFunction = bifStorage.GetHashFunctions();
+					const std::vector<HashFunctionPtr> & hashFunction = bifStorage.GetHashFunctions();
 					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
 					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 					size_t edgeLength = vertexLength + 1;
@@ -862,18 +865,27 @@ namespace Sibelia
 								++currentPiece;
 								result.pop_front();
 							}
-														
+
+							uint64_t bifId = INVALID_VERTEX;
 							char posPrev = task.str[pos - 1];
-							char posExtend = task.str[pos + vertexLength];
+							char posExtend = task.str[pos + vertexLength];							
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
-								uint64_t bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
+								bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
 								if (bifId != INVALID_VERTEX)
 								{
+									occurences++;
 									currentResult.bifId.push_back(bifId);
 									currentResult.pos.push_back(task.start + pos - 1);									
 								}
+							}
+							
+							if ((task.start == 0 || task.isFinal) && bifId == INVALID_VERTEX)
+							{
+								occurences++;
+								currentResult.bifId.push_back(currentStubVertexId++);
+								currentResult.pos.push_back(task.start + pos - 1);
 							}
 
 							if (pos + edgeLength < task.str.size())

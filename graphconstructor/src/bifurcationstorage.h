@@ -18,9 +18,14 @@ namespace Sibelia
 			typedef CompressedString<CAPACITY> DnaString;
 			BifurcationStorage(){}
 
-			uint64_t GetVerticesCount() const
+			uint64_t GetUniqueVerticesCount() const
 			{
 				return bifurcationKey_.size();
+			}
+
+			uint64_t GetTotalVerticesCount() const
+			{
+				return (bifurcationKey_.size() - selfRevCompCount_) * 2 + selfRevCompCount_;
 			}
 
 			void Init(std::istream & bifurcationTempRead, uint64_t verticesCount, uint64_t vertexLength, size_t threads)
