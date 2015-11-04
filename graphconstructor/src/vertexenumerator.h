@@ -798,12 +798,29 @@ namespace Sibelia
 			}
 		}
 
+		struct BifurcationPosition
+		{
+			uint32_t pos;
+			uint64_t bifId;
+			BifurcationPosition() {}
+			BifurcationPosition(uint32_t pos, uint64_t bifId) : pos(pos), bifId(bifId) {}
+
+			void Write(std::ostream & outFile) const
+			{
+				outFile.write(reinterpret_cast<const char*>(&pos), sizeof(pos));
+				outFile.write(reinterpret_cast<const char*>(&bifId), sizeof(bifId));
+			}
+
+			static BifurcationPosition SequenceSeparator()
+			{
+				return BifurcationPosition(-1, -1);
+			}
+		};
+
 		struct EdgeResult
 		{
-			uint32_t seqId;
-			uint32_t pieceId;			
-			std::vector<uint32_t> pos;
-			std::vector<uint64_t> bifId;
+			uint32_t pieceId;		
+			std::vector<BifurcationPosition> bifPos;
 		};
 
 		static void EdgeConstructionWorker(size_t vertexLength,
@@ -840,7 +857,6 @@ namespace Sibelia
 					if (task.str.size() >= vertexLength + 2)
 					{
 						EdgeResult currentResult;
-						currentResult.seqId = task.seqId;
 						currentResult.pieceId = task.piece;
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
@@ -848,10 +864,9 @@ namespace Sibelia
 						{
 							while (result.size() > 0 && result.front().pieceId == currentPiece)
 							{
-								for (size_t i = 0; i < result.front().pos.size(); i++)
+								for (auto pos : result.front().bifPos)
 								{
-									outFile.write(reinterpret_cast<const char*>(&result.front().pos[i]), sizeof(result.front().pos[i]));
-									outFile.write(reinterpret_cast<const char*>(&result.front().bifId[i]), sizeof(result.front().bifId[i]));
+									pos.Write(outFile);
 									if (!outFile)
 									{
 										boost::lock_guard<boost::mutex> lock(errorMutex);
@@ -876,16 +891,14 @@ namespace Sibelia
 								if (bifId != INVALID_VERTEX)
 								{
 									occurences++;
-									currentResult.bifId.push_back(bifId);
-									currentResult.pos.push_back(task.start + pos - 1);									
+									currentResult.bifPos.push_back(BifurcationPosition(task.start + pos - 1, bifId));
 								}
 							}
 							
 							if ((task.start == 0 || task.isFinal) && bifId == INVALID_VERTEX)
 							{
 								occurences++;
-								currentResult.bifId.push_back(currentStubVertexId++);
-								currentResult.pos.push_back(task.start + pos - 1);
+								currentResult.bifPos.push_back(BifurcationPosition(task.start + pos - 1, currentStubVertexId++));
 							}
 
 							if (pos + edgeLength < task.str.size())
@@ -908,6 +921,11 @@ namespace Sibelia
 							}
 						}
 
+						if (task.isFinal)
+						{
+							currentResult.bifPos.push_back(BifurcationPosition::SequenceSeparator());
+						}
+
 						result.push_back(currentResult);						
 					}
 				}				
@@ -917,10 +935,9 @@ namespace Sibelia
 			{
 				if (result.front().pieceId == currentPiece)
 				{
-					for (size_t i = 0; i < result.front().pos.size(); i++)
+					for (auto pos : result.front().bifPos)
 					{
-						outFile.write(reinterpret_cast<const char*>(&result.front().pos[i]), sizeof(result.front().pos[i]));
-						outFile.write(reinterpret_cast<const char*>(&result.front().bifId[i]), sizeof(result.front().bifId[i]));
+						pos.Write(outFile);
 						if (!outFile)
 						{
 							boost::lock_guard<boost::mutex> lock(errorMutex);
