@@ -21,7 +21,7 @@ namespace Sibelia
 		size_t edgeLength = vertexLength + 1;
 		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 1, threads, 1, "tmp", "de_bruijn.bin");
 		
-		int unknownCount = CHAR_MAX;
+		int unknownCount = CHAR_MAX; 
 		typedef std::vector<int> DnaString;
 		std::set<DnaString> edges;
 		std::vector<DnaString> genome;
