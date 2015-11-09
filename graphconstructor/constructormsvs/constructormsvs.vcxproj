@@ -172,6 +172,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\src\common\dnachar.h" />
     <ClInclude Include="..\..\src\common\hashing.h" />
+    <ClInclude Include="..\..\src\common\junctionpositionapi.h" />
     <ClInclude Include="..\..\src\common\SpookyV2.h" />
     <ClInclude Include="..\..\src\common\streamfastaparser.h" />
     <ClInclude Include="..\..\src\graphconstructor\bifurcationstorage.h" />

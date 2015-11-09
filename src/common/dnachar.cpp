@@ -45,7 +45,7 @@ namespace Sibelia
 		return -1;
 	}
 
-	char UnMakeUpChar(size_t ch)
+	char DnaChar::UnMakeUpChar(size_t ch)
 	{
 		switch (ch)
 		{

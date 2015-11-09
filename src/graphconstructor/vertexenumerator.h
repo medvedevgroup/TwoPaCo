@@ -17,11 +17,12 @@
 #include <tbb/concurrent_unordered_map.h>
 
 #include <boost/ref.hpp>
-#include <boost/thread.hpp>
 #include <boost/locale.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
+
+#include <junctionpositionapi.h>
 
 #include "streamfastaparser.h"
 #include "bifurcationstorage.h"
@@ -796,26 +797,7 @@ namespace Sibelia
 					}
 				}
 			}
-		}
-
-		struct BifurcationPosition
-		{
-			uint32_t pos;
-			uint64_t bifId;
-			BifurcationPosition() {}
-			BifurcationPosition(uint32_t pos, uint64_t bifId) : pos(pos), bifId(bifId) {}
-
-			void Write(std::ostream & outFile) const
-			{
-				outFile.write(reinterpret_cast<const char*>(&pos), sizeof(pos));
-				outFile.write(reinterpret_cast<const char*>(&bifId), sizeof(bifId));
-			}
-
-			static BifurcationPosition SequenceSeparator()
-			{
-				return BifurcationPosition(-1, -1);
-			}
-		};
+		}		
 
 		struct EdgeResult
 		{

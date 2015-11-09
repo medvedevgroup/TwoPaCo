@@ -74,5 +74,8 @@
     <ClInclude Include="..\..\src\graphconstructor\vertexenumerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\common\junctionpositionapi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

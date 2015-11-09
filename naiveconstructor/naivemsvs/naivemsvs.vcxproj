@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\common\dnachar.cpp" />
+    <ClCompile Include="..\..\src\common\streamfastaparser.cpp" />
     <ClCompile Include="..\..\src\naiveconstructor\naiveconstructor.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
