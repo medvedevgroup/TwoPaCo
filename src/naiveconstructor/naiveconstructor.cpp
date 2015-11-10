@@ -10,6 +10,7 @@
 #include <tclap/CmdLine.h>
 
 #include <streamfastaparser.h>
+#include <junctionpositionapi.h>
 
 typedef uint32_t DnaChar;
 DnaChar currentUnknownChar = 4;
@@ -64,7 +65,7 @@ bool OccurenceEqual(const DnaString & a, const DnaString & b)
 	return std::equal(a.begin() + 1, a.end() - 1, b.begin() + 1);
 }
 
-void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, std::ostream & outFile)
+void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, Sibelia::JunctionPositionWriter & writer)
 {
 	std::vector<DnaString> strand[2];
 	for (auto name : fileName)
@@ -104,7 +105,6 @@ void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, std:
 		}
 	}
 
-	DnaStringComparer cmp;
 	for (auto it = junctionOccurence.begin(); it != junctionOccurence.end(); )
 	{
 		auto jt = it;
@@ -134,10 +134,12 @@ void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, std:
 				auto it = junctionMap.find(kmer);
 				if (it != junctionMap.end())
 				{
-					outFile << i << ' ' << it->second << std::endl;
+					writer.WriteJunction(Sibelia::JunctionPosition(i, it->second));
 				}
 			}
-		}		
+		}
+
+		writer.WriteSeparator();
 	}
 }
 
@@ -171,13 +173,8 @@ int main(int argc, char * argv[])
 
 		cmd.parse(argc, argv);
 
-		std::ofstream out(outFileName.getValue().c_str());
-		if (!out)
-		{
-			throw std::runtime_error("Can't open output file");
-		}
-
-		MakeDeBruijnGraph(fileName.getValue(), kvalue.getValue(), out);
+		Sibelia::JunctionPositionWriter writer(outFileName.getValue());
+		MakeDeBruijnGraph(fileName.getValue(), kvalue.getValue(), writer);
 
 	}
 	catch (TCLAP::ArgException &e)

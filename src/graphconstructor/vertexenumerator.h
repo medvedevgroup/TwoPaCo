@@ -135,7 +135,7 @@ namespace Sibelia
 			}
 			
 			boost::mutex errorMutex;
-			std::unique_ptr<StreamFastaParser::Exception> error;
+			std::unique_ptr<std::runtime_error> error;
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
@@ -243,7 +243,7 @@ namespace Sibelia
 
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);
-					std::unique_ptr<StreamFastaParser::Exception> error;
+					std::unique_ptr<std::runtime_error> error;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
 						workerThread[i] = boost::thread(CandidateCheckingWorker,
@@ -259,7 +259,7 @@ namespace Sibelia
 
 					if (error != 0)
 					{
-						throw StreamFastaParser::Exception(*error);
+						throw *error;
 					}
 
 					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
@@ -289,7 +289,7 @@ namespace Sibelia
 
 				if (error != 0)
 				{
-					throw StreamFastaParser::Exception(*error);
+					throw std::runtime_error(*error);
 				}
 
 				DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
@@ -332,15 +332,11 @@ namespace Sibelia
 			std::cout << "Reallocating bifurcations: " << time(0) - mark << std::endl;
 
 			mark = time(0);
-			std::ofstream compressedDbg(outFileName.c_str(), std::ios::binary);
-			if (!compressedDbg)
-			{
-				throw StreamFastaParser::Exception("Can't create the output file");
-			}
 			
 			std::atomic<uint64_t> occurence;
 			std::atomic<uint64_t> currentPiece;
 			std::atomic<uint64_t> currentStubVertex;
+			JunctionPositionWriter writer(outFileName);
 			occurence = currentPiece = 0;
 			currentStubVertex = bifStorage_.GetTotalVerticesCount();
 			for (size_t i = 0; i < workerThread.size(); i++)
@@ -349,7 +345,7 @@ namespace Sibelia
 					vertexLength,
 					boost::ref(*taskQueue[i]),
 					boost::cref(bifStorage_),
-					boost::ref(compressedDbg),					
+					boost::ref(writer),					
 					boost::ref(currentPiece),
 					boost::ref(occurence),
 					boost::ref(currentStubVertex),
@@ -365,7 +361,7 @@ namespace Sibelia
 
 			if (error != 0)
 			{
-				throw *error;
+				throw std::runtime_error(*error);
 			}
 
 			std::cout << "Occurences: " << occurence << std::endl;
@@ -516,7 +512,7 @@ namespace Sibelia
 			size_t vertexLength,
 			TaskQueue & taskQueue,
 			const std::string & tmpDirectory,
-			std::unique_ptr<StreamFastaParser::Exception> & error,
+			std::unique_ptr<std::runtime_error> & error,
 			boost::mutex & errorMutex)
 		{
 			uint64_t low = bound.first;
@@ -649,7 +645,7 @@ namespace Sibelia
 							boost::lock_guard<boost::mutex> lock(errorMutex);
 							if (error == 0)
 							{
-								error.reset(new StreamFastaParser::Exception("Can't write to a temporary file"));
+								error.reset(new std::runtime_error("Can't write to a temporary file"));
 							}
 						}
 
@@ -665,7 +661,7 @@ namespace Sibelia
 			OccurenceSet & occurenceSet,
 			tbb::spin_rw_mutex & mutex,
 			const std::string & tmpDirectory,
-			std::unique_ptr<StreamFastaParser::Exception> & error,
+			std::unique_ptr<std::runtime_error> & error,
 			boost::mutex & errorMutex)
 		{
 			typedef uint32_t BITSET_BLOCK_TYPE;
@@ -699,7 +695,7 @@ namespace Sibelia
 								boost::lock_guard<boost::mutex> lock(errorMutex);
 								if (error == 0)
 								{
-									error.reset(new StreamFastaParser::Exception("Can't open a temporary file"));
+									error.reset(new std::runtime_error("Can't open a temporary file"));
 								}
 							}
 
@@ -801,18 +797,19 @@ namespace Sibelia
 
 		struct EdgeResult
 		{
-			uint32_t pieceId;		
-			std::vector<BifurcationPosition> bifPos;
+			uint32_t pieceId;
+			bool isTerminal;
+			std::vector<JunctionPosition> junction;
 		};
 
 		static void EdgeConstructionWorker(size_t vertexLength,
 			TaskQueue & taskQueue,			
 			const BifurcationStorage<CAPACITY> & bifStorage,
-			std::ofstream & outFile,
+			JunctionPositionWriter & writer,
 			std::atomic<uint64_t> & currentPiece,
 			std::atomic<uint64_t> & occurences,
 			std::atomic<uint64_t> & currentStubVertexId,
-			std::unique_ptr<StreamFastaParser::Exception> & error,
+			std::unique_ptr<std::runtime_error> & error,
 			boost::mutex & errorMutex)
 		{
 			DnaString bitBuf;
@@ -838,25 +835,32 @@ namespace Sibelia
 					size_t edgeLength = vertexLength + 1;
 					if (task.str.size() >= vertexLength + 2)
 					{
-						EdgeResult currentResult;
+						EdgeResult currentResult;						
 						currentResult.pieceId = task.piece;
+						currentResult.isTerminal = task.isFinal;
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
 						for (size_t pos = 1;; ++pos)
 						{
 							while (result.size() > 0 && result.front().pieceId == currentPiece)
 							{
-								for (auto pos : result.front().bifPos)
+								try
 								{
-									pos.Write(outFile);
-									if (!outFile)
+									for (auto junction : result.front().junction)
 									{
-										boost::lock_guard<boost::mutex> lock(errorMutex);
-										if (error == 0)
-										{
-											error.reset(new StreamFastaParser::Exception("Can't write to a temporary file"));
-										}
+										writer.WriteJunction(junction);
 									}
+
+									if (result.front().isTerminal)
+									{
+										writer.WriteSeparator();
+									}
+								}
+								catch (std::runtime_error & e)
+								{
+									boost::lock_guard<boost::mutex> guard(errorMutex);
+									error.reset(new std::runtime_error(e));
+									return;
 								}
 
 								++currentPiece;
@@ -873,14 +877,14 @@ namespace Sibelia
 								if (bifId != INVALID_VERTEX)
 								{
 									occurences++;
-									currentResult.bifPos.push_back(BifurcationPosition(task.start + pos - 1, bifId));
+									currentResult.junction.push_back(JunctionPosition(task.start + pos - 1, bifId));
 								}
 							}
 							
 							if ((task.start == 0 || task.isFinal) && bifId == INVALID_VERTEX)
 							{
 								occurences++;
-								currentResult.bifPos.push_back(BifurcationPosition(task.start + pos - 1, currentStubVertexId++));
+								currentResult.junction.push_back(JunctionPosition(task.start + pos - 1, currentStubVertexId++));
 							}
 
 							if (pos + edgeLength < task.str.size())
@@ -903,11 +907,6 @@ namespace Sibelia
 							}
 						}
 
-						if (task.isFinal)
-						{
-							currentResult.bifPos.push_back(BifurcationPosition::SequenceSeparator());
-						}
-
 						result.push_back(currentResult);						
 					}
 				}				
@@ -917,21 +916,30 @@ namespace Sibelia
 			{
 				if (result.front().pieceId == currentPiece)
 				{
-					for (auto pos : result.front().bifPos)
+					while (result.size() > 0 && result.front().pieceId == currentPiece)
 					{
-						pos.Write(outFile);
-						if (!outFile)
+						try
 						{
-							boost::lock_guard<boost::mutex> lock(errorMutex);
-							if (error == 0)
+							for (auto junction : result.front().junction)
 							{
-								error.reset(new StreamFastaParser::Exception("Can't write to a temporary file"));
+								writer.WriteJunction(junction);
+							}
+
+							if (result.front().isTerminal)
+							{
+								writer.WriteSeparator();
 							}
 						}
-					}
+						catch (std::runtime_error & e)
+						{
+							boost::lock_guard<boost::mutex> guard(errorMutex);
+							error.reset(new std::runtime_error(e));
+							return;
+						}
 
-					++currentPiece;
-					result.pop_front();
+						++currentPiece;
+						result.pop_front();
+					}
 				}
 			}
 		}
@@ -1169,7 +1177,7 @@ namespace Sibelia
 		static void DistributeTasks(const std::vector<std::string> & fileName,
 			size_t overlapSize,
 			std::vector<TaskQueuePtr> & taskQueue,
-			std::unique_ptr<StreamFastaParser::Exception> & error,
+			std::unique_ptr<std::runtime_error> & error,
 			boost::mutex & errorMutex,
 			std::ostream & logFile)
 		{

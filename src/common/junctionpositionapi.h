@@ -1,6 +1,8 @@
 #ifndef _JUNCTION_POSITION_API_H_
 #define _JUNCTION_POSITION_API_H_
 
+#include <fstream>
+#include <exception>
 #include <boost/thread.hpp>
 
 namespace Sibelia
@@ -22,13 +24,20 @@ namespace Sibelia
 
 	private:
 		uint32_t pos_;
-		uint64_t bifId_;		
+		uint64_t bifId_;
+		friend class JunctionPositionWriter;
 	};
 
 	class JunctionPositionReader
 	{
 	public:
+		JunctionPositionReader(const std::string & inFileName)
+		{
+
+		}
+
 	private:
+		std::ifstream in_;
 	};
 	
 
@@ -39,19 +48,24 @@ namespace Sibelia
 		{			
 			if (!out_)
 			{
-				throw StreamFastaParser::Exception("Can't create the output file");
+				throw std::runtime_error("Can't create the output file");
 			}
 		}
 
-		void WriteConcurrently(JunctionPosition pos)
+		void WriteSeparator()
 		{
-			boost::lock_guard guard(mutex_);
+			JunctionPosition junction(-1, -1);
+			WriteJunction(junction);
+		}
 
+		void WriteJunction(JunctionPosition pos)
+		{
+			out_.write(reinterpret_cast<const char*>(&pos.pos_), sizeof(pos.pos_));
+			out_.write(reinterpret_cast<const char*>(&pos.bifId_), sizeof(pos.bifId_));
 		}
 
 	private:
-		std::ostream out_;
-		boost::mutex mutex_;
+		std::ofstream out_;
 	};
 }
 

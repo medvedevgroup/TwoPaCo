@@ -126,7 +126,7 @@ int main(int argc, char * argv[])
 		std::cout << std::endl;
 
 	}
-	catch (TCLAP::ArgException &e)
+	catch (TCLAP::ArgException & e)
 	{
 		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
 		return 1;
