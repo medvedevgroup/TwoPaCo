@@ -798,7 +798,6 @@ namespace Sibelia
 		struct EdgeResult
 		{
 			uint32_t pieceId;
-			bool isTerminal;
 			std::vector<JunctionPosition> junction;
 		};
 
@@ -837,7 +836,6 @@ namespace Sibelia
 					{
 						EdgeResult currentResult;						
 						currentResult.pieceId = task.piece;
-						currentResult.isTerminal = task.isFinal;
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
 						for (size_t pos = 1;; ++pos)
@@ -849,11 +847,6 @@ namespace Sibelia
 									for (auto junction : result.front().junction)
 									{
 										writer.WriteJunction(junction);
-									}
-
-									if (result.front().isTerminal)
-									{
-										writer.WriteSeparator();
 									}
 								}
 								catch (std::runtime_error & e)
@@ -877,14 +870,14 @@ namespace Sibelia
 								if (bifId != INVALID_VERTEX)
 								{
 									occurences++;
-									currentResult.junction.push_back(JunctionPosition(task.start + pos - 1, bifId));
+									currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
 								}
 							}
 							
 							if ((task.start == 0 || task.isFinal) && bifId == INVALID_VERTEX)
 							{
 								occurences++;
-								currentResult.junction.push_back(JunctionPosition(task.start + pos - 1, currentStubVertexId++));
+								currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
 							}
 
 							if (pos + edgeLength < task.str.size())
@@ -916,30 +909,22 @@ namespace Sibelia
 			{
 				if (result.front().pieceId == currentPiece)
 				{
-					while (result.size() > 0 && result.front().pieceId == currentPiece)
+					try
 					{
-						try
+						for (auto junction : result.front().junction)
 						{
-							for (auto junction : result.front().junction)
-							{
-								writer.WriteJunction(junction);
-							}
-
-							if (result.front().isTerminal)
-							{
-								writer.WriteSeparator();
-							}
+							writer.WriteJunction(junction);
 						}
-						catch (std::runtime_error & e)
-						{
-							boost::lock_guard<boost::mutex> guard(errorMutex);
-							error.reset(new std::runtime_error(e));
-							return;
-						}
-
-						++currentPiece;
-						result.pop_front();
 					}
+					catch (std::runtime_error & e)
+					{
+						boost::lock_guard<boost::mutex> guard(errorMutex);
+						error.reset(new std::runtime_error(e));
+						return;
+					}
+
+					++currentPiece;
+					result.pop_front();
 				}
 			}
 		}

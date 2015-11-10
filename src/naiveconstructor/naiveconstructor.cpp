@@ -68,6 +68,7 @@ bool OccurenceEqual(const DnaString & a, const DnaString & b)
 void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, Sibelia::JunctionPositionWriter & writer)
 {
 	std::vector<DnaString> strand[2];
+	std::cerr << "Parsing input..." << std::endl;
 	for (auto name : fileName)
 	{
 		for (Sibelia::StreamFastaParser parser(name); parser.ReadRecord(); )
@@ -86,8 +87,9 @@ void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, Sibe
 		}
 	}
 	
+	std::cerr << "Storing (k + 2)-mers..." << std::endl;
 	std::map<DnaString, uint64_t> junctionMap;	
-	std::multiset<DnaString, DnaStringComparer> junctionOccurence;
+	std::multiset<DnaString, DnaStringComparer> junctionOccurence;	
 	for (auto currentStrand : strand)
 	{
 		for (auto str : currentStrand)
@@ -105,6 +107,7 @@ void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, Sibe
 		}
 	}
 
+	std::cerr << "Checking junctions..." << std::endl;
 	for (auto it = junctionOccurence.begin(); it != junctionOccurence.end(); )
 	{
 		auto jt = it;
@@ -123,7 +126,8 @@ void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, Sibe
 
 		it = jt;
 	}
-
+	
+	std::cerr << "Generating edges..." << std::endl;
 	for (auto str : strand[0])
 	{
 		if (str.size() >= k)
