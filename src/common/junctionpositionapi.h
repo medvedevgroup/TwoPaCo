@@ -48,22 +48,22 @@ namespace Sibelia
 			}
 		}
 
-		JunctionPosition NextJunctionPosition()
+		bool NextJunctionPosition(JunctionPosition & pos)
 		{
 			for (;; nowChr_++)
 			{
-				JunctionPosition pos(nowChr_, 0, 0);
+				pos = JunctionPosition(nowChr_, 0, 0);
 				in_.read(reinterpret_cast<char*>(&pos.pos_), sizeof(pos.pos_));
 				in_.read(reinterpret_cast<char*>(&pos.bifId_), sizeof(pos.bifId_));
 
 				if (!in_)
 				{
-					throw std::runtime_error("Can't read the input file");
+					return false;
 				}
 
 				if (pos.pos_ != JunctionPosition::SEPARATOR_POS && pos.bifId_ != JunctionPosition::SEPARATOR_BIF)
 				{
-					return pos;
+					return true;
 				}
 			}
 		}

@@ -863,7 +863,7 @@ namespace Sibelia
 							uint64_t bifId = INVALID_VERTEX;
 							char posPrev = task.str[pos - 1];
 							char posExtend = task.str[pos + vertexLength];							
-							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
+							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));							
 							if (definiteCount == vertexLength)
 							{
 								bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
@@ -874,7 +874,7 @@ namespace Sibelia
 								}
 							}
 							
-							if ((task.start == 0 || task.isFinal) && bifId == INVALID_VERTEX)
+							if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength)) && bifId == INVALID_VERTEX)
 							{
 								occurences++;
 								currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
@@ -1259,6 +1259,7 @@ namespace Sibelia
 				size_t outUnknownCount = 0;
 				bool bifurcation = it->IsBifurcation();
 				bool selfReverseCompliment = base.IsSelfReverseCompliment(vertexSize);
+	
 				auto jt = it;
 				for (; jt != occurenceSet.end(); ++jt)
 				{

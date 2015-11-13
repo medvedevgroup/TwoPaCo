@@ -9,157 +9,223 @@
 #include <exception>
 #include <tclap/CmdLine.h>
 
+#include <tpie/tpie.h>
+#include <tpie/sort.h>
+#include <tpie/file_stream.h>
+#include <tpie/dummy_progress.h>
+
 #include <streamfastaparser.h>
 #include <junctionpositionapi.h>
 
-typedef uint32_t DnaChar;
-DnaChar currentUnknownChar = 4;
-typedef std::vector<DnaChar> DnaString;
-
-struct DnaStringComparer
+template <size_t k>
+struct NaiveGraphConstructor
 {
 public:
-	bool operator()(const DnaString & a, const DnaString  & b) const
-	{
-		return std::lexicographical_compare(a.begin() + 1, a.end() - 1, b.begin() + 1, b.end() - 1);
-	}
-};
+	typedef uint32_t DnaChar;
+	typedef std::vector<uint32_t> DnaString;
+	DnaChar currentUnknownChar;
 
-uint32_t MakeUpChar(char ch)
-{
-	if (!Sibelia::DnaChar::IsDefinite(ch))
+	NaiveGraphConstructor() : currentUnknownChar(4)
 	{
-		if (currentUnknownChar == UINT32_MAX)
+	}
+
+	struct KMerOccurence
+	{
+		static const size_t SIZE = k + 2;
+		DnaChar body[SIZE];
+
+		KMerOccurence()
 		{
-			throw std::runtime_error("Too many unknown characters");
+
 		}
 
-		return currentUnknownChar++;
-	}
-
-	return Sibelia::DnaChar::MakeUpChar(ch);
-}
-
-uint32_t ReverseMadeUpChar(uint32_t ch)
-{
-	char before = Sibelia::DnaChar::UnMakeUpChar(ch);
-	return MakeUpChar(Sibelia::DnaChar::ReverseChar(before));	
-}
-
-DnaString SubStr(DnaString str, size_t pos, size_t k)
-{
-	return DnaString(str.begin() + pos, str.begin() + pos + k);
-}
-
-void InsertJunction(std::map<DnaString, uint64_t> & junctionMap, const DnaString & newJunction)
-{
-	if (junctionMap.count(newJunction) == 0)
-	{
-		size_t id = junctionMap.size();
-		junctionMap[newJunction] = id;
-	}
-}
-
-bool OccurenceEqual(const DnaString & a, const DnaString & b)
-{
-	return std::equal(a.begin() + 1, a.end() - 1, b.begin() + 1);
-}
-
-void MakeDeBruijnGraph(const std::vector<std::string> & fileName, size_t k, Sibelia::JunctionPositionWriter & writer)
-{
-	std::vector<DnaString> strand[2];
-	std::cerr << "Parsing input..." << std::endl;
-	for (auto name : fileName)
-	{
-		for (Sibelia::StreamFastaParser parser(name); parser.ReadRecord(); )
+		KMerOccurence(DnaString::const_iterator it)
 		{
-			strand[0].push_back(DnaString());
-			strand[1].push_back(DnaString());
-			for (char ch; parser.GetChar(ch);)
+			std::copy(it, it + SIZE, body);
+		}
+	};
+
+	struct KMerOccurenceComparer
+	{
+	public:
+		bool operator()(const KMerOccurence & a, const KMerOccurence & b) const
+		{
+			const size_t OFF = 1;
+			return std::lexicographical_compare(a.body + OFF, a.body + OFF + k, b.body + OFF, b.body + OFF + k);
+		}
+	};
+
+	uint32_t MakeUpChar(char ch)
+	{
+		if (!Sibelia::DnaChar::IsDefinite(ch))
+		{
+			if (currentUnknownChar == UINT32_MAX)
 			{
-				strand[0].back().push_back(MakeUpChar(ch));
+				throw std::runtime_error("Too many unknown characters");
 			}
 
-			for (auto it = strand[0].back().rbegin(); it != strand[0].back().rend(); ++it)
-			{
-				strand[1].back().push_back(ReverseMadeUpChar(*it));
-			}
+			return currentUnknownChar++;
 		}
-	}
-	
-	std::cerr << "Storing (k + 2)-mers..." << std::endl;
-	std::map<DnaString, uint64_t> junctionMap;	
-	std::multiset<DnaString, DnaStringComparer> junctionOccurence;	
-	for (auto currentStrand : strand)
-	{
-		for (auto str : currentStrand)
-		{
-			if (str.size() >= k)
-			{
-				InsertJunction(junctionMap, SubStr(str, 0, k));
-				InsertJunction(junctionMap, SubStr(str, str.size() - k, k));
-			}
 
-			for (size_t pos = 0; pos + k + 2 <= str.size(); ++pos)
-			{
-				junctionOccurence.insert(SubStr(str, pos, k + 2));
-			}
-		}
+		return Sibelia::DnaChar::MakeUpChar(ch);
 	}
 
-	std::cerr << "Checking junctions..." << std::endl;
-	for (auto it = junctionOccurence.begin(); it != junctionOccurence.end(); )
+	uint32_t ReverseMadeUpChar(uint32_t ch)
 	{
-		auto jt = it;
-		std::set<DnaChar> inGoing;
-		std::set<DnaChar> outGoing;
-		for (; jt != junctionOccurence.end() && OccurenceEqual(*it, *jt); ++jt)
-		{
-			inGoing.insert((*jt)[0]);
-			outGoing.insert((*jt)[k + 1]);
-		}
-
-		if (inGoing.size() > 1 || outGoing.size() > 1)
-		{
-			InsertJunction(junctionMap, SubStr(*it, 1, k));
-		}
-
-		it = jt;
+		char before = Sibelia::DnaChar::UnMakeUpChar(ch);
+		return MakeUpChar(Sibelia::DnaChar::ReverseChar(before));
 	}
-	
-	std::cerr << "Generating edges..." << std::endl;
-	for (auto str : strand[0])
+
+	template<class It>
+	DnaString GetKMer(It pos)
 	{
-		if (str.size() >= k)
+		DnaString ret;
+		std::copy(pos, pos + k, ret.body);
+		return ret;
+	}
+
+	void InsertJunction(std::map<DnaString, uint64_t> & junctionMap, const DnaString & newJunction)
+	{
+		if (junctionMap.count(newJunction) == 0)
 		{
-			for (size_t i = 0; i <= str.size() - k; i++)
+			size_t id = junctionMap.size();
+			junctionMap[newJunction] = id;
+		}
+	}
+
+	bool OccurenceEqual(const KMerOccurence & a, const KMerOccurence & b)
+	{
+		const size_t OFF = 1;
+		return std::equal(a.body + OFF, a.body + OFF + k, b.body + OFF);
+	}
+
+	DnaString SubStr(DnaString str, size_t pos)
+	{
+		return DnaString(str.begin() + pos, str.begin() + pos + k);
+	}
+
+	void MakeDeBruijnGraph(const std::vector<std::string> & fileName, const std::string outFileName, const std::string & tmpDirName)
+	{
+		Sibelia::JunctionPositionWriter writer(outFileName);
+		std::vector<DnaString> strand[2];
+		std::cerr << "Parsing input..." << std::endl;
+		for (auto name : fileName)
+		{
+			for (Sibelia::StreamFastaParser parser(name); parser.ReadRecord();)
 			{
-				DnaString kmer = SubStr(str, i, k);
-				auto it = junctionMap.find(kmer);
-				if (it != junctionMap.end())
+				strand[0].push_back(DnaString());
+				strand[1].push_back(DnaString());
+				for (char ch; parser.GetChar(ch);)
 				{
-					writer.WriteJunction(Sibelia::JunctionPosition(i, it->second));
+					strand[0].back().push_back(MakeUpChar(ch));
+				}
+
+				for (auto it = strand[0].back().rbegin(); it != strand[0].back().rend(); ++it)
+				{
+					strand[1].back().push_back(ReverseMadeUpChar(*it));
 				}
 			}
 		}
 
-		writer.WriteSeparator();
+		uint64_t records = 0;
+		std::cerr << "Storing (k + 2)-mers..." << std::endl;
+		std::map<DnaString, uint64_t> junctionMap;
+		tpie::tpie_init(tpie::ALL);
+		tpie::file_stream<KMerOccurence> tmpFile;
+		tmpFile.open(tmpDirName + "tmp.bin", tpie::access_write);
+		for (auto currentStrand : strand)
+		{
+			for (auto str : currentStrand)
+			{
+				if (str.size() >= k)
+				{
+					InsertJunction(junctionMap, SubStr(str, 0));
+					InsertJunction(junctionMap, SubStr(str, str.size() - k));
+				}
+
+				for (size_t pos = 0; pos + k + 2 <= str.size(); ++pos)
+				{
+					++records;
+					tmpFile.write(KMerOccurence(str.begin() + pos));
+				}
+			}
+		}
+
+		std::cerr << "Sorting..." << std::endl;
+		tpie::progress_indicator_null pi;
+		tpie::sort(tmpFile, KMerOccurenceComparer(), pi);
+
+		KMerOccurence it;
+		tmpFile.seek(0);
+		std::cerr << "Checking junctions..." << std::endl;
+		for (uint64_t i = 0; i < records;)
+		{
+			if (i == 0)
+			{
+				++i;
+				it = tmpFile.read();
+			}
+
+			KMerOccurence jt = it;
+			std::set<DnaChar> inGoing;
+			std::set<DnaChar> outGoing;
+			for (; OccurenceEqual(it, jt);)
+			{
+				inGoing.insert(it.body[0]);
+				outGoing.insert(jt.body[k + 1]);
+				if (i < records)
+				{
+					++i;
+					jt = tmpFile.read();
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			if (inGoing.size() > 1 || outGoing.size() > 1)
+			{
+				const size_t OFF = 1;
+				InsertJunction(junctionMap, DnaString(it.body + OFF, it.body + OFF + k));
+			}
+
+			it = jt;
+		}
+
+		std::ofstream dump("dump.txt");
+
+		size_t occurences = 0;
+		std::cerr << "Generating edges..." << std::endl;
+		for (size_t chr = 0; chr < strand[0].size(); chr++)
+		{
+			const DnaString & str = strand[0][chr];
+			if (str.size() >= k)
+			{
+				for (size_t i = 0; i <= str.size() - k; i++)
+				{
+					DnaString kmer = SubStr(str, i);
+					auto it = junctionMap.find(kmer);
+					if (it != junctionMap.end())
+					{
+						++occurences;
+						dump << chr << ' ' << i << ' ' << it->second << std::endl;
+						writer.WriteJunction(Sibelia::JunctionPosition(chr, i, it->second));
+					}
+				}
+			}
+		}
+		
+		std::cerr << "Vertices: " << junctionMap.size() << std::endl;
+		std::cerr << "Occurences: " << occurences << std::endl;
 	}
-}
+};
 
 int main(int argc, char * argv[])
 {	
 	try
 	{
 		TCLAP::CmdLine cmd("A really naive program for condensed de Bruijn graph construction", ' ', "0");
-
-		TCLAP::ValueArg<unsigned int> kvalue("k",
-			"kvalue",
-			"Value of k",
-			false,
-			25,
-			"integer",
-			cmd);
 
 		TCLAP::UnlabeledMultiArg<std::string> fileName("filenames",
 			"FASTA file(s) with nucleotide sequences.",
@@ -175,10 +241,17 @@ int main(int argc, char * argv[])
 			"file name",
 			cmd);
 
-		cmd.parse(argc, argv);
+		TCLAP::ValueArg<std::string> tmpFileName("t",
+			"tmpdir",
+			"Temporary directory name",
+			false,
+			"./",
+			"file name",
+			cmd);
 
-		Sibelia::JunctionPositionWriter writer(outFileName.getValue());
-		MakeDeBruijnGraph(fileName.getValue(), kvalue.getValue(), writer);
+		cmd.parse(argc, argv);
+		NaiveGraphConstructor<4> constructor;
+		constructor.MakeDeBruijnGraph(fileName.getValue(), outFileName.getValue(), tmpFileName.getValue());
 
 	}
 	catch (TCLAP::ArgException &e)

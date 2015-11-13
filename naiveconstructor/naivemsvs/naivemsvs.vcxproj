@@ -78,8 +78,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Projects\Sibelia4\src\common;C:\Soft\Dev\tbb43_20150424oss\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12_ui;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Soft\Dev\tpie\include;C:\Projects\Sibelia4\src\common;C:\Soft\Dev\tbb43_20150424oss\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Soft\Dev\tpie\lib;C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12_ui;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -88,8 +88,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Projects\Sibelia4\src\common;C:\Soft\Dev\tbb43_20150424oss\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12_ui;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Soft\Dev\tpie\include;C:\Projects\Sibelia4\src\common;C:\Soft\Dev\tbb43_20150424oss\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Soft\Dev\tpie\lib;C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12_ui;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -115,6 +115,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>tpie_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
