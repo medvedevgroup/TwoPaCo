@@ -134,7 +134,7 @@ namespace Sibelia
 					if (it != bifurcationKey_.end() && *it == bitBuf)
 					{
 						negFound = true;
-						ret = it - bifurcationKey_.begin();
+						ret = bifurcationKey_.size() + (it - bifurcationKey_.begin());
 					}
 				}
 #ifdef _DEBUG

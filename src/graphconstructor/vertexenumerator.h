@@ -874,7 +874,7 @@ namespace Sibelia
 								}
 							}
 							
-							if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength)) && bifId == INVALID_VERTEX)
+							if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId == INVALID_VERTEX)
 							{
 								occurences++;
 								currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
@@ -1306,7 +1306,6 @@ namespace Sibelia
 		}
 
 		size_t vertexSize_;
-		
 	};
 }
 

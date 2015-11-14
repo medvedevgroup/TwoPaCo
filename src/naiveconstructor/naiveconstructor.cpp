@@ -127,12 +127,18 @@ public:
 			}
 		}
 
+		DnaString tmp;
+		tmp.push_back(0);
+		tmp.push_back(3);
+		tmp.push_back(3);
+		tmp.push_back(0);
+
 		uint64_t records = 0;
 		std::cerr << "Storing (k + 2)-mers..." << std::endl;
 		std::map<DnaString, uint64_t> junctionMap;
 		tpie::tpie_init(tpie::ALL);
 		tpie::file_stream<KMerOccurence> tmpFile;
-		tmpFile.open(tmpDirName + "tmp.bin", tpie::access_write);
+		tmpFile.open(tmpDirName + "tmp.bin", tpie::access_write);		
 		for (auto currentStrand : strand)
 		{
 			for (auto str : currentStrand)
@@ -146,6 +152,7 @@ public:
 				for (size_t pos = 0; pos + k + 2 <= str.size(); ++pos)
 				{
 					++records;
+					bool x = tmp == DnaString(str.begin() + pos + 1, str.begin() + pos + 1 + k);
 					tmpFile.write(KMerOccurence(str.begin() + pos));
 				}
 			}
@@ -154,6 +161,8 @@ public:
 		std::cerr << "Sorting..." << std::endl;
 		tpie::progress_indicator_null pi;
 		tpie::sort(tmpFile, KMerOccurenceComparer(), pi);
+
+		
 
 		KMerOccurence it;
 		tmpFile.seek(0);
@@ -167,11 +176,12 @@ public:
 			}
 
 			KMerOccurence jt = it;
+			bool x = tmp == DnaString(jt.body + 1, jt.body + k + 1);
 			std::set<DnaChar> inGoing;
 			std::set<DnaChar> outGoing;
 			for (; OccurenceEqual(it, jt);)
 			{
-				inGoing.insert(it.body[0]);
+				inGoing.insert(jt.body[0]);
 				outGoing.insert(jt.body[k + 1]);
 				if (i < records)
 				{
@@ -204,7 +214,7 @@ public:
 			{
 				for (size_t i = 0; i <= str.size() - k; i++)
 				{
-					DnaString kmer = SubStr(str, i);
+ 					DnaString kmer = SubStr(str, i);
 					auto it = junctionMap.find(kmer);
 					if (it != junctionMap.end())
 					{
