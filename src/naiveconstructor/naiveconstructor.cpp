@@ -17,6 +17,8 @@
 #include <streamfastaparser.h>
 #include <junctionpositionapi.h>
 
+const size_t MAX_K = 6;
+
 template <size_t k>
 struct NaiveGraphConstructor
 {
@@ -221,6 +223,24 @@ public:
 	}
 };
 
+template<size_t NOW_K>
+void MakeDeBruijnGraph(const std::vector<std::string> & fileName, const std::string outFileName, const std::string & tmpDirName, size_t k)
+{
+	if (NOW_K == k)
+	{
+		NaiveGraphConstructor<NOW_K> ctor;
+		ctor.MakeDeBruijnGraph(fileName, outFileName, tmpDirName);
+	}
+
+	MakeDeBruijnGraph<NOW_K + 1>(fileName, outFileName, tmpDirName, k);
+}
+
+template<>
+void MakeDeBruijnGraph<MAX_K>(const std::vector<std::string> & fileName, const std::string outFileName, const std::string & tmpDirName, size_t k)
+{
+
+}
+
 int main(int argc, char * argv[])
 {	
 	try
@@ -249,9 +269,16 @@ int main(int argc, char * argv[])
 			"file name",
 			cmd);
 
+		TCLAP::ValueArg<unsigned int> kvalue("k",
+			"kvalue",
+			"Value of k",
+			false,
+			25,
+			"integer",
+			cmd);
+
 		cmd.parse(argc, argv);
-		NaiveGraphConstructor<4> constructor;
-		constructor.MakeDeBruijnGraph(fileName.getValue(), outFileName.getValue(), tmpFileName.getValue());
+		MakeDeBruijnGraph<1>(fileName.getValue(), outFileName.getValue(), tmpFileName.getValue(), kvalue.getValue());
 
 	}
 	catch (TCLAP::ArgException &e)
