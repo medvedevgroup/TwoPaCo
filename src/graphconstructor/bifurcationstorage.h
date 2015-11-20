@@ -134,7 +134,7 @@ namespace Sibelia
 					if (it != bifurcationKey_.end() && *it == bitBuf)
 					{
 						negFound = true;
-						ret = bifurcationKey_.size() + (it - bifurcationKey_.begin());
+						ret = it - bifurcationKey_.begin();
 					}
 				}
 #ifdef _DEBUG
@@ -160,7 +160,7 @@ namespace Sibelia
 
 				assert(found == (posFound || negFound));
 #endif
-				if (negFound && !DnaChar::LessSelfReverseComplement(pos, vertexLength_))
+				if (negFound && !DnaChar::IsSelfReverseCompliment(pos, vertexLength_))
 				{
 					ret += bifurcationKey_.size() - selfRevCompCount_;
 				}

@@ -127,12 +127,6 @@ public:
 			}
 		}
 
-		DnaString tmp;
-		tmp.push_back(0);
-		tmp.push_back(3);
-		tmp.push_back(3);
-		tmp.push_back(0);
-
 		uint64_t records = 0;
 		std::cerr << "Storing (k + 2)-mers..." << std::endl;
 		std::map<DnaString, uint64_t> junctionMap;
@@ -152,7 +146,6 @@ public:
 				for (size_t pos = 0; pos + k + 2 <= str.size(); ++pos)
 				{
 					++records;
-					bool x = tmp == DnaString(str.begin() + pos + 1, str.begin() + pos + 1 + k);
 					tmpFile.write(KMerOccurence(str.begin() + pos));
 				}
 			}
@@ -161,8 +154,6 @@ public:
 		std::cerr << "Sorting..." << std::endl;
 		tpie::progress_indicator_null pi;
 		tpie::sort(tmpFile, KMerOccurenceComparer(), pi);
-
-		
 
 		KMerOccurence it;
 		tmpFile.seek(0);
@@ -176,7 +167,6 @@ public:
 			}
 
 			KMerOccurence jt = it;
-			bool x = tmp == DnaString(jt.body + 1, jt.body + k + 1);
 			std::set<DnaChar> inGoing;
 			std::set<DnaChar> outGoing;
 			for (; OccurenceEqual(it, jt);)
@@ -220,7 +210,7 @@ public:
 					{
 						++occurences;
 						dump << chr << ' ' << i << ' ' << it->second << std::endl;
-						writer.WriteJunction(Sibelia::JunctionPosition(chr, i, it->second));
+ 						writer.WriteJunction(Sibelia::JunctionPosition(chr, i, it->second));
 					}
 				}
 			}
