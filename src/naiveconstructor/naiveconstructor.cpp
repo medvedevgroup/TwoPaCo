@@ -17,7 +17,7 @@
 #include <streamfastaparser.h>
 #include <junctionpositionapi.h>
 
-const size_t MAX_K = 6;
+const size_t MAX_K = 15;
 
 template <size_t k>
 struct NaiveGraphConstructor
@@ -134,7 +134,8 @@ public:
 		std::map<DnaString, uint64_t> junctionMap;
 		tpie::tpie_init(tpie::ALL);
 		tpie::file_stream<KMerOccurence> tmpFile;
-		tmpFile.open(tmpDirName + "tmp.bin", tpie::access_write);		
+		std::string tmpFileName = tmpDirName + "/tmp.bin";
+		tmpFile.open(tmpFileName.c_str(), tpie::access_write);
 		for (auto currentStrand : strand)
 		{
 			for (auto str : currentStrand)
@@ -154,11 +155,13 @@ public:
 		}
 
 		std::cerr << "Sorting..." << std::endl;
+		tmpFile.close();
+		tmpFile.open(tmpFileName.c_str());
 		tpie::progress_indicator_null pi;
 		tpie::sort(tmpFile, KMerOccurenceComparer(), pi);
+		tmpFile.seek(0);
 
 		KMerOccurence it;
-		tmpFile.seek(0);
 		std::cerr << "Checking junctions..." << std::endl;
 		for (uint64_t i = 0; i < records;)
 		{
