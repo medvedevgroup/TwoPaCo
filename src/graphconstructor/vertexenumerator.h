@@ -1,7 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
-#define MAX_CAPACITY 5
+#define MAX_CAPACITY 10
 
 #include <vector>
 #include <numeric>

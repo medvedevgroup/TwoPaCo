@@ -17,7 +17,7 @@
 #include <streamfastaparser.h>
 #include <junctionpositionapi.h>
 
-const size_t MAX_K = 15;
+const size_t MAX_K = 32;
 
 template <size_t k>
 struct NaiveGraphConstructor
@@ -109,7 +109,7 @@ public:
 	void MakeDeBruijnGraph(const std::vector<std::string> & fileName, const std::string outFileName, const std::string & tmpDirName)
 	{
 		Sibelia::JunctionPositionWriter writer(outFileName);
-		std::vector<DnaString> strand[2];
+		std::vector<std::vector<DnaString> > strand(2);
 		std::cerr << "Parsing input..." << std::endl;
 		for (auto name : fileName)
 		{
@@ -171,6 +171,7 @@ public:
 				it = tmpFile.read();
 			}
 
+			bool x = std::find(it.body, it.body + it.SIZE, 8) != it.body + it.SIZE;
 			KMerOccurence jt = it;
 			std::set<DnaChar> inGoing;
 			std::set<DnaChar> outGoing;
@@ -198,7 +199,7 @@ public:
 			it = jt;
 		}
 
-		std::ofstream dump("dump.txt");
+		//std::ofstream dump("dump.txt");
 
 		size_t occurences = 0;
 		std::cerr << "Generating edges..." << std::endl;
@@ -214,11 +215,13 @@ public:
 					if (it != junctionMap.end())
 					{
 						++occurences;
-						dump << chr << ' ' << i << ' ' << it->second << std::endl;
+						//dump << chr << ' ' << i << ' ' << it->second << std::endl;
  						writer.WriteJunction(Sibelia::JunctionPosition(chr, i, it->second));
 					}
 				}
 			}
+
+			
 		}
 		
 		std::cerr << "Vertices: " << junctionMap.size() << std::endl;
