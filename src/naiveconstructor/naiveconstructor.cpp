@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <exception>
+
 #include <tclap/CmdLine.h>
 
 #include <tpie/tpie.h>
@@ -17,7 +18,7 @@
 #include <streamfastaparser.h>
 #include <junctionpositionapi.h>
 
-const size_t MAX_K = 32;
+const size_t MAX_K = 64;
 
 template <size_t k>
 struct NaiveGraphConstructor
@@ -101,7 +102,7 @@ public:
 		return std::equal(a.body + OFF, a.body + OFF + k, b.body + OFF);
 	}
 
-	DnaString SubStr(DnaString str, size_t pos)
+	DnaString SubStr(const DnaString & str, size_t pos)
 	{
 		return DnaString(str.begin() + pos, str.begin() + pos + k);
 	}
@@ -171,7 +172,6 @@ public:
 				it = tmpFile.read();
 			}
 
-			bool x = std::find(it.body, it.body + it.SIZE, 8) != it.body + it.SIZE;
 			KMerOccurence jt = it;
 			std::set<DnaChar> inGoing;
 			std::set<DnaChar> outGoing;
@@ -199,8 +199,6 @@ public:
 			it = jt;
 		}
 
-		//std::ofstream dump("dump.txt");
-
 		size_t occurences = 0;
 		std::cerr << "Generating edges..." << std::endl;
 		for (size_t chr = 0; chr < strand[0].size(); chr++)
@@ -215,7 +213,6 @@ public:
 					if (it != junctionMap.end())
 					{
 						++occurences;
-						//dump << chr << ' ' << i << ' ' << it->second << std::endl;
  						writer.WriteJunction(Sibelia::JunctionPosition(chr, i, it->second));
 					}
 				}
