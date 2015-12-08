@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <algorithm>
 
 #include "dnachar.h"
@@ -37,9 +38,9 @@ namespace Sibelia
 			std::copy(toCopy.str_, toCopy.str_ + CAPACITY, str_);
 		}
 
-		static uint64_t Mask(size_t prefix)
+		static uint64_t Mask(uint64_t prefix)
 		{
-			return (uint64_t(1) << (prefix * 2)) - uint64_t(1);
+			return (uint64_t(1) << (prefix * uint64_t(2))) - uint64_t(1);
 		}
 
 		void Clear()
@@ -57,7 +58,7 @@ namespace Sibelia
 				uint64_t bpiece = it2.str_[i];
 				if (current != UNIT_CAPACITY)
 				{
-					uint64_t mask = Mask(prefix);
+					uint64_t mask = Mask(current);
 					apiece &= mask;
 					bpiece &= mask;
 				}
@@ -86,6 +87,7 @@ namespace Sibelia
 			return false;
 		}
 
+		//GOTTA REFACTOR THIS CRAP!
 		static bool LessPrefix(const CompressedString & v1, const CompressedString & v2, size_t prefix)
 		{
 			size_t remain = prefix;
@@ -96,7 +98,7 @@ namespace Sibelia
 				uint64_t bpiece = v2.str_[i];
 				if (current != UNIT_CAPACITY)
 				{
-					uint64_t mask = Mask(prefix);
+					uint64_t mask = Mask(current);
 					apiece &= mask;
 					bpiece &= mask;
 				}
