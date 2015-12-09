@@ -19,7 +19,8 @@ namespace Sibelia
 	{
 		for (size_t i = 0; i < vertexSize; i++)
 		{
-			if (*it != DnaChar::ReverseChar(*(it + (vertexSize - i - 1))))
+			char ch = DnaChar::ReverseChar(*(it + (vertexSize - i - 1)));
+			if (*(it + i) != DnaChar::ReverseChar(*(it + (vertexSize - i - 1))))
 			{
 				return false;
 			}

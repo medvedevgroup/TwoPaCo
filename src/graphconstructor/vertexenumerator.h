@@ -35,6 +35,7 @@ namespace Sibelia
 	{
 	public:
 		virtual size_t GetVerticesCount() const = 0;
+		virtual size_t GetTotalVerticesCount() const = 0;
 		virtual size_t GetId(const std::string & vertex) const = 0;
 
 		virtual ~VertexEnumerator()
@@ -97,6 +98,11 @@ namespace Sibelia
 		size_t GetVerticesCount() const
 		{
 			return bifStorage_.GetUniqueVerticesCount();
+		}
+
+		size_t GetTotalVerticesCount() const
+		{
+			return bifStorage_.GetTotalVerticesCount();
 		}
 
 		size_t GetId(const std::string & vertex) const

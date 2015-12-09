@@ -111,7 +111,7 @@ public:
 	{
 		Sibelia::JunctionPositionWriter writer(outFileName);
 		std::vector<std::vector<DnaString> > strand(2);
-		std::cerr << "Parsing input..." << std::endl;
+		std::cout << "Parsing input..." << std::endl;
 		for (auto name : fileName)
 		{
 			for (Sibelia::StreamFastaParser parser(name); parser.ReadRecord();)
@@ -131,7 +131,7 @@ public:
 		}
 
 		uint64_t records = 0;
-		std::cerr << "Storing (k + 2)-mers..." << std::endl;
+		std::cout << "Storing (k + 2)-mers..." << std::endl;
 		std::map<DnaString, uint64_t> junctionMap;
 		tpie::tpie_init(tpie::ALL);
 		tpie::file_stream<KMerOccurence> tmpFile;
@@ -155,7 +155,7 @@ public:
 			}
 		}
 
-		std::cerr << "Sorting..." << std::endl;
+		std::cout << "Sorting..." << std::endl;
 		tmpFile.close();
 		tmpFile.open(tmpFileName.c_str());
 		tpie::progress_indicator_null pi;
@@ -163,7 +163,7 @@ public:
 		tmpFile.seek(0);
 
 		KMerOccurence it;
-		std::cerr << "Checking junctions..." << std::endl;
+		std::cout << "Checking junctions..." << std::endl;
 		for (uint64_t i = 0; i < records;)
 		{
 			if (i == 0)
@@ -200,7 +200,7 @@ public:
 		}
 
 		size_t occurences = 0;
-		std::cerr << "Generating edges..." << std::endl;
+		std::cout << "Generating edges..." << std::endl;
 		for (size_t chr = 0; chr < strand[0].size(); chr++)
 		{
 			const DnaString & str = strand[0][chr];
@@ -221,8 +221,8 @@ public:
 			
 		}
 		
-		std::cerr << "Vertices: " << junctionMap.size() << std::endl;
-		std::cerr << "Occurences: " << occurences << std::endl;
+		std::cout << "Vertices: " << junctionMap.size() << std::endl;
+		std::cout << "Occurences: " << occurences << std::endl;
 	}
 };
 

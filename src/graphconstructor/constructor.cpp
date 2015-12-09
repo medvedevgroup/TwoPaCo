@@ -28,7 +28,7 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-	//assert(Sibelia::Runtests());
+	assert(Sibelia::Runtests());
 	try
 	{
 		TCLAP::CmdLine cmd("Program for condensed de Bruijn graph construction", ' ', "0");
@@ -120,8 +120,9 @@ int main(int argc, char * argv[])
 			aggThreads,
 			tmpDirName.getValue(),
 			outFileName.getValue());
-
+		
 		std::cout << "Distinct = " << vid->GetVerticesCount() << std::endl;
+		std::cout << "Total = " << vid->GetTotalVerticesCount() << std::endl;
 		
 		std::cout << std::endl;
 
