@@ -28,6 +28,11 @@ namespace Sibelia
 				return (bifurcationKey_.size() - selfRevCompCount_) * 2 + selfRevCompCount_;
 			}
 
+			uint64_t GetFirstSafeId() const
+			{
+				return bifurcationKey_.size() * 2;
+			}
+
 			void Init(std::istream & bifurcationTempRead, uint64_t verticesCount, uint64_t vertexLength, size_t threads)
 			{
 				selfRevCompCount_ = 0;
@@ -160,9 +165,9 @@ namespace Sibelia
 
 				assert(found == (posFound || negFound));
 #endif
-				if (negFound && !DnaChar::IsSelfReverseCompliment(pos, vertexLength_))
+				if (negFound && !posFound && !DnaChar::IsSelfReverseCompliment(pos, vertexLength_))
 				{
-					ret += bifurcationKey_.size() - selfRevCompCount_;
+					ret += bifurcationKey_.size();
 				}
 
 				return ret;

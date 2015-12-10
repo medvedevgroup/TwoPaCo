@@ -344,7 +344,7 @@ namespace Sibelia
 			std::atomic<uint64_t> currentStubVertex;
 			JunctionPositionWriter writer(outFileName);
 			occurence = currentPiece = 0;
-			currentStubVertex = bifStorage_.GetTotalVerticesCount();
+			currentStubVertex = bifStorage_.GetFirstSafeId();
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,

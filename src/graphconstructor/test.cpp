@@ -116,13 +116,13 @@ namespace Sibelia
 		
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 4, 16, 1, ss);
+//		VertexEnumeratorTest(fileName, 4, 16, 1, ss);
 		
 		fileName.clear();
 		fileName.push_back("ntest.fasta");
-		for (size_t k = 12; k <= 70; k++)
+		for (size_t k = 14; k <= 14; k++)
 		{
-			VertexEnumeratorTest(fileName, k, 20, 4, ss);
+			VertexEnumeratorTest(fileName, k, 20, 1, ss);
 		}
 
 		fileName.clear();
