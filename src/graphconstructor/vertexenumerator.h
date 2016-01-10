@@ -203,6 +203,8 @@ namespace Sibelia
 			time_t mark;					
 			for (size_t round = 0; round < rounds; round++)
 			{
+				std::atomic<uint64_t> marks;
+				marks = 0;
 				mark = time(0);				
 				if (rounds > 1)
 				{
@@ -248,7 +250,7 @@ namespace Sibelia
 					}
 
 					std::cout << time(0) - mark << "\t";
-					mark = time(0);
+					mark = time(0);					
 					std::unique_ptr<std::runtime_error> error;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
@@ -259,6 +261,7 @@ namespace Sibelia
 							vertexLength,
 							boost::ref(*taskQueue[i]),
 							boost::cref(tmpDirName),
+							boost::ref(marks),
 							boost::ref(error),
 							boost::ref(errorMutex));
 					}
@@ -310,6 +313,7 @@ namespace Sibelia
 				std::cout << "Vertex count = " << truePositives << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
 				std::cout << "Records = " << occurenceSet.size() << std::endl;
+				std::cout << "Marks count = " << marks << std::endl;
 				std::cout << std::string(80, '-') << std::endl;
 				totalFpCount += falsePositives;
 				verticesCount += truePositives;
@@ -518,6 +522,7 @@ namespace Sibelia
 			size_t vertexLength,
 			TaskQueue & taskQueue,
 			const std::string & tmpDirectory,
+			std::atomic<uint64_t> & marksCount,
 			std::unique_ptr<std::runtime_error> & error,
 			boost::mutex & errorMutex)
 		{
@@ -611,6 +616,7 @@ namespace Sibelia
 
 								if (inCount > 1 || outCount > 1)
 								{
+									++marksCount;
 									candidateMask.set(pos);
 								}
 							}
