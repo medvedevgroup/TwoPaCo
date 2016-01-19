@@ -181,6 +181,7 @@
     <ClInclude Include="..\..\src\graphconstructor\concurrentbitvector.h" />
     <ClInclude Include="..\..\src\graphconstructor\test.h" />
     <ClInclude Include="..\..\src\graphconstructor\vertexenumerator.h" />
+    <ClInclude Include="edgeconstruction.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

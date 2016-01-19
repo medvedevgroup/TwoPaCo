@@ -139,7 +139,7 @@ namespace Sibelia
 			{
 				throw StreamFastaParser::Exception("Can't open the log file");
 			}
-			
+
 			boost::mutex errorMutex;
 			std::unique_ptr<std::runtime_error> error;
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
@@ -148,7 +148,7 @@ namespace Sibelia
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
 			}
 
-			
+
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
 			std::vector<boost::thread> workerThread(threads);
@@ -163,7 +163,7 @@ namespace Sibelia
 			{
 				binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 				std::fill(binCounter, binCounter + BINS_COUNT, 0);
-				ConcurrentBitVector bitVector(realSize);				
+				ConcurrentBitVector bitVector(realSize);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(InitialFilterFillerWorker,
@@ -187,25 +187,25 @@ namespace Sibelia
 			{
 				roundSize = double(std::accumulate(binCounter, binCounter + BINS_COUNT, size_t(0))) / rounds;
 			}
-			
+
 			std::cout << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
-			uint64_t high = 0;	
+			uint64_t high = 0;
 			size_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
-			uint64_t verticesCount = 0;			
+			uint64_t verticesCount = 0;
 			std::ofstream bifurcationTempWrite((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
 			if (!bifurcationTempWrite)
 			{
 				throw StreamFastaParser::Exception("Can't create a temp file");
 			}
 
-			time_t mark;					
+			time_t mark;
 			for (size_t round = 0; round < rounds; round++)
 			{
 				std::atomic<uint64_t> marks;
 				marks = 0;
-				mark = time(0);				
+				mark = time(0);
 				if (rounds > 1)
 				{
 					uint64_t accumulated = binCounter[lowBoundary];
@@ -250,7 +250,7 @@ namespace Sibelia
 					}
 
 					std::cout << time(0) - mark << "\t";
-					mark = time(0);					
+					mark = time(0);
 					std::unique_ptr<std::runtime_error> error;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
@@ -280,9 +280,9 @@ namespace Sibelia
 					std::cout << time(0) - mark << "\t";
 				}
 
-				mark = time(0);				
+				mark = time(0);
 				tbb::spin_rw_mutex mutex;
-				OccurenceSet occurenceSet(1 << 20);				
+				OccurenceSet occurenceSet(1 << 20);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i] = boost::thread(CandidateFilteringWorker,
@@ -309,7 +309,7 @@ namespace Sibelia
 
 				size_t falsePositives = 0;
 				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
-				std::cout << time(0) - mark << std::endl;				
+				std::cout << time(0) - mark << std::endl;
 				std::cout << "Vertex count = " << truePositives << std::endl;
 				std::cout << "FP count = " << falsePositives << std::endl;
 				std::cout << "Records = " << occurenceSet.size() << std::endl;
@@ -319,12 +319,12 @@ namespace Sibelia
 				verticesCount += truePositives;
 				low = high + 1;
 			}
-			
+
 			if (rounds > 1)
 			{
 				delete[] binCounter;
-			}		
-			
+			}
+
 			mark = time(0);
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
 			bifurcationTempWrite.close();
@@ -334,7 +334,7 @@ namespace Sibelia
 				{
 					throw StreamFastaParser::Exception("Can't open the temp file");
 				}
-			
+
 				bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, threads);
 			}
 
@@ -342,7 +342,7 @@ namespace Sibelia
 			std::cout << "Reallocating bifurcations: " << time(0) - mark << std::endl;
 
 			mark = time(0);
-			
+
 			std::atomic<uint64_t> occurence;
 			std::atomic<uint64_t> currentPiece;
 			std::atomic<uint64_t> currentStubVertex;
@@ -355,14 +355,14 @@ namespace Sibelia
 					vertexLength,
 					boost::ref(*taskQueue[i]),
 					boost::cref(bifStorage_),
-					boost::ref(writer),					
+					boost::ref(writer),
 					boost::ref(currentPiece),
 					boost::ref(occurence),
 					boost::ref(currentStubVertex),
 					boost::ref(error),
 					boost::ref(errorMutex));
 			}
-			
+
 			DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 			for (size_t i = 0; i < taskQueue.size(); i++)
 			{
@@ -376,7 +376,7 @@ namespace Sibelia
 
 			std::cout << "Occurences: " << occurence << std::endl;
 			std::cout << "Edges construction: " << time(0) - mark << std::endl;
-			std::cout << std::string(80, '-') << std::endl;		
+			std::cout << std::string(80, '-') << std::endl;
 		}
 
 	private:
@@ -386,7 +386,7 @@ namespace Sibelia
 		static const uint32_t MAX_COUNTER = UINT32_MAX >> 1;
 
 		struct Task
-		{			
+		{
 			bool isFinal;
 			uint32_t piece;
 			uint64_t start;
@@ -399,11 +399,11 @@ namespace Sibelia
 #endif					
 			static const size_t GAME_OVER = SIZE_MAX;
 			Task() {}
-			Task(uint64_t seqId, uint64_t start, uint32_t piece, bool isFinal, std::string && str) : 
+			Task(uint64_t seqId, uint64_t start, uint32_t piece, bool isFinal, std::string && str) :
 				seqId(seqId), start(start), piece(piece), isFinal(isFinal), str(std::move(str)) {}
-		};		
+		};
 
-		
+
 		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 
@@ -545,8 +545,8 @@ namespace Sibelia
 					{
 						continue;
 					}
-					
- 					size_t edgeLength = vertexLength + 1;					
+
+					size_t edgeLength = vertexLength + 1;
 					if (task.str.size() >= vertexLength + 2)
 					{
 						candidateMask.reset();
@@ -594,22 +594,22 @@ namespace Sibelia
 									{
 										++outCount;
 									}
-									else 
+									else
 									{
 										StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
 										if (result == positiveLess || result == tie)
 										{
-											if (IsInBloomFilterExtend(bitVector, posVertexHash,  nextCh))
+											if (IsInBloomFilterExtend(bitVector, posVertexHash, nextCh))
 											{
 												++outCount;
 											}
 										}
-										else 
+										else
 										{
 											if (IsInBloomFilterPrepend(bitVector, negVertexHash, revNextCh))
 											{
 												++outCount;
-											}							
+											}
 										}
 									}
 								}
@@ -643,7 +643,7 @@ namespace Sibelia
 
 						std::ofstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
 						if (!candidateMaskFile)
-						{							
+						{
 							boost::lock_guard<boost::mutex> lock(errorMutex);
 							if (error == 0)
 							{
@@ -725,7 +725,7 @@ namespace Sibelia
 							boost::filesystem::remove(CandidateMaskFileName(tmpDirectory, task.seqId, task.start));
 							boost::from_block_range(buf.begin(), buf.end(), candidateMask);
 						}
-						
+
 						for (size_t pos = 1;; ++pos)
 						{
 							char posPrev = task.str[pos - 1];
@@ -740,7 +740,7 @@ namespace Sibelia
 									posExtend,
 									posPrev,
 									false);
-								
+
 								size_t count = 0;
 								size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 								size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
@@ -805,13 +805,32 @@ namespace Sibelia
 					}
 				}
 			}
-		}		
+		}
 
 		struct EdgeResult
 		{
 			uint32_t pieceId;
 			std::vector<JunctionPosition> junction;
 		};
+
+		static bool FlushEdgeResults(std::deque<EdgeResult> & result, JunctionPositionWriter & writer,
+			std::atomic<uint64_t> & currentPiece)
+		{
+			if (result.size() > 0 && result.front().pieceId == currentPiece)
+			{
+				for (auto junction : result.front().junction)
+				{
+					std::cout << junction.GetPos() << ' ' << junction.GetId() << std::endl;
+					writer.WriteJunction(junction);
+				}
+
+				++currentPiece;
+				result.pop_front();
+				return true;
+			}
+
+			return false;
+		}
 
 		static void EdgeConstructionWorker(size_t vertexLength,
 			TaskQueue & taskQueue,			
@@ -823,121 +842,90 @@ namespace Sibelia
 			std::unique_ptr<std::runtime_error> & error,
 			boost::mutex & errorMutex)
 		{
-			DnaString bitBuf;
-			std::deque<EdgeResult> result;			
-			while (true)
+			try
 			{
-				Task task;				
-				if (taskQueue.pop(task))
+				DnaString bitBuf;
+				std::deque<EdgeResult> result;			
+				while (true)
 				{
-					if (task.start == Task::GAME_OVER)
+					Task task;				
+					if (taskQueue.pop(task))
 					{
-						break;
-					}
-
-					if (task.str.size() < vertexLength)
-					{
-						continue;
-					}
-
-					const std::vector<HashFunctionPtr> & hashFunction = bifStorage.GetHashFunctions();
-					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-					size_t edgeLength = vertexLength + 1;
-					if (task.str.size() >= vertexLength + 2)
-					{
-						EdgeResult currentResult;						
-						currentResult.pieceId = task.piece;
-						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
-						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
-						for (size_t pos = 1;; ++pos)
+						if (task.start == Task::GAME_OVER)
 						{
-							while (result.size() > 0 && result.front().pieceId == currentPiece)
+							break;
+						}
+
+						if (task.str.size() < vertexLength)
+						{
+							continue;
+						}
+
+						const std::vector<HashFunctionPtr> & hashFunction = bifStorage.GetHashFunctions();
+						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+						size_t edgeLength = vertexLength + 1;
+						if (task.str.size() >= vertexLength + 2)
+						{
+							EdgeResult currentResult;
+							currentResult.pieceId = task.piece;
+							InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+							size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
+							for (size_t pos = 1;; ++pos)
 							{
-								try
+								while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+								uint64_t bifId = INVALID_VERTEX;
+								char posPrev = task.str[pos - 1];
+								char posExtend = task.str[pos + vertexLength];							
+								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));							
+								if (definiteCount == vertexLength)
 								{
-									for (auto junction : result.front().junction)
+									bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
+									if (bifId != INVALID_VERTEX)
 									{
-										writer.WriteJunction(junction);
+										occurences++;
+										currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
 									}
 								}
-								catch (std::runtime_error & e)
-								{
-									boost::lock_guard<boost::mutex> guard(errorMutex);
-									error.reset(new std::runtime_error(e));
-									return;
-								}
-
-								++currentPiece;
-								result.pop_front();
-							}
-
-							uint64_t bifId = INVALID_VERTEX;
-							char posPrev = task.str[pos - 1];
-							char posExtend = task.str[pos + vertexLength];							
-							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));							
-							if (definiteCount == vertexLength)
-							{
-								bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
-								if (bifId != INVALID_VERTEX)
+							
+								if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId == INVALID_VERTEX)
 								{
 									occurences++;
-									currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
+									currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
 								}
-							}
-							
-							if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId == INVALID_VERTEX)
-							{
-								occurences++;
-								currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
-							}
 
-							if (pos + edgeLength < task.str.size())
-							{
-								char negExtend = DnaChar::ReverseChar(posExtend);
-								char posPrev = task.str[pos];
-								char negPrev = DnaChar::ReverseChar(task.str[pos]);
-								definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
-								for (size_t i = 0; i < hashFunction.size(); i++)
+								if (pos + edgeLength < task.str.size())
 								{
-									posVertexHash[i]->update(posPrev, posExtend);
-									negVertexHash[i]->reverse_update(negExtend, negPrev);
-									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+									char negExtend = DnaChar::ReverseChar(posExtend);
+									char posPrev = task.str[pos];
+									char negPrev = DnaChar::ReverseChar(task.str[pos]);
+									definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
+									for (size_t i = 0; i < hashFunction.size(); i++)
+									{
+										posVertexHash[i]->update(posPrev, posExtend);
+										negVertexHash[i]->reverse_update(negExtend, negPrev);
+										assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+										assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+									}
+								}
+								else
+								{
+									break;
 								}
 							}
-							else
-							{
-								break;
-							}
+
+							result.push_back(currentResult);						
 						}
-
-						result.push_back(currentResult);						
-					}
-				}				
-			}
-
-			while (result.size() > 0)
-			{
-				if (result.front().pieceId == currentPiece)
-				{
-					try
-					{
-						for (auto junction : result.front().junction)
-						{
-							writer.WriteJunction(junction);
-						}
-					}
-					catch (std::runtime_error & e)
-					{
-						boost::lock_guard<boost::mutex> guard(errorMutex);
-						error.reset(new std::runtime_error(e));
-						return;
-					}
-
-					++currentPiece;
-					result.pop_front();
+					}				
 				}
+
+				while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+			}
+			catch (std::runtime_error & e)
+			{
+				boost::lock_guard<boost::mutex> guard(errorMutex);
+				error.reset(new std::runtime_error(e));
+				return;
 			}
 		}
 
