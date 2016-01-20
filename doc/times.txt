@@ -1,9 +1,0 @@
-chr1 = MB
-bf + hash 250MB Filter: 0:24, 1.3GB, CNT=24 130 489
-bf + hash 500MB Filter: 0:24, 700MB, CNT=5  413 351
-DSK + BCALM           : 0:07 + 1:56, 6GB + 20MB
-
-60 E.coli = 290MB
-bf + hash 250MB Filter: 0:25, 301MB, CNT=958 058
-bf + hash 500MB Filter: 0:27, 563MB, CNT=942 497
-DSK + BCALM           : 0:06 + 10, 4GB + 20MB
