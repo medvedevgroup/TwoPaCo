@@ -18,6 +18,7 @@
 
 #include <boost/ref.hpp>
 #include <boost/locale.hpp>
+#include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
@@ -97,7 +98,7 @@ namespace Sibelia
 
 		size_t GetVerticesCount() const
 		{
-			return bifStorage_.GetUniqueVerticesCount();
+			return bifStorage_.GetDistinctVerticesCount();
 		}
 
 		size_t GetTotalVerticesCount() const
@@ -348,7 +349,7 @@ namespace Sibelia
 			std::atomic<uint64_t> currentStubVertex;
 			JunctionPositionWriter writer(outFileName);
 			occurence = currentPiece = 0;
-			currentStubVertex = bifStorage_.GetFirstSafeId();
+			currentStubVertex = verticesCount * 2;
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				workerThread[i] = boost::thread(EdgeConstructionWorker,
@@ -820,7 +821,6 @@ namespace Sibelia
 			{
 				for (auto junction : result.front().junction)
 				{
-					std::cout << junction.GetPos() << ' ' << junction.GetId() << std::endl;
 					writer.WriteJunction(junction);
 				}
 

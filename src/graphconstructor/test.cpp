@@ -8,7 +8,6 @@
 #include "test.h"
 #include "vertexenumerator.h"
 
-
 namespace Sibelia
 {
 	bool IsDefinite(int ch)

@@ -163,6 +163,7 @@
     <ClCompile Include="..\..\src\common\dnachar.cpp" />
     <ClCompile Include="..\..\src\common\SpookyV2.cpp" />
     <ClCompile Include="..\..\src\common\streamfastaparser.cpp" />
+    <ClCompile Include="..\..\src\graphconstructor\common.cpp" />
     <ClCompile Include="..\..\src\graphconstructor\compressedstring.cpp" />
     <ClCompile Include="..\..\src\graphconstructor\concurrentbitvector.cpp" />
     <ClCompile Include="..\..\src\graphconstructor\constructor.cpp" />
@@ -171,12 +172,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\common\dnachar.h" />
-    <ClInclude Include="..\..\src\common\hashing.h" />
     <ClInclude Include="..\..\src\common\junctionpositionapi.h" />
     <ClInclude Include="..\..\src\common\SpookyV2.h" />
     <ClInclude Include="..\..\src\common\streamfastaparser.h" />
     <ClInclude Include="..\..\src\graphconstructor\bifurcationstorage.h" />
     <ClInclude Include="..\..\src\graphconstructor\candidateoccurence.h" />
+    <ClInclude Include="..\..\src\graphconstructor\common.h" />
     <ClInclude Include="..\..\src\graphconstructor\compressedstring.h" />
     <ClInclude Include="..\..\src\graphconstructor\concurrentbitvector.h" />
     <ClInclude Include="..\..\src\graphconstructor\test.h" />

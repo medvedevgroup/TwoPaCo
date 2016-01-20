@@ -1,6 +1,7 @@
 #ifndef _BIFURCATION_STORAGE_H_
 #define _BIFURCATION_STORAGE_H_
 
+#include "common.h"
 #include "compressedstring.h"
 #include "ngramhashing/cyclichash.h"
 
@@ -9,7 +10,6 @@ namespace Sibelia
 	typedef CyclicHash<uint64_t> HashFunction;
 	typedef std::unique_ptr<HashFunction> HashFunctionPtr;
 	
-	const static size_t INVALID_VERTEX = -1;
 
 	template<size_t CAPACITY>
 		class BifurcationStorage
@@ -18,7 +18,7 @@ namespace Sibelia
 			typedef CompressedString<CAPACITY> DnaString;
 			BifurcationStorage(){}
 
-			uint64_t GetUniqueVerticesCount() const
+			uint64_t GetDistinctVerticesCount() const
 			{
 				return bifurcationKey_.size();
 			}
@@ -26,11 +26,6 @@ namespace Sibelia
 			uint64_t GetTotalVerticesCount() const
 			{
 				return (bifurcationKey_.size() - selfRevCompCount_) * 2 + selfRevCompCount_;
-			}
-
-			uint64_t GetFirstSafeId() const
-			{
-				return bifurcationKey_.size() * 2;
 			}
 
 			void Init(std::istream & bifurcationTempRead, uint64_t verticesCount, uint64_t vertexLength, size_t threads)

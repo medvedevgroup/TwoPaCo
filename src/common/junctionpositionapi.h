@@ -3,7 +3,6 @@
 
 #include <fstream>
 #include <exception>
-#include <boost/thread.hpp>
 
 namespace Sibelia
 {
