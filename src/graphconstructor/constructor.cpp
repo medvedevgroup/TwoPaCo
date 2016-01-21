@@ -123,9 +123,7 @@ int main(int argc, char * argv[])
 		
 		std::cout << "Distinct = " << vid->GetVerticesCount() << std::endl;
 		std::cout << "Total = " << vid->GetTotalVerticesCount() << std::endl;
-		
 		std::cout << std::endl;
-
 	}
 	catch (TCLAP::ArgException & e)
 	{

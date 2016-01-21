@@ -16,7 +16,7 @@
 #include <tpie/dummy_progress.h>
 
 #include <streamfastaparser.h>
-#include <junctionpositionapi.h>
+#include <junctionapi/junctionapi.h>
 
 const size_t MAX_K = 64;
 

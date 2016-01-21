@@ -2,6 +2,7 @@
 #define _JUNCTION_POSITION_API_H_
 
 #include <fstream>
+#include <cstdint>
 #include <exception>
 
 namespace Sibelia

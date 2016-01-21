@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{BEB0F50F-F3DC-4CBF-8267-47695BF51C16}</ProjectGuid>
+    <ProjectGuid>{71503AD8-7391-46BC-A208-32C1E1B2004B}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>constructormsvs</RootNamespace>
+    <RootNamespace>graphdump</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -68,19 +68,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>../../../src/common;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Soft\Dev\tpie\include;C:\Soft\Dev\stxxl\include;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash\windows;C:\Soft\Dev\tbb43_20150424oss\include;C:\Soft\Dev\boost_1_57_0;C:\Projects\Sibelia4\src\common;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tpie\lib;C:\Soft\Dev\stxxl\lib;C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12;C:\Soft\Dev\boost_1_57_0\lib64-msvc-12.0;$(LibraryPath)</LibraryPath>
+    <IncludePath>../../../src/common;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>../../../src/common;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Soft\Dev\tpie\include;C:\Soft\Dev\stxxl\include;C:\Projects\Sibelia4\graphconstructor\src\lib\sparsehash\windows;C:\Soft\Dev\tbb43_20150424oss\include;C:\Soft\Dev\boost_1_57_0;C:\Projects\Sibelia4\src\common;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tpie\lib;C:\Soft\Dev\stxxl\lib;C:\Soft\Dev\tbb43_20150424oss\lib\intel64\vc12;C:\Soft\Dev\boost_1_57_0\lib64-msvc-12.0;$(LibraryPath)</LibraryPath>
+    <IncludePath>../../../src/common;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -89,8 +89,6 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <SDLCheck>false</SDLCheck>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -104,14 +102,10 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <SDLCheck>false</SDLCheck>
-      <OpenMPSupport>true</OpenMPSupport>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -123,15 +117,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <SDLCheck>false</SDLCheck>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -143,46 +134,16 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <SDLCheck>false</SDLCheck>
-      <OpenMPSupport>true</OpenMPSupport>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="test.fasta" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\src\common\dnachar.cpp" />
-    <ClCompile Include="..\..\src\common\SpookyV2.cpp" />
-    <ClCompile Include="..\..\src\common\streamfastaparser.cpp" />
-    <ClCompile Include="..\..\src\graphconstructor\common.cpp" />
-    <ClCompile Include="..\..\src\graphconstructor\compressedstring.cpp" />
-    <ClCompile Include="..\..\src\graphconstructor\concurrentbitvector.cpp" />
-    <ClCompile Include="..\..\src\graphconstructor\constructor.cpp" />
-    <ClCompile Include="..\..\src\graphconstructor\test.cpp" />
-    <ClCompile Include="..\..\src\graphconstructor\vertexenumerator.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\src\common\dnachar.h" />
-    <ClInclude Include="..\..\src\common\junctionpositionapi.h" />
-    <ClInclude Include="..\..\src\common\SpookyV2.h" />
-    <ClInclude Include="..\..\src\common\streamfastaparser.h" />
-    <ClInclude Include="..\..\src\graphconstructor\bifurcationstorage.h" />
-    <ClInclude Include="..\..\src\graphconstructor\candidateoccurence.h" />
-    <ClInclude Include="..\..\src\graphconstructor\common.h" />
-    <ClInclude Include="..\..\src\graphconstructor\compressedstring.h" />
-    <ClInclude Include="..\..\src\graphconstructor\concurrentbitvector.h" />
-    <ClInclude Include="..\..\src\graphconstructor\test.h" />
-    <ClInclude Include="..\..\src\graphconstructor\vertexenumerator.h" />
-    <ClInclude Include="edgeconstruction.h" />
+    <ClCompile Include="..\..\..\src\graphdump\graphdump.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
