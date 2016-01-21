@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include <spooky/SpookyV2.h>
 #include <junctionapi/junctionapi.h>
 
 bool CompareJunctionsById(const Sibelia::JunctionPosition & a, const Sibelia::JunctionPosition & b)

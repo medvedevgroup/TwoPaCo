@@ -7,8 +7,8 @@
 #include <iostream>
 #include <algorithm>
 
-#include "dnachar.h"
-#include "SpookyV2.h"
+#include <dnachar.h>
+#include <spooky/SpookyV2.h>
 
 namespace Sibelia
 {

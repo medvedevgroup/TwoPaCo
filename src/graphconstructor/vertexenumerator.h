@@ -23,7 +23,7 @@
 #include <boost/dynamic_bitset.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
-#include <junctionpositionapi.h>
+#include <junctionapi/junctionapi.h>
 
 #include "streamfastaparser.h"
 #include "bifurcationstorage.h"
