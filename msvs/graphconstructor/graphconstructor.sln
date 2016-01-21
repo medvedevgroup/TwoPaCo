@@ -53,8 +53,8 @@ Global
 		{8278BE9B-E6D8-486A-BB7A-F49A7C6FC05C}.Release|Mixed Platforms.Build.0 = Release|Win32
 		{8278BE9B-E6D8-486A-BB7A-F49A7C6FC05C}.Release|Win32.ActiveCfg = Release|Win32
 		{8278BE9B-E6D8-486A-BB7A-F49A7C6FC05C}.Release|Win32.Build.0 = Release|Win32
-		{8278BE9B-E6D8-486A-BB7A-F49A7C6FC05C}.Release|x64.ActiveCfg = Release|Win32
-		{8278BE9B-E6D8-486A-BB7A-F49A7C6FC05C}.Release|x64.Build.0 = Release|Win32
+		{8278BE9B-E6D8-486A-BB7A-F49A7C6FC05C}.Release|x64.ActiveCfg = Release|x64
+		{8278BE9B-E6D8-486A-BB7A-F49A7C6FC05C}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
