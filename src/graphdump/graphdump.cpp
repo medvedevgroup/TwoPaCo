@@ -1,6 +1,8 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+
+#include <tclap/CmdLine.h>
 #include <spooky/SpookyV2.h>
 #include <junctionapi/junctionapi.h>
 
@@ -27,41 +29,59 @@ bool CompareJunctionClasses(const EqClass & a, const EqClass & b)
 
 int main(int argc, char * argv[])
 {
-	Sibelia::JunctionPosition pos;
-	Sibelia::JunctionPositionReader reader(argv[1]);
-	std::vector<EqClass> eqClass;
-	std::vector<Sibelia::JunctionPosition> junction;	
-	while (reader.NextJunctionPosition(pos))
+	try
 	{
-		junction.push_back(pos);
-	}
+		TCLAP::CmdLine cmd("This utility converts the binary format into human readable one", ' ', "0");
 
-	std::sort(junction.begin(), junction.end(), CompareJunctionsById);
-	for (size_t i = 0; i < junction.size();)
-	{
-		size_t j = i;
-		for (; j < junction.size() && junction[i].GetId() == junction[j].GetId(); j++);
-		std::sort(junction.begin() + i, junction.begin() + j, CompareJunctionsByPos);
-		eqClass.push_back(EqClass());
-		eqClass.back().label = junction[i].GetId();
-		for (size_t k = i; k < j; k++)
-		{
-			eqClass.back().position.push_back(junction[k]);
-		}
+		TCLAP::UnlabeledValueArg<std::string> inputFileName("infile",
+			"input file name",
+			true,
+			"",
+			"file name",
+			cmd);
 		
-		i = j;
-	}
-	
-	std::sort(eqClass.begin(), eqClass.end(), CompareJunctionClasses);
-	for (auto junctionClass : eqClass)
-	{
-		for (auto j : junctionClass.position)
+		cmd.parse(argc, argv);
+		Sibelia::JunctionPosition pos;
+		Sibelia::JunctionPositionReader reader(inputFileName.getValue().c_str());
+		std::vector<EqClass> eqClass;
+		std::vector<Sibelia::JunctionPosition> junction;
+		while (reader.NextJunctionPosition(pos))
 		{
-			std::cout << j.GetChr() << ' ' << j.GetPos() << "; ";
+			junction.push_back(pos);
 		}
 
-		std::cout << std::endl;
+		std::sort(junction.begin(), junction.end(), CompareJunctionsById);
+		for (size_t i = 0; i < junction.size();)
+		{
+			size_t j = i;
+			for (; j < junction.size() && junction[i].GetId() == junction[j].GetId(); j++);
+			std::sort(junction.begin() + i, junction.begin() + j, CompareJunctionsByPos);
+			eqClass.push_back(EqClass());
+			eqClass.back().label = junction[i].GetId();
+			for (size_t k = i; k < j; k++)
+			{
+				eqClass.back().position.push_back(junction[k]);
+			}
+
+			i = j;
+		}
+
+		std::sort(eqClass.begin(), eqClass.end(), CompareJunctionClasses);
+		for (auto junctionClass : eqClass)
+		{
+			for (auto j : junctionClass.position)
+			{
+				std::cout << j.GetChr() << ' ' << j.GetPos() << "; ";
+			}
+
+			std::cout << std::endl;
+		}
 	}
+	catch (TCLAP::ArgException &e)
+	{
+		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+		return 1;
+	}	
 
 	return 0;
 }
