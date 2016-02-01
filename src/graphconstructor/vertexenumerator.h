@@ -3,6 +3,8 @@
 
 #define MAX_CAPACITY 10
 
+#include <deque>
+#include <cstdio>
 #include <vector>
 #include <numeric>
 #include <algorithm>
@@ -17,9 +19,7 @@
 #include <tbb/concurrent_unordered_map.h>
 
 #include <boost/ref.hpp>
-#include <boost/locale.hpp>
 #include <boost/thread.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 
@@ -339,7 +339,7 @@ namespace Sibelia
 				bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, threads);
 			}
 
-			boost::filesystem::remove(bifurcationTempReadName);
+			std::remove(bifurcationTempReadName.c_str());
 			std::cout << "Reallocating bifurcations: " << time(0) - mark << std::endl;
 
 			mark = time(0);
@@ -723,7 +723,7 @@ namespace Sibelia
 							}
 
 							candidateMaskFile.close();
-							boost::filesystem::remove(CandidateMaskFileName(tmpDirectory, task.seqId, task.start));
+							std::remove(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str());
 							boost::from_block_range(buf.begin(), buf.end(), candidateMask);
 						}
 
@@ -1169,9 +1169,6 @@ namespace Sibelia
 			size_t record = 0;
 			size_t nowQueue = 0;
 			uint32_t pieceCount = 0;
-			boost::locale::generator gen;
-			std::locale::global(gen(""));
-			boost::locale::date_time now;			
 			logFile << "Starting a new stage" << std::endl;
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
@@ -1188,8 +1185,6 @@ namespace Sibelia
 					}
 					
 					std::stringstream ss;
-					ss.imbue(std::locale());
-					ss << boost::locale::as::ftime("%H-%M-%S") << now;
 					logFile << "Processing sequence " << parser.GetCurrentHeader() << " " << ss.str() << std::endl;
 
 					char ch;					

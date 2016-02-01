@@ -332,3 +332,7 @@ graphconstructor/constructormsvs/stxxl.errlog
 graphconstructor/constructormsvs/log.txt
 naiveconstructor/naivemsvs/dump.txt
 naiveconstructor/naivemsvs/dump.txt
+msvs/graphconstructor/graphconstructor/log.txt
+msvs/graphconstructor/graphconstructor/tbb_debug.dll
+msvs/graphconstructor/graphconstructor/test.fasta
+msvs/graphconstructor/graphconstructor/ntest.fasta
