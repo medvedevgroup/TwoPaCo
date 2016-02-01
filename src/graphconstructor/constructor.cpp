@@ -104,7 +104,7 @@ int main(int argc, char * argv[])
 		TCLAP::ValueArg<std::string> outFileName("o",
 			"outfile",
 			"Output file name",
-			true,
+			false,
 			"de_bruijn.bin",
 			"file name",
 			cmd);

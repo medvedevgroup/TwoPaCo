@@ -14,6 +14,7 @@
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
+#include <tbb/concurrent_queue.h>
 #include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_unordered_set.h>
 #include <tbb/concurrent_unordered_map.h>
@@ -21,7 +22,7 @@
 #include <boost/ref.hpp>
 #include <boost/thread.hpp>
 #include <boost/dynamic_bitset.hpp>
-#include <boost/lockfree/spsc_queue.hpp>
+
 
 #include <junctionapi/junctionapi.h>
 
@@ -155,7 +156,8 @@ namespace Sibelia
 			std::vector<boost::thread> workerThread(threads);
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
-				taskQueue[i].reset(new TaskQueue(QUEUE_CAPACITY));
+				taskQueue[i].reset(new TaskQueue());
+				taskQueue[i]->set_capacity(QUEUE_CAPACITY);
 			}
 
 			const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
@@ -405,7 +407,7 @@ namespace Sibelia
 		};
 
 
-		typedef boost::lockfree::spsc_queue<Task> TaskQueue;
+		typedef tbb::concurrent_bounded_queue<Task> TaskQueue;
 		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 
 		enum StrandComparisonResult
@@ -535,7 +537,7 @@ namespace Sibelia
 			while (true)
 			{
 				Task task;
-				if (taskQueue.pop(task))
+				if (taskQueue.try_pop(task))
 				{
 					if (task.start == Task::GAME_OVER)
 					{
@@ -683,7 +685,7 @@ namespace Sibelia
 			while (true)
 			{
 				Task task;
-				if (taskQueue.pop(task))
+				if (taskQueue.try_pop(task))
 				{
 					if (task.start == Task::GAME_OVER)
 					{
@@ -849,7 +851,7 @@ namespace Sibelia
 				while (true)
 				{
 					Task task;				
-					if (taskQueue.pop(task))
+					if (taskQueue.try_pop(task))
 					{
 						if (task.start == Task::GAME_OVER)
 						{
@@ -986,7 +988,8 @@ namespace Sibelia
 			while (true)
 			{
 				Task task;
-				if (taskQueue.pop(task))
+				int c = taskQueue.size();
+				if (taskQueue.try_pop(task))				
 				{
 					if (task.start == Task::GAME_OVER)
 					{
@@ -1088,7 +1091,7 @@ namespace Sibelia
 			while (true)
 			{
 				Task task;
-				if (taskQueue.pop(task))
+				if (taskQueue.try_pop(task))
 				{
 					if (task.start == Task::GAME_OVER)
 					{
@@ -1206,7 +1209,7 @@ namespace Sibelia
 							for (bool found = false; !found; nowQueue = nowQueue + 1 < taskQueue.size() ? nowQueue + 1 : 0)
 							{
 								TaskQueuePtr & q = taskQueue[nowQueue];
-								if (q->write_available() > 0)
+								if (q->capacity() - q->size() > 0)
 								{
 									std::string overlap;
 									if (!over)
@@ -1234,12 +1237,11 @@ namespace Sibelia
 
 			for (size_t i = 0; i < taskQueue.size(); i++)
 			{
-				while (taskQueue[i]->write_available() == 0)
+				TaskQueuePtr & q = taskQueue[nowQueue];
+				while (!taskQueue[i]->try_push(Task(0, Task::GAME_OVER, 0, true, std::string())))
 				{
 					boost::this_thread::sleep_for(boost::chrono::nanoseconds(1000000));
-				}
-
-				taskQueue[i]->push(Task(0, Task::GAME_OVER, 0, true, std::string()));
+				}				
 			}
 		}
 		
