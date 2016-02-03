@@ -42,6 +42,9 @@
     <ClInclude Include="..\..\..\src\graphconstructor\vertexenumerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\graphconstructor\fillerworker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\graphconstructor\common.cpp">

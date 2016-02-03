@@ -3,13 +3,10 @@
 
 #include "common.h"
 #include "compressedstring.h"
-#include "ngramhashing/cyclichash.h"
+
 
 namespace Sibelia
 {
-	typedef CyclicHash<uint64_t> HashFunction;
-	typedef std::unique_ptr<HashFunction> HashFunctionPtr;
-	
 
 	template<size_t CAPACITY>
 		class BifurcationStorage
@@ -39,7 +36,7 @@ namespace Sibelia
 				}
 				
 				size_t hashFunctionNumber = 3;
-				bitsPower = std::max(bitsPower, size_t(24));
+				bitsPower = max(bitsPower, size_t(24));
 				bifurcationFilter_.assign(uint64_t(1) << bitsPower, false);
 				hashFunction_.resize(hashFunctionNumber);
 				for (HashFunctionPtr & ptr : hashFunction_)

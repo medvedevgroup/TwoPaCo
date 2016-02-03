@@ -156,6 +156,7 @@
     <ClInclude Include="..\..\..\src\graphconstructor\common.h" />
     <ClInclude Include="..\..\..\src\graphconstructor\compressedstring.h" />
     <ClInclude Include="..\..\..\src\graphconstructor\concurrentbitvector.h" />
+    <ClInclude Include="..\..\..\src\graphconstructor\fillerworker.h" />
     <ClInclude Include="..\..\..\src\graphconstructor\test.h" />
     <ClInclude Include="..\..\..\src\graphconstructor\vertexenumerator.h" />
   </ItemGroup>

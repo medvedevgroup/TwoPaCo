@@ -1,5 +1,8 @@
+#include <cstdio>
+#include <fstream>
 #include <cassert>
 #include <iostream>
+#include <exception>
 
 #include "concurrentbitvector.h"
 
@@ -8,10 +11,10 @@ namespace Sibelia
 	ConcurrentBitVector::ConcurrentBitVector(size_t size)
 		: size_(size), realSize_(size / 32 + 1), filter_(new UInt[realSize_])
 	{
-		Init();
+		Reset();
 	}
 
-	void ConcurrentBitVector::Init()
+	void ConcurrentBitVector::Reset()
 	{
 		for (size_t i = 0; i < realSize_; i++)
 		{
@@ -50,5 +53,40 @@ namespace Sibelia
 	ConcurrentBitVector::~ConcurrentBitVector()
 	{
 		delete[] filter_;
+	}
+
+	void ConcurrentBitVector::WriteToFile(const std::string & fileName) const
+	{
+		std::ofstream candidateMaskFile(fileName.c_str(), std::ios::binary);
+		if (!candidateMaskFile)
+		{
+			throw std::runtime_error("Can't open a temporary file");
+		}
+
+		if (!candidateMaskFile.write(reinterpret_cast<const char*>(filter_), realSize_ * sizeof(BASIC_TYPE)))
+		{
+			throw std::runtime_error("Can't write to a temporary file");
+		}
+	}
+
+	void ConcurrentBitVector::ReadFromFile(const std::string & fileName, bool cleanUp)
+	{
+		{
+			std::ifstream candidateMaskFile(fileName.c_str(), std::ios::binary);
+			if (!candidateMaskFile)
+			{
+				throw std::runtime_error("Can't open a temporary file");
+			}
+
+			if (!candidateMaskFile.read(reinterpret_cast<char*>(filter_), realSize_ * sizeof(BASIC_TYPE)))
+			{
+				throw std::runtime_error("Can't read from a temporary file");
+			}
+		}
+
+		if (cleanUp)
+		{
+			std::remove(fileName.c_str());
+		}
 	}
 }

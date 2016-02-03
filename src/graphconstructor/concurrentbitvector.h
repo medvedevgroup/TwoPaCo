@@ -9,17 +9,20 @@ namespace Sibelia
 {
 	class ConcurrentBitVector
 	{
-	public:
+	public:		
 		~ConcurrentBitVector();
 		ConcurrentBitVector(size_t size);
-		void Init();
+		void Reset();
 		size_t Size() const;
-		size_t GetPower() const;
+		size_t GetPower() const;	
 		void SetConcurrently(size_t idx);
-		bool Get(size_t idx) const;
-	private:
+		bool Get(size_t idx) const;		
+		void WriteToFile(const std::string & fileName) const;
+		void ReadFromFile(const std::string & fileName, bool cleanUp);
+	private:		
 		static const size_t SUCCESS = -1;
-		typedef std::atomic<uint32_t> UInt;
+		typedef uint32_t BASIC_TYPE;
+		typedef std::atomic<BASIC_TYPE> UInt;
 		size_t size_;
 		size_t realSize_;
 		UInt * filter_;

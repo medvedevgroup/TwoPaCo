@@ -5,24 +5,20 @@
 
 #include <deque>
 #include <cstdio>
-#include <vector>
 #include <numeric>
-#include <algorithm>
+#include <sstream>
 #include <unordered_map>
 
+#include <tbb/tbb.h>
+#include <tbb/mutex.h>
+#include <tbb/compat/thread>
 #include <tbb/spin_rw_mutex.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
-#include <tbb/concurrent_queue.h>
 #include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_unordered_set.h>
 #include <tbb/concurrent_unordered_map.h>
-
-#include <boost/ref.hpp>
-#include <boost/thread.hpp>
-#include <boost/dynamic_bitset.hpp>
-
 
 #include <junctionapi/junctionapi.h>
 
@@ -64,6 +60,9 @@ namespace Sibelia
 		BifurcationStorage<CAPACITY> bifStorage_;
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
+
+		class FilterFillerWorker;
+		class InitialFilterFillerWorker;
 
 		class OccurenceHash
 		{
@@ -142,7 +141,7 @@ namespace Sibelia
 				throw StreamFastaParser::Exception("Can't open the log file");
 			}
 
-			boost::mutex errorMutex;
+			tbb::mutex errorMutex;
 			std::unique_ptr<std::runtime_error> error;
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 			for (HashFunctionPtr & ptr : hashFunction)
@@ -150,18 +149,18 @@ namespace Sibelia
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
 			}
 
-
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
-			std::vector<boost::thread> workerThread(threads);
+			std::vector<tbb::tbb_thread> workerThread(threads);
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				taskQueue[i].reset(new TaskQueue());
 				taskQueue[i]->set_capacity(QUEUE_CAPACITY);
 			}
-
-			const uint64_t BIN_SIZE = std::max(uint64_t(1), realSize / BINS_COUNT);
+			
+			const uint64_t BIN_SIZE = max(uint64_t(1), realSize / BINS_COUNT);
 			std::atomic<uint32_t> * binCounter = 0;
+			
 			if (rounds > 1)
 			{
 				binCounter = new std::atomic<uint32_t>[BINS_COUNT];
@@ -169,13 +168,13 @@ namespace Sibelia
 				ConcurrentBitVector bitVector(realSize);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					workerThread[i] = boost::thread(InitialFilterFillerWorker,
-						BIN_SIZE,
-						boost::cref(hashFunction),
-						boost::ref(bitVector),
+					InitialFilterFillerWorker worker(BIN_SIZE,
+						hashFunction,
+						bitVector,
 						vertexLength,
-						boost::ref(*taskQueue[i]),
+						*taskQueue[i],
 						binCounter);
+					workerThread[i] = tbb::tbb_thread(worker);
 				}
 
 				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
@@ -190,7 +189,7 @@ namespace Sibelia
 			{
 				roundSize = double(std::accumulate(binCounter, binCounter + BINS_COUNT, size_t(0))) / rounds;
 			}
-
+			
 			std::cout << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
 			uint64_t high = 0;
@@ -237,13 +236,13 @@ namespace Sibelia
 					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						workerThread[i] = boost::thread(FilterFillerWorker,
-							low,
+						FilterFillerWorker worker(low,
 							high,
-							boost::cref(hashFunction),
-							boost::ref(bitVector),
+							std::cref(hashFunction),
+							std::ref(bitVector),
 							edgeLength,
-							boost::ref(*taskQueue[i]));
+							std::ref(*taskQueue[i]));
+						workerThread[i] = tbb::tbb_thread(worker);
 					}
 
 					DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
@@ -257,16 +256,17 @@ namespace Sibelia
 					std::unique_ptr<std::runtime_error> error;
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						workerThread[i] = boost::thread(CandidateCheckingWorker,
-							std::make_pair(low, high),
-							boost::cref(hashFunction),
-							boost::cref(bitVector),
+						CandidateCheckingWorker worker(std::make_pair(low, high),
+							hashFunction,
+							bitVector,
 							vertexLength,
-							boost::ref(*taskQueue[i]),
-							boost::cref(tmpDirName),
-							boost::ref(marks),
-							boost::ref(error),
-							boost::ref(errorMutex));
+							*taskQueue[i],
+							tmpDirName,
+							marks,
+							error,
+							errorMutex);
+
+						workerThread[i] = tbb::tbb_thread(worker);
 					}
 
 					if (error != 0)
@@ -288,15 +288,16 @@ namespace Sibelia
 				OccurenceSet occurenceSet(1 << 20);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					workerThread[i] = boost::thread(CandidateFilteringWorker,
-						boost::cref(hashFunction),
+					CandidateFilteringWorker worker(hashFunction,
 						vertexLength,
-						boost::ref(*taskQueue[i]),
-						boost::ref(occurenceSet),
-						boost::ref(mutex),
-						boost::cref(tmpDirName),
-						boost::ref(error),
-						boost::ref(errorMutex));
+						*taskQueue[i],
+						occurenceSet,
+						mutex,
+						tmpDirName,
+						error,
+						errorMutex);
+
+					workerThread[i] = tbb::tbb_thread(worker);
 				}
 
 				if (error != 0)
@@ -354,16 +355,17 @@ namespace Sibelia
 			currentStubVertex = verticesCount * 2;
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
-				workerThread[i] = boost::thread(EdgeConstructionWorker,
-					vertexLength,
-					boost::ref(*taskQueue[i]),
-					boost::cref(bifStorage_),
-					boost::ref(writer),
-					boost::ref(currentPiece),
-					boost::ref(occurence),
-					boost::ref(currentStubVertex),
-					boost::ref(error),
-					boost::ref(errorMutex));
+				EdgeConstructionWorker worker(vertexLength,
+					*taskQueue[i],
+					bifStorage_,
+					writer,
+					currentPiece,
+					occurence,
+					currentStubVertex,
+					error,
+					errorMutex);
+
+				workerThread[i] = tbb::tbb_thread(worker);
 			}
 
 			DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
@@ -386,29 +388,6 @@ namespace Sibelia
 
 		static const size_t QUEUE_CAPACITY = 16;
 		static const uint64_t BINS_COUNT = 1 << 24;
-		static const uint32_t MAX_COUNTER = UINT32_MAX >> 1;
-
-		struct Task
-		{
-			bool isFinal;
-			uint32_t piece;
-			uint64_t start;
-			uint64_t seqId;
-			std::string str;
-#ifdef _DEBUG
-			static const size_t TASK_SIZE = 32;
-#else
-			static const size_t TASK_SIZE = 1 << 19;
-#endif					
-			static const size_t GAME_OVER = SIZE_MAX;
-			Task() {}
-			Task(uint64_t seqId, uint64_t start, uint32_t piece, bool isFinal, std::string && str) :
-				seqId(seqId), start(start), piece(piece), isFinal(isFinal), str(std::move(str)) {}
-		};
-
-
-		typedef tbb::concurrent_bounded_queue<Task> TaskQueue;
-		typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 
 		enum StrandComparisonResult
 		{
@@ -519,296 +498,317 @@ namespace Sibelia
 			return ss.str();
 		}
 
-		static void CandidateCheckingWorker(std::pair<uint64_t, uint64_t> bound,
-			const std::vector<HashFunctionPtr> & hashFunction,
-			const ConcurrentBitVector & bitVector,
-			size_t vertexLength,
-			TaskQueue & taskQueue,
-			const std::string & tmpDirectory,
-			std::atomic<uint64_t> & marksCount,
-			std::unique_ptr<std::runtime_error> & error,
-			boost::mutex & errorMutex)
+		static void ReportError(tbb::mutex & errorMutex, std::unique_ptr<std::runtime_error> & error, const std::string & msg)
 		{
-			uint64_t low = bound.first;
-			uint64_t high = bound.second;
-			typedef uint32_t BITSET_BLOCK_TYPE;
-			boost::dynamic_bitset<BITSET_BLOCK_TYPE> candidateMask(Task::TASK_SIZE);
-			std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
-			while (true)
+			errorMutex.lock();
+			if (error == 0)
 			{
-				Task task;
-				if (taskQueue.try_pop(task))
-				{
-					if (task.start == Task::GAME_OVER)
-					{
-						break;
-					}
-
-					if (task.str.size() < vertexLength)
-					{
-						continue;
-					}
-
-					size_t edgeLength = vertexLength + 1;
-					if (task.str.size() >= vertexLength + 2)
-					{
-						candidateMask.reset();
-						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
-						size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
-						for (size_t pos = 1;; ++pos)
-						{
-							char posPrev = task.str[pos - 1];
-							char posExtend = task.str[pos + vertexLength];
-							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
-							if (Within(std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
-							{
-								size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
-								size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
-								for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
-								{
-									char nextCh = DnaChar::LITERAL[i];
-									char revNextCh = DnaChar::ReverseChar(nextCh);
-									if (nextCh == posPrev)
-									{
-										++inCount;
-									}
-									else
-									{
-										StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, nextCh, revNextCh);
-										if (result == positiveLess || result == tie)
-										{
-											if (IsInBloomFilterPrepend(bitVector, posVertexHash, nextCh))
-											{
-												++inCount;
-											}
-										}
-										else
-										{
-											if (IsInBloomFilterExtend(bitVector, negVertexHash, revNextCh))
-											{
-												++inCount;
-											}
-										}
-									}
-
-									if (nextCh == posExtend)
-									{
-										++outCount;
-									}
-									else
-									{
-										StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
-										if (result == positiveLess || result == tie)
-										{
-											if (IsInBloomFilterExtend(bitVector, posVertexHash, nextCh))
-											{
-												++outCount;
-											}
-										}
-										else
-										{
-											if (IsInBloomFilterPrepend(bitVector, negVertexHash, revNextCh))
-											{
-												++outCount;
-											}
-										}
-									}
-								}
-
-								if (inCount > 1 || outCount > 1)
-								{
-									++marksCount;
-									candidateMask.set(pos);
-								}
-							}
-
-							if (pos + edgeLength < task.str.size())
-							{
-								char negExtend = DnaChar::ReverseChar(posExtend);
-								char posPrev = task.str[pos];
-								char negPrev = DnaChar::ReverseChar(task.str[pos]);
-								definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
-								for (size_t i = 0; i < hashFunction.size(); i++)
-								{
-									posVertexHash[i]->update(posPrev, posExtend);
-									negVertexHash[i]->reverse_update(negExtend, negPrev);
-									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-								}
-							}
-							else
-							{
-								break;
-							}
-						}
-
-						std::ofstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
-						if (!candidateMaskFile)
-						{
-							boost::lock_guard<boost::mutex> lock(errorMutex);
-							if (error == 0)
-							{
-								error.reset(new StreamFastaParser::Exception("Can't open a temporary file"));
-							}
-						}
-
-						boost::to_block_range(candidateMask, buf.begin());
-						if (!candidateMaskFile.write(reinterpret_cast<const char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE)))
-						{
-							boost::lock_guard<boost::mutex> lock(errorMutex);
-							if (error == 0)
-							{
-								error.reset(new std::runtime_error("Can't write to a temporary file"));
-							}
-						}
-
-						candidateMaskFile.close();
-					}
-				}
+				error.reset(new StreamFastaParser::Exception(msg));
 			}
+
+			errorMutex.unlock();
 		}
 
-		static void CandidateFilteringWorker(const std::vector<HashFunctionPtr> & hashFunction,
-			size_t vertexLength,
-			TaskQueue & taskQueue,
-			OccurenceSet & occurenceSet,
-			tbb::spin_rw_mutex & mutex,
-			const std::string & tmpDirectory,
-			std::unique_ptr<std::runtime_error> & error,
-			boost::mutex & errorMutex)
+		class CandidateCheckingWorker
 		{
-			typedef uint32_t BITSET_BLOCK_TYPE;
-			boost::dynamic_bitset<BITSET_BLOCK_TYPE> candidateMask(Task::TASK_SIZE);
-			std::vector<BITSET_BLOCK_TYPE> buf(candidateMask.num_blocks(), 0);
-			while (true)
+		public:
+			CandidateCheckingWorker(std::pair<uint64_t, uint64_t> bound,
+				const std::vector<HashFunctionPtr> & hashFunction,
+				const ConcurrentBitVector & bitVector,
+				size_t vertexLength,
+				TaskQueue & taskQueue,
+				const std::string & tmpDirectory,
+				std::atomic<uint64_t> & marksCount,
+				std::unique_ptr<std::runtime_error> & error,
+				tbb::mutex & errorMutex) : bound(bound), hashFunction(hashFunction), bitVector(bitVector), vertexLength(vertexLength), taskQueue(taskQueue),
+					tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex)
 			{
-				Task task;
-				if (taskQueue.try_pop(task))
+
+			}
+
+			void operator()()
+			{
+				uint64_t low = bound.first;
+				uint64_t high = bound.second;
+				ConcurrentBitVector candidateMask(Task::TASK_SIZE);
+				while (true)
 				{
-					if (task.start == Task::GAME_OVER)
+					Task task;
+					if (taskQueue.try_pop(task))
 					{
-						break;
-					}
-
-					if (task.str.size() < vertexLength)
-					{
-						continue;
-					}
-
-					std::vector<HashFunctionPtr> posVertexHash(1);
-					std::vector<HashFunctionPtr> negVertexHash(1);
-					size_t edgeLength = vertexLength + 1;
-					if (task.str.size() >= vertexLength + 2)
-					{
-						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+						if (task.start == Task::GAME_OVER)
 						{
-							std::ifstream candidateMaskFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str(), std::ios::binary);
-							if (!candidateMaskFile)
-							{
-								boost::lock_guard<boost::mutex> lock(errorMutex);
-								if (error == 0)
-								{
-									error.reset(new std::runtime_error("Can't open a temporary file"));
-								}
-							}
-
-							candidateMaskFile.read(reinterpret_cast<char*>(&buf[0]), buf.size() * sizeof(BITSET_BLOCK_TYPE));
-							if (!candidateMaskFile)
-							{
-								boost::lock_guard<boost::mutex> lock(errorMutex);
-								if (error == 0)
-								{
-									error.reset(new StreamFastaParser::Exception("Can't read from a temporary file"));
-								}
-							}
-
-							candidateMaskFile.close();
-							std::remove(CandidateMaskFileName(tmpDirectory, task.seqId, task.start).c_str());
-							boost::from_block_range(buf.begin(), buf.end(), candidateMask);
+							break;
 						}
 
-						for (size_t pos = 1;; ++pos)
+						if (task.str.size() < vertexLength)
 						{
-							char posPrev = task.str[pos - 1];
-							char posExtend = task.str[pos + vertexLength];
-							if (candidateMask.test(pos))
-							{
-								Occurence now;
-								now.Set(posVertexHash[0]->hashvalue,
-									negVertexHash[0]->hashvalue,
-									task.str.begin() + pos,
-									vertexLength,
-									posExtend,
-									posPrev,
-									false);
+							continue;
+						}
 
-								size_t count = 0;
-								size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
-								size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
-								bool newBifurcation = false;
-								bool alreadyBifurcation = false;
-								mutex.lock_read();
-								auto range = occurenceSet.equal_range(now);
-								for (auto it = range.first; it != range.second; ++it)
+						size_t edgeLength = vertexLength + 1;
+						if (task.str.size() >= vertexLength + 2)
+						{
+							candidateMask.Reset();
+							std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+							std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+							InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+							size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
+							for (size_t pos = 1;; ++pos)
+							{
+								char posPrev = task.str[pos - 1];
+								char posExtend = task.str[pos + vertexLength];
+								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
+								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
-									++count;
-									inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
-									outUnknownCount += DnaChar::IsDefinite(it->Next()) ? 0 : 1;
-									if (!alreadyBifurcation && it->IsBifurcation())
+									size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
+									size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
+									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 									{
-										alreadyBifurcation = true;
+										char nextCh = DnaChar::LITERAL[i];
+										char revNextCh = DnaChar::ReverseChar(nextCh);
+										if (nextCh == posPrev)
+										{
+											++inCount;
+										}
+										else
+										{
+											StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, nextCh, revNextCh);
+											if (result == positiveLess || result == tie)
+											{
+												if (IsInBloomFilterPrepend(bitVector, posVertexHash, nextCh))
+												{
+													++inCount;
+												}
+											}
+											else
+											{
+												if (IsInBloomFilterExtend(bitVector, negVertexHash, revNextCh))
+												{
+													++inCount;
+												}
+											}
+										}
+
+										if (nextCh == posExtend)
+										{
+											++outCount;
+										}
+										else
+										{
+											StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
+											if (result == positiveLess || result == tie)
+											{
+												if (IsInBloomFilterExtend(bitVector, posVertexHash, nextCh))
+												{
+													++outCount;
+												}
+											}
+											else
+											{
+												if (IsInBloomFilterPrepend(bitVector, negVertexHash, revNextCh))
+												{
+													++outCount;
+												}
+											}
+										}
 									}
 
-									if (it->Next() != now.Next() || it->Prev() != now.Prev() || inUnknownCount > 1 || outUnknownCount > 1)
+									if (inCount > 1 || outCount > 1)
 									{
-										newBifurcation = true;
+										++marksCount;
+										candidateMask.SetConcurrently(pos);
 									}
 								}
 
-								if (count == 0)
+								if (pos + edgeLength < task.str.size())
 								{
-									occurenceSet.insert(now);
+									char negExtend = DnaChar::ReverseChar(posExtend);
+									char posPrev = task.str[pos];
+									char negPrev = DnaChar::ReverseChar(task.str[pos]);
+									definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
+									for (size_t i = 0; i < hashFunction.size(); i++)
+									{
+										posVertexHash[i]->update(posPrev, posExtend);
+										negVertexHash[i]->reverse_update(negExtend, negPrev);
+										assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+										assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+									}
 								}
 								else
 								{
-									if ((newBifurcation && !alreadyBifurcation) || (alreadyBifurcation && count > 1))
+									break;
+								}
+							}
+
+							try
+							{
+								candidateMask.WriteToFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start));
+							}
+							catch (std::runtime_error & err)
+							{
+								ReportError(errorMutex, error, err.what());
+							}				
+						}
+					}
+				}
+			}
+
+		private:
+			std::pair<uint64_t, uint64_t> bound;
+			const std::vector<HashFunctionPtr> & hashFunction;
+			const ConcurrentBitVector & bitVector;
+			size_t vertexLength;
+			TaskQueue & taskQueue;
+			const std::string & tmpDirectory;
+			std::atomic<uint64_t> & marksCount;
+			std::unique_ptr<std::runtime_error> & error;
+			tbb::mutex & errorMutex;
+		};
+
+
+		class CandidateFilteringWorker
+		{
+		public:
+			CandidateFilteringWorker(const std::vector<HashFunctionPtr> & hashFunction,
+				size_t vertexLength,
+				TaskQueue & taskQueue,
+				OccurenceSet & occurenceSet,
+				tbb::spin_rw_mutex & mutex,
+				const std::string & tmpDirectory,
+				std::unique_ptr<std::runtime_error> & error,
+				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
+				mutex(mutex), tmpDirectory(tmpDirectory), error(error), errorMutex(errorMutex)
+			{
+
+			}
+
+			void operator()()
+			{				
+				ConcurrentBitVector candidateMask(Task::TASK_SIZE);				
+				while (true)
+				{
+					Task task;
+					if (taskQueue.try_pop(task))
+					{
+						if (task.start == Task::GAME_OVER)
+						{
+							break;
+						}
+
+						if (task.str.size() < vertexLength)
+						{
+							continue;
+						}
+
+						std::vector<HashFunctionPtr> posVertexHash(1);
+						std::vector<HashFunctionPtr> negVertexHash(1);
+						size_t edgeLength = vertexLength + 1;
+						if (task.str.size() >= vertexLength + 2)
+						{
+							InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+							{
+								try
+								{
+									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start), true);
+								}
+								catch (std::runtime_error & err)
+								{
+									ReportError(errorMutex, error, err.what());
+								}
+							}
+
+							for (size_t pos = 1;; ++pos)
+							{
+								char posPrev = task.str[pos - 1];
+								char posExtend = task.str[pos + vertexLength];
+								if (candidateMask.Get(pos))
+								{
+									Occurence now;
+									now.Set(posVertexHash[0]->hashvalue,
+										negVertexHash[0]->hashvalue,
+										task.str.begin() + pos,
+										vertexLength,
+										posExtend,
+										posPrev,
+										false);
+
+									size_t count = 0;
+									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
+									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
+									bool newBifurcation = false;
+									bool alreadyBifurcation = false;
+									mutex.lock_read();
+									auto range = occurenceSet.equal_range(now);
+									for (auto it = range.first; it != range.second; ++it)
 									{
-										now.MakeBifurcation();
-										mutex.unlock();
-										mutex.lock();
-										range = occurenceSet.equal_range(now);
-										occurenceSet.unsafe_erase(range.first, range.second);
+										++count;
+										inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
+										outUnknownCount += DnaChar::IsDefinite(it->Next()) ? 0 : 1;
+										if (!alreadyBifurcation && it->IsBifurcation())
+										{
+											alreadyBifurcation = true;
+										}
+
+										if (it->Next() != now.Next() || it->Prev() != now.Prev() || inUnknownCount > 1 || outUnknownCount > 1)
+										{
+											newBifurcation = true;
+										}
+									}
+
+									if (count == 0)
+									{
 										occurenceSet.insert(now);
 									}
+									else
+									{
+										if ((newBifurcation && !alreadyBifurcation) || (alreadyBifurcation && count > 1))
+										{
+											now.MakeBifurcation();
+											mutex.unlock();
+											mutex.lock();
+											range = occurenceSet.equal_range(now);
+											occurenceSet.unsafe_erase(range.first, range.second);
+											occurenceSet.insert(now);
+										}
+									}
+
+									mutex.unlock();
 								}
 
-								mutex.unlock();
-							}
-
-							if (pos + edgeLength < task.str.size())
-							{
-								char negExtend = DnaChar::ReverseChar(posExtend);
-								char posPrev = task.str[pos];
-								char negPrev = DnaChar::ReverseChar(task.str[pos]);
-								for (size_t i = 0; i < 1; i++)
+								if (pos + edgeLength < task.str.size())
 								{
-									posVertexHash[i]->update(posPrev, posExtend);
-									negVertexHash[i]->reverse_update(negExtend, negPrev);
-									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+									char negExtend = DnaChar::ReverseChar(posExtend);
+									char posPrev = task.str[pos];
+									char negPrev = DnaChar::ReverseChar(task.str[pos]);
+									for (size_t i = 0; i < 1; i++)
+									{
+										posVertexHash[i]->update(posPrev, posExtend);
+										negVertexHash[i]->reverse_update(negExtend, negPrev);
+										assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+										assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+									}
 								}
-							}
-							else
-							{
-								break;
+								else
+								{
+									break;
+								}
 							}
 						}
 					}
 				}
 			}
-		}
+
+		private:
+			const std::vector<HashFunctionPtr> & hashFunction;
+			size_t vertexLength;
+			TaskQueue & taskQueue;
+			OccurenceSet & occurenceSet;
+			tbb::spin_rw_mutex & mutex;
+			const std::string & tmpDirectory;
+			std::unique_ptr<std::runtime_error> & error;
+			tbb::mutex & errorMutex;
+		};
 
 		struct EdgeResult
 		{
@@ -834,102 +834,123 @@ namespace Sibelia
 			return false;
 		}
 
-		static void EdgeConstructionWorker(size_t vertexLength,
-			TaskQueue & taskQueue,			
-			const BifurcationStorage<CAPACITY> & bifStorage,
-			JunctionPositionWriter & writer,
-			std::atomic<uint64_t> & currentPiece,
-			std::atomic<uint64_t> & occurences,
-			std::atomic<uint64_t> & currentStubVertexId,
-			std::unique_ptr<std::runtime_error> & error,
-			boost::mutex & errorMutex)
+		class EdgeConstructionWorker
 		{
-			try
+		public:
+			EdgeConstructionWorker(size_t vertexLength,
+				TaskQueue & taskQueue,
+				const BifurcationStorage<CAPACITY> & bifStorage,
+				JunctionPositionWriter & writer,
+				std::atomic<uint64_t> & currentPiece,
+				std::atomic<uint64_t> & occurences,
+				std::atomic<uint64_t> & currentStubVertexId,
+				std::unique_ptr<std::runtime_error> & error,
+				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage), writer(writer), currentPiece(currentPiece),
+				occurences(occurences), currentStubVertexId(currentStubVertexId), error(error), errorMutex(errorMutex)
 			{
-				DnaString bitBuf;
-				std::deque<EdgeResult> result;			
-				while (true)
+
+			}
+
+			void operator()()
+			{
+				try
 				{
-					Task task;				
-					if (taskQueue.try_pop(task))
+					DnaString bitBuf;
+					std::deque<EdgeResult> result;
+					while (true)
 					{
-						if (task.start == Task::GAME_OVER)
+						Task task;
+						if (taskQueue.try_pop(task))
 						{
-							break;
-						}
-
-						if (task.str.size() < vertexLength)
-						{
-							continue;
-						}
-
-						const std::vector<HashFunctionPtr> & hashFunction = bifStorage.GetHashFunctions();
-						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-						size_t edgeLength = vertexLength + 1;
-						if (task.str.size() >= vertexLength + 2)
-						{
-							EdgeResult currentResult;
-							currentResult.pieceId = task.piece;
-							InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
-							size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);					
-							for (size_t pos = 1;; ++pos)
+							if (task.start == Task::GAME_OVER)
 							{
-								while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
-								uint64_t bifId = INVALID_VERTEX;
-								char posPrev = task.str[pos - 1];
-								char posExtend = task.str[pos + vertexLength];							
-								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));							
-								if (definiteCount == vertexLength)
-								{
-									bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
-									if (bifId != INVALID_VERTEX)
-									{
-										occurences++;
-										currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
-									}
-								}
-							
-								if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId == INVALID_VERTEX)
-								{
-									occurences++;
-									currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
-								}
-
-								if (pos + edgeLength < task.str.size())
-								{
-									char negExtend = DnaChar::ReverseChar(posExtend);
-									char posPrev = task.str[pos];
-									char negPrev = DnaChar::ReverseChar(task.str[pos]);
-									definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
-									for (size_t i = 0; i < hashFunction.size(); i++)
-									{
-										posVertexHash[i]->update(posPrev, posExtend);
-										negVertexHash[i]->reverse_update(negExtend, negPrev);
-										assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-										assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-									}
-								}
-								else
-								{
-									break;
-								}
+								break;
 							}
 
-							result.push_back(currentResult);						
-						}
-					}				
-				}
+							if (task.str.size() < vertexLength)
+							{
+								continue;
+							}
 
-				while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+							const std::vector<HashFunctionPtr> & hashFunction = bifStorage.GetHashFunctions();
+							std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+							std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+							size_t edgeLength = vertexLength + 1;
+							if (task.str.size() >= vertexLength + 2)
+							{
+								EdgeResult currentResult;
+								currentResult.pieceId = task.piece;
+								InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
+								for (size_t pos = 1;; ++pos)
+								{
+									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+									uint64_t bifId = INVALID_VERTEX;
+									char posPrev = task.str[pos - 1];
+									char posExtend = task.str[pos + vertexLength];
+									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
+									if (definiteCount == vertexLength)
+									{
+										bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
+										if (bifId != INVALID_VERTEX)
+										{
+											occurences++;
+											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
+										}
+									}
+
+									if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId == INVALID_VERTEX)
+									{
+										occurences++;
+										currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
+									}
+
+									if (pos + edgeLength < task.str.size())
+									{
+										char negExtend = DnaChar::ReverseChar(posExtend);
+										char posPrev = task.str[pos];
+										char negPrev = DnaChar::ReverseChar(task.str[pos]);
+										definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
+										for (size_t i = 0; i < hashFunction.size(); i++)
+										{
+											posVertexHash[i]->update(posPrev, posExtend);
+											negVertexHash[i]->reverse_update(negExtend, negPrev);
+											assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+											assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+										}
+									}
+									else
+									{
+										break;
+									}
+								}
+
+								result.push_back(currentResult);
+							}
+						}
+					}
+
+					while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+				}
+				catch (std::runtime_error & e)
+				{
+					errorMutex.lock();
+					error.reset(new std::runtime_error(e));
+					errorMutex.unlock();
+				}
 			}
-			catch (std::runtime_error & e)
-			{
-				boost::lock_guard<boost::mutex> guard(errorMutex);
-				error.reset(new std::runtime_error(e));
-				return;
-			}
-		}
+
+		private:
+			size_t vertexLength;
+			TaskQueue & taskQueue;
+			const BifurcationStorage<CAPACITY> & bifStorage;
+			JunctionPositionWriter & writer;
+			std::atomic<uint64_t> & currentPiece;
+			std::atomic<uint64_t> & occurences;
+			std::atomic<uint64_t> & currentStubVertexId;
+			std::unique_ptr<std::runtime_error> & error;
+			tbb::mutex & errorMutex;
+		};
 
 		static void PutInBloomFilterExtend(const std::vector<HashFunctionPtr> & posVertexHash,
 			const std::vector<HashFunctionPtr> & negVertexHash,
@@ -973,200 +994,232 @@ namespace Sibelia
 			}
 		}
 
-		static uint64_t FilterFillerWorker(uint64_t low,
-			uint64_t high,
-			const std::vector<HashFunctionPtr> & hashFunction,
-			ConcurrentBitVector & filter,
-			size_t edgeLength,
-			TaskQueue & taskQueue)
+		class InitialFilterFillerWorker
 		{
-			uint64_t ret = 0;
-			std::vector<uint64_t> setup;
-			std::vector<uint64_t> hashValue;
-			const char DUMMY_CHAR = DnaChar::LITERAL[0];
-			const char REV_DUMMY_CHAR = DnaChar::ReverseChar(DUMMY_CHAR);
-			while (true)
+		public:
+			InitialFilterFillerWorker(uint64_t binSize,
+				const std::vector<HashFunctionPtr> & hashFunction,
+				ConcurrentBitVector & filter,
+				size_t vertexLength,
+				TaskQueue & taskQueue,
+				std::atomic<uint32_t> * binCounter) : binSize(binSize), hashFunction(hashFunction), filter(filter),
+				vertexLength(vertexLength), taskQueue(taskQueue), binCounter(binCounter)
 			{
-				Task task;
-				int c = taskQueue.size();
-				if (taskQueue.try_pop(task))				
+
+			}
+
+			void operator()()
+			{
+				size_t edgeLength = vertexLength + 1;
+				while (true)
 				{
-					if (task.start == Task::GAME_OVER)
+					Task task;
+					if (taskQueue.try_pop(task))
 					{
-						break;
-					}
-
-					if (task.str.size() < edgeLength)
-					{
-						continue;
-					}
-
-					uint64_t fistMinHash0;
-					uint64_t secondMinHash0;
-					size_t vertexLength = edgeLength - 1;
-					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-					size_t definiteCount = std::count_if(task.str.begin(), task.str.begin() + vertexLength, DnaChar::IsDefinite);
-					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
-					for (size_t pos = 0; ; ++pos)
-					{
-						hashValue.clear();
-						char prevCh = task.str[pos];
-						char nextCh = task.str[pos + edgeLength - 1];
-						char revNextCh = DnaChar::ReverseChar(nextCh);
-						assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
-						if (definiteCount == vertexLength)
-						{
-							fistMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
-							if (DnaChar::IsDefinite(nextCh))
-							{
-								PutInBloomFilterExtend(posVertexHash, negVertexHash, nextCh, revNextCh, hashValue);
-							}
-							else
-							{
-								PutInBloomFilterExtend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
-								PutInBloomFilterExtend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
-							}
-
-							if (pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1]))
-							{
-								PutInBloomFilterPrepend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
-								PutInBloomFilterPrepend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
-							}
-						}
-
-						for (size_t i = 0; i < hashFunction.size(); i++)
-						{
-							posVertexHash[i]->update(prevCh, nextCh);
-							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-							negVertexHash[i]->reverse_update(revNextCh, DnaChar::ReverseChar(prevCh));
-							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-						}
-
-						if (definiteCount == vertexLength)
-						{
-							secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
-							if (Within(fistMinHash0, low, high) || Within(secondMinHash0, low, high))
-							{
-								for (uint64_t value : hashValue)
-								{
-									setup.push_back(value);
-								}
-							}
-						}
-
-						if (pos + vertexLength < task.str.size() - 1)
-						{
-							definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(prevCh) ? 1 : 0);
-						}
-						else
+						if (task.start == Task::GAME_OVER)
 						{
 							break;
 						}
-					}
-				}
 
-				for (uint64_t hashValue : setup)
-				{
-					if (!filter.Get(hashValue))
-					{
-						filter.SetConcurrently(hashValue);
-					}
-				}
-
-				setup.clear();
-			}
-
-			return ret;
-		}
-
-		static void InitialFilterFillerWorker(uint64_t binSize,
-			const std::vector<HashFunctionPtr> & hashFunction,
-			ConcurrentBitVector & filter,
-			size_t vertexLength,
-			TaskQueue & taskQueue,
-			std::atomic<uint32_t> * binCounter)
-		{
-			size_t edgeLength = vertexLength + 1;
-			while (true)
-			{
-				Task task;
-				if (taskQueue.try_pop(task))
-				{
-					if (task.start == Task::GAME_OVER)
-					{
-						break;
-					}
-
-					if (task.str.size() < edgeLength)
-					{
-						continue;
-					}
-
-					size_t vertexLength = edgeLength - 1;
-					std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-					std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-					InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
-					for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
-					{
-						uint64_t hvalue;
-						bool wasSet = true;
-						char prevCh = task.str[pos];
-						char nextCh = task.str[pos + edgeLength - 1];
-						char revNextCh = DnaChar::ReverseChar(nextCh);
-						uint64_t firstMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
-						uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
-						uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
-
-						for (size_t i = 0; i < hashFunction.size(); i++)
+						if (task.str.size() < edgeLength)
 						{
-							if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(task.str.begin() + pos, vertexLength)))
-							{
-								hvalue = posVertexHash[i]->hash_extend(nextCh);
-							}
-							else
-							{
-								hvalue = negVertexHash[i]->hash_prepend(revNextCh);
-							}
-
-							if (!filter.Get(hvalue))
-							{
-								wasSet = false;
-								filter.SetConcurrently(hvalue);
-							}
+							continue;
 						}
 
-						for (size_t i = 0; i < hashFunction.size(); i++)
+						size_t vertexLength = edgeLength - 1;
+						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
+						for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 						{
-							posVertexHash[i]->update(prevCh, nextCh);
-							assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-							negVertexHash[i]->reverse_update(DnaChar::ReverseChar(nextCh), DnaChar::ReverseChar(prevCh));
-							assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-						}
+							uint64_t hvalue;
+							bool wasSet = true;
+							char prevCh = task.str[pos];
+							char nextCh = task.str[pos + edgeLength - 1];
+							char revNextCh = DnaChar::ReverseChar(nextCh);
+							uint64_t firstMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+							uint64_t posHash0 = posVertexHash[0]->hash_extend(nextCh);
+							uint64_t negHash0 = negVertexHash[0]->hash_prepend(revNextCh);
 
-						uint64_t secondMinHash0 = std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
-						if (!wasSet)
-						{
-							uint64_t value[] = { firstMinHash0, secondMinHash0 };
-							for (uint64_t v : value)
+							for (size_t i = 0; i < hashFunction.size(); i++)
 							{
-								uint64_t bin = v / binSize;
-								if (binCounter[bin] < MAX_COUNTER)
+								if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(task.str.begin() + pos, vertexLength)))
 								{
-									binCounter[bin].fetch_add(1);
+									hvalue = posVertexHash[i]->hash_extend(nextCh);
+								}
+								else
+								{
+									hvalue = negVertexHash[i]->hash_prepend(revNextCh);
+								}
+
+								if (!filter.Get(hvalue))
+								{
+									wasSet = false;
+									filter.SetConcurrently(hvalue);
+								}
+							}
+
+							for (size_t i = 0; i < hashFunction.size(); i++)
+							{
+								posVertexHash[i]->update(prevCh, nextCh);
+								assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+								negVertexHash[i]->reverse_update(DnaChar::ReverseChar(nextCh), DnaChar::ReverseChar(prevCh));
+								assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+							}
+
+							uint64_t secondMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+							if (!wasSet)
+							{
+								uint64_t value[] = { firstMinHash0, secondMinHash0 };
+								for (uint64_t v : value)
+								{
+									uint64_t bin = v / binSize;
+									if (binCounter[bin] < MAX_COUNTER)
+									{
+										binCounter[bin].fetch_add(1);
+									}
 								}
 							}
 						}
 					}
 				}
 			}
-		}
+
+		private:
+			uint64_t binSize;
+			const std::vector<HashFunctionPtr> & hashFunction;
+			ConcurrentBitVector & filter;
+			size_t vertexLength;
+			TaskQueue & taskQueue;
+			std::atomic<uint32_t> * binCounter;
+		};
+
+		class FilterFillerWorker
+		{
+		public:
+			FilterFillerWorker(uint64_t low,
+				uint64_t high,
+				const std::vector<HashFunctionPtr> & hashFunction,
+				ConcurrentBitVector & filter,
+				size_t edgeLength,
+				TaskQueue & taskQueue) : low(low), high(high), hashFunction(hashFunction), filter(filter), edgeLength(edgeLength), taskQueue(taskQueue)
+			{
+
+			}
+
+			void operator()()
+			{
+				std::vector<uint64_t> setup;
+				std::vector<uint64_t> hashValue;
+				const char DUMMY_CHAR = DnaChar::LITERAL[0];
+				const char REV_DUMMY_CHAR = DnaChar::ReverseChar(DUMMY_CHAR);
+				while (true)
+				{
+					Task task;
+					int c = taskQueue.size();
+					if (taskQueue.try_pop(task))
+					{
+						if (task.start == Task::GAME_OVER)
+						{
+							break;
+						}
+
+						if (task.str.size() < edgeLength)
+						{
+							continue;
+						}
+
+						uint64_t fistMinHash0;
+						uint64_t secondMinHash0;
+						size_t vertexLength = edgeLength - 1;
+						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+						size_t definiteCount = std::count_if(task.str.begin(), task.str.begin() + vertexLength, DnaChar::IsDefinite);
+						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
+						for (size_t pos = 0;; ++pos)
+						{
+							hashValue.clear();
+							char prevCh = task.str[pos];
+							char nextCh = task.str[pos + edgeLength - 1];
+							char revNextCh = DnaChar::ReverseChar(nextCh);
+							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
+							if (definiteCount == vertexLength)
+							{
+								fistMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+								if (DnaChar::IsDefinite(nextCh))
+								{
+									PutInBloomFilterExtend(posVertexHash, negVertexHash, nextCh, revNextCh, hashValue);
+								}
+								else
+								{
+									PutInBloomFilterExtend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
+									PutInBloomFilterExtend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
+								}
+
+								if (pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1]))
+								{
+									PutInBloomFilterPrepend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
+									PutInBloomFilterPrepend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
+								}
+							}
+
+							for (size_t i = 0; i < hashFunction.size(); i++)
+							{
+								posVertexHash[i]->update(prevCh, nextCh);
+								assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+								negVertexHash[i]->reverse_update(revNextCh, DnaChar::ReverseChar(prevCh));
+								assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+							}
+
+							if (definiteCount == vertexLength)
+							{
+								secondMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+								if (Within(fistMinHash0, low, high) || Within(secondMinHash0, low, high))
+								{
+									for (uint64_t value : hashValue)
+									{
+										setup.push_back(value);
+									}
+								}
+							}
+
+							if (pos + vertexLength < task.str.size() - 1)
+							{
+								definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(prevCh) ? 1 : 0);
+							}
+							else
+							{
+								break;
+							}
+						}
+					}
+
+					for (uint64_t hashValue : setup)
+					{
+						if (!filter.Get(hashValue))
+						{
+							filter.SetConcurrently(hashValue);
+						}
+					}
+
+					setup.clear();
+				}
+			}
+
+		private:
+			uint64_t low;
+			uint64_t high;
+			const std::vector<HashFunctionPtr> & hashFunction;
+			ConcurrentBitVector & filter;
+			size_t edgeLength;
+			TaskQueue & taskQueue;
+		};
 
 		static void DistributeTasks(const std::vector<std::string> & fileName,
 			size_t overlapSize,
 			std::vector<TaskQueuePtr> & taskQueue,
 			std::unique_ptr<std::runtime_error> & error,
-			boost::mutex & errorMutex,
+			tbb::mutex & errorMutex,
 			std::ostream & logFile)
 		{
 			size_t record = 0;
@@ -1180,11 +1233,13 @@ namespace Sibelia
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
 					{
-						boost::lock_guard<boost::mutex> lock(errorMutex);
+						errorMutex.lock();
 						if (error != 0)
 						{
 							throw *error;
 						}
+
+						errorMutex.unlock();
 					}
 					
 					std::stringstream ss;
@@ -1240,7 +1295,7 @@ namespace Sibelia
 				TaskQueuePtr & q = taskQueue[nowQueue];
 				while (!taskQueue[i]->try_push(Task(0, Task::GAME_OVER, 0, true, std::string())))
 				{
-					boost::this_thread::sleep_for(boost::chrono::nanoseconds(1000000));
+// 					boost::this_thread::sleep_for(boost::chrono::nanoseconds(1000000));
 				}				
 			}
 		}

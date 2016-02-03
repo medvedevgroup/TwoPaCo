@@ -53,7 +53,7 @@ namespace Sibelia
 			size_t remain = prefix;
 			for (size_t i = 0; remain > 0; i++)
 			{
-				size_t current = std::min(remain, UNIT_CAPACITY);
+				size_t current = min(remain, UNIT_CAPACITY);
 				uint64_t apiece = it1.str_[i];
 				uint64_t bpiece = it2.str_[i];
 				if (current != UNIT_CAPACITY)
@@ -120,7 +120,7 @@ namespace Sibelia
 			for (size_t i = 0; remain > 0; i++)
 			{
 				uint64_t piece = copy.str_[i];
-				size_t current = std::min(remain, UNIT_CAPACITY);
+				size_t current = min(remain, UNIT_CAPACITY);
 				if (current != UNIT_CAPACITY)
 				{
 					piece &= Mask(current);
