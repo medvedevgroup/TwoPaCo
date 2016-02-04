@@ -6,7 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 	list(APPEND "CMAKE_CXX_FLAGS" "-std=c++0x")
 endif()
 
-add_executable(graphconstructor ../common/dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp ../common/streamfastaparser.cpp test.cpp vertexenumerator.cpp ../common/spooky/SpookyV2.cpp)
+add_executable(graphconstructor ../common/dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp ../common/streamfastaparser.cpp test.cpp vertexenumerator.cpp ../common/spooky/SpookyV2.cpp common.cpp)
 include_directories(${graphconstructor_SOURCE_DIR} "../common") 
+target_link_libraries(graphconstructor  "tbb")
 
-include(CPack)

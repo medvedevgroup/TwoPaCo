@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include <tclap/CmdLine.h>
-#include <spooky/SpookyV2.h>
 #include <junctionapi/junctionapi.h>
 
 bool CompareJunctionsById(const Sibelia::JunctionPosition & a, const Sibelia::JunctionPosition & b)
