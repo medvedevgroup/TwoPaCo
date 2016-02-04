@@ -151,8 +151,7 @@ namespace Sibelia
 
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
-			std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
-			for (size_t i = 0; i < workerThread.size(); i++)
+			for (size_t i = 0; i < taskQueue.size(); i++)
 			{
 				taskQueue[i].reset(new TaskQueue());
 				taskQueue[i]->set_capacity(QUEUE_CAPACITY);
@@ -163,6 +162,7 @@ namespace Sibelia
 			
 			if (rounds > 1)
 			{
+				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 				binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 				std::fill(binCounter, binCounter + BINS_COUNT, 0);
 				ConcurrentBitVector bitVector(realSize);
@@ -181,7 +181,6 @@ namespace Sibelia
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i]->join();
-					workerThread[i].reset();
 				}
 			}
 
@@ -235,50 +234,55 @@ namespace Sibelia
 					ConcurrentBitVector bitVector(realSize);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
 					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
-					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						FilterFillerWorker worker(low,
-							high,
-							std::cref(hashFunction),
-							std::ref(bitVector),
-							edgeLength,
-							std::ref(*taskQueue[i]));
-						workerThread[i] = tbb::tbb_thread(worker);
-					}
+						std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
+						for (size_t i = 0; i < workerThread.size(); i++)
+						{
+							FilterFillerWorker worker(low,
+								high,
+								std::cref(hashFunction),
+								std::ref(bitVector),
+								edgeLength,
+								std::ref(*taskQueue[i]));
+							workerThread[i].reset(new tbb::tbb_thread(worker));
+						}
 
-					DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
-					for (size_t i = 0; i < workerThread.size(); i++)
-					{
-						workerThread[i].join();
+						DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
+						for (size_t i = 0; i < workerThread.size(); i++)
+						{
+							workerThread[i]->join();
+						}
 					}
 
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);
-					std::unique_ptr<std::runtime_error> error;
-					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						CandidateCheckingWorker worker(std::make_pair(low, high),
-							hashFunction,
-							bitVector,
-							vertexLength,
-							*taskQueue[i],
-							tmpDirName,
-							marks,
-							error,
-							errorMutex);
+						std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
+						for (size_t i = 0; i < workerThread.size(); i++)
+						{
+							CandidateCheckingWorker worker(std::make_pair(low, high),
+								hashFunction,
+								bitVector,
+								vertexLength,
+								*taskQueue[i],
+								tmpDirName,
+								marks,
+								error,
+								errorMutex);
 
-						workerThread[i] = tbb::tbb_thread(worker);
-					}
+							workerThread[i].reset(new tbb::tbb_thread(worker));
+						}
 
-					if (error != 0)
-					{
-						throw *error;
-					}
+						if (error != 0)
+						{
+							throw *error;
+						}
 
-					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
-					for (size_t i = 0; i < taskQueue.size(); i++)
-					{
-						workerThread[i].join();
+						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+						for (size_t i = 0; i < taskQueue.size(); i++)
+						{
+							workerThread[i]->join();
+						}
 					}
 
 					std::cout << time(0) - mark << "\t";
@@ -287,29 +291,32 @@ namespace Sibelia
 				mark = time(0);
 				tbb::spin_rw_mutex mutex;
 				OccurenceSet occurenceSet(1 << 20);
-				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					CandidateFilteringWorker worker(hashFunction,
-						vertexLength,
-						*taskQueue[i],
-						occurenceSet,
-						mutex,
-						tmpDirName,
-						error,
-						errorMutex);
+					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
+					for (size_t i = 0; i < workerThread.size(); i++)
+					{
+						CandidateFilteringWorker worker(hashFunction,
+							vertexLength,
+							*taskQueue[i],
+							occurenceSet,
+							mutex,
+							tmpDirName,
+							error,
+							errorMutex);
 
-					workerThread[i] = tbb::tbb_thread(worker);
-				}
+						workerThread[i].reset(new tbb::tbb_thread(worker));
+					}
 
-				if (error != 0)
-				{
-					throw std::runtime_error(*error);
-				}
+					if (error != 0)
+					{
+						throw std::runtime_error(*error);
+					}
 
-				DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
-				for (size_t i = 0; i < taskQueue.size(); i++)
-				{
-					workerThread[i].join();
+					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+					for (size_t i = 0; i < taskQueue.size(); i++)
+					{
+						workerThread[i]->join();
+					}
 				}
 
 				size_t falsePositives = 0;
@@ -354,25 +361,28 @@ namespace Sibelia
 			JunctionPositionWriter writer(outFileName);
 			occurence = currentPiece = 0;
 			currentStubVertex = verticesCount * 2;
-			for (size_t i = 0; i < workerThread.size(); i++)
 			{
-				EdgeConstructionWorker worker(vertexLength,
-					*taskQueue[i],
-					bifStorage_,
-					writer,
-					currentPiece,
-					occurence,
-					currentStubVertex,
-					error,
-					errorMutex);
+				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					EdgeConstructionWorker worker(vertexLength,
+						*taskQueue[i],
+						bifStorage_,
+						writer,
+						currentPiece,
+						occurence,
+						currentStubVertex,
+						error,
+						errorMutex);
 
-				workerThread[i] = tbb::tbb_thread(worker);
-			}
+					workerThread[i].reset(new tbb::tbb_thread(worker));
+				}
 
-			DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
-			for (size_t i = 0; i < taskQueue.size(); i++)
-			{
-				workerThread[i].join();
+				DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+				for (size_t i = 0; i < taskQueue.size(); i++)
+				{
+					workerThread[i]->join();
+				}
 			}
 
 			if (error != 0)
