@@ -2,7 +2,7 @@
 #include <fstream>
 #include <cassert>
 #include <iostream>
-#include <exception>
+#include <stdexcept>
 
 #include "concurrentbitvector.h"
 

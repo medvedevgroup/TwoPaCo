@@ -151,7 +151,7 @@ namespace Sibelia
 
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
-			std::vector<tbb::tbb_thread> workerThread(threads);
+			std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 			for (size_t i = 0; i < workerThread.size(); i++)
 			{
 				taskQueue[i].reset(new TaskQueue());
@@ -174,13 +174,14 @@ namespace Sibelia
 						vertexLength,
 						*taskQueue[i],
 						binCounter);
-					workerThread[i] = tbb::tbb_thread(worker);
+					workerThread[i].reset(new tbb::tbb_thread(worker));
 				}
 
 				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
-					workerThread[i].join();
+					workerThread[i]->join();
+					workerThread[i].reset();
 				}
 			}
 

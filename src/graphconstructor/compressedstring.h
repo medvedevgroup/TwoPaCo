@@ -12,6 +12,8 @@
 
 namespace Sibelia
 {
+	using std::min;
+	using std::max;
 	extern const size_t UNIT_CAPACITY;
 
 	template<size_t CAPACITY>
@@ -21,7 +23,7 @@ namespace Sibelia
 		CompressedString()
 		{
 			std::fill(str_, str_ + CAPACITY, 0);
-		}		
+		}
 
 		void WriteToFile(std::ofstream & out) const
 		{
