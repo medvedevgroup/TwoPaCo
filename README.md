@@ -45,11 +45,11 @@ This utility turns the binary file into human readable one. Just run
 It will output a text file to the standard output.
 The i-th line line corresponds to the i-th junction and is of format:
 
-	<seq_id0> <pos0>; <seq_id1> <pos1>; ....
+	<seq_id_0> <pos_0>; <seq_id_1> <pos_1>; ....
 
-Where each pair "<seq_id> <pos>" corresponds to an occurence of the junction in
-sequence <seq_id> at position <pos>. Sequence ids are just the numbers of sequences
-in the order they appear in the input.
+Where each pair "seq_id_i pos_j" corresponds to an occurence of the junction in
+sequence "i" at position "pos_j". Sequence ids are just the numbers of sequences
+in the order they appear in the input. All numbers count from 0.
 
 A note: this is a prototype version of the graph constructor. This output format is
 mostly for testing purposes and not final. The release version will likely use the
