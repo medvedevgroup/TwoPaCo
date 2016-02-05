@@ -48,7 +48,7 @@ The i-th line line corresponds to the i-th junction and is of format:
 	<seq_id_0> <pos_0>; <seq_id_1> <pos_1>; ....
 
 Where each pair "seq_id_i pos_j" corresponds to an occurence of the junction in
-sequence "i" at position "pos_j". Sequence ids are just the numbers of sequences
+sequence "seq_id_i" at position "pos_j". Sequence ids are just the numbers of sequences
 in the order they appear in the input. All numbers count from 0.
 
 A note: this is a prototype version of the graph constructor. This output format is
