@@ -12,8 +12,9 @@ To compile the code, you need the following (Linux only):
 
 Once you've got all the things above, do the following:
 
+* Go to the root directory of the project and create the "build" folder
 * Go to the "build" directory
-* Type cmake ../src
+* Type cmake ../src -DCMAKE_BUILD_TYPE=RELEASE
 * Type make
 
 This will make two targets: grahphconstructor and graphdump
