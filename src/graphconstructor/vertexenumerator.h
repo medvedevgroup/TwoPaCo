@@ -883,15 +883,11 @@ namespace Sibelia
 								continue;
 							}
 
-							const std::vector<HashFunctionPtr> & hashFunction = bifStorage.GetHashFunctions();
-							std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-							std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 							size_t edgeLength = vertexLength + 1;
 							if (task.str.size() >= vertexLength + 2)
 							{
 								EdgeResult currentResult;
 								currentResult.pieceId = task.piece;
-								InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 								for (size_t pos = 1;; ++pos)
 								{
@@ -902,7 +898,7 @@ namespace Sibelia
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 									if (definiteCount == vertexLength)
 									{
-										bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
+										bifId = bifStorage.GetId(task.str.begin() + pos);
 										if (bifId != INVALID_VERTEX)
 										{
 											occurences++;
@@ -922,13 +918,6 @@ namespace Sibelia
 										char posPrev = task.str[pos];
 										char negPrev = DnaChar::ReverseChar(task.str[pos]);
 										definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
-										for (size_t i = 0; i < hashFunction.size(); i++)
-										{
-											posVertexHash[i]->update(posPrev, posExtend);
-											negVertexHash[i]->reverse_update(negExtend, negPrev);
-											assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-											assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-										}
 									}
 									else
 									{
