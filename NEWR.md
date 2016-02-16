@@ -21,11 +21,10 @@ multiple complete genomes
 
 * graphdump -- a utility that turns output of twopaco into text format
 
-Disclaimer: this is still a research prototype, the code has not been "officially"
-released yet. Things like compilation, installation, output file format, and command
-line parameters are subject to change. Though the correctness of the implementation
-was thoroughly tested, the testing is still in progress. However, you can already
-use it.
+Disclaimer: though the correctness of the implementation was thoroughly tested,
+this is still a research prototype and the code has not been "officially"
+released yet. Things like compilation, installation, output file format, and
+commandline parameters are subject to change.
 
 Compilation
 ===========
@@ -54,12 +53,15 @@ To run the graph construction (assuming you're in the "build/graphconstructor" d
 
 	./twopaco -f <filter_size> -k <value_of_k> <input_files>
 
-This will constuct the compressed graph for the vertex size of <value_of_k> using
-2^filter_size bits in the Bloom filter.
+This will constuct the compressed graph for the vertex size of \<value_of_k\> using
+2^\<filter_size\> bits in the Bloom filter. The output file is a binary file that
+indicates junction positions on the positive strand. You can read directly using
+an API (will be documented later) or make it into a text file using the "graphdump"
+utility. The program has several additional parameters, see subsections below.
+You can also type "./twopaco --help" to get a short parameter description.
 
-You can also type "./twopaco --help" to get parameter description.
 Note that the size of the Bloom filter (in bits) is actualy "2^filter_size".
-The output file is a binary file that indicates junction positions on the positive strand.
+
 The file consists of pairs of numbers, where the first number is 4 bytes long, and the second is 8 bytes long.
 The first number indicates position and the second one indicates the ID of the junction.
 Positions appear in the file in the same order they appear in the input genomes
