@@ -132,7 +132,7 @@ namespace TwoPaCo
 				std::cout << fn << std::endl;
 			}
 
-			std::ofstream logFile("log.txt");
+			std::ofstream logFile((tmpDirName + "/log.txt").c_str());
 			if (!logFile)
 			{
 				throw StreamFastaParser::Exception("Can't open the log file");
