@@ -1,6 +1,4 @@
-TwoPaCo 0.0.0
 
-Updated 5th Feb 2016
 
 This is the code that implements the algorithm described in the paper
 "An efficient  algorithm to build the compacted de Bruijn graph from many complete genomes"
@@ -62,7 +60,7 @@ The first number is the index number of the sequence, the second one is the posi
 and the last one is the junction id. The index number of the sequence is just the order
 of the sequence in the input file. All positions/orders count from 0.
 Positions appear in the file in the same order they appear in the input genomes
-This way, one can obtain all multi-edges of the graph with a linear scan.
+This way, one can obtain all multi-edges of the graph with a linear scan, as described in the paper.
 The negative strand can be obtained easily since it is symmetric.
 
 One can also output junctions grouped by ids, it is useful for comparison between
