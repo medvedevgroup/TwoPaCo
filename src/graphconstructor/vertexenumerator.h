@@ -230,7 +230,6 @@ namespace TwoPaCo
 				{
 					ConcurrentBitVector bitVector(realSize);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
-					std::cout << "Running times of different stages: ";
 					std::cout << "Pass\tFilling\tFiltering" << std::endl << "1\t";
 					{
 						std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -288,7 +287,7 @@ namespace TwoPaCo
 
 				mark = time(0);
 				tbb::spin_rw_mutex mutex;
-				std::cout << "2\t" << std::endl;
+				std::cout << "2\t";
 				OccurenceSet occurenceSet(1 << 20);
 				{
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
