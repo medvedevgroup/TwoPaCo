@@ -159,6 +159,7 @@ namespace TwoPaCo
 			
 			if (rounds > 1)
 			{
+				std::cout << "Splitting the input kmers set...";
 				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 				binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 				std::fill(binCounter, binCounter + BINS_COUNT, 0);

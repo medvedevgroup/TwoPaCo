@@ -32,12 +32,6 @@ int main(int argc, char * argv[])
 	{
 		TCLAP::CmdLine cmd("Program for condensed de Bruijn graph construction", ' ', "0");
 		
-		TCLAP::SwitchArg countAll("",
-			"all",
-			"Count all bifurcation",
-			cmd,
-			false);
-
 		TCLAP::ValueArg<unsigned int> kvalue("k",
 			"kvalue",
 			"Value of k",
@@ -64,7 +58,7 @@ int main(int argc, char * argv[])
 
 		TCLAP::ValueArg<unsigned int> rounds("r",
 			"rounds",
-			"Number of hash functions",
+			"Number of computation rounds",
 			false,
 			1,
 			"integer",
@@ -80,10 +74,10 @@ int main(int argc, char * argv[])
 
 		TCLAP::ValueArg<std::string> tmpDirName("",
 			"tmpdir",
-			"Temporary file name",
+			"Temporary directory name",
 			false,
-			"graphconstructor.tmp",
-			"file name",
+			".",
+			"directory name",
 			cmd);
 
 		TCLAP::UnlabeledMultiArg<std::string> fileName("filenames",
@@ -109,9 +103,8 @@ int main(int argc, char * argv[])
 			threads.getValue(),
 			tmpDirName.getValue(),
 			outFileName.getValue());
-		
-		std::cout << "Distinct = " << vid->GetVerticesCount() << std::endl;
-		std::cout << "Total = " << vid->GetTotalVerticesCount() << std::endl;
+			
+		std::cout << "Total junctions = " << vid->GetTotalVerticesCount() << std::endl;
 		std::cout << std::endl;
 	}
 	catch (TCLAP::ArgException & e)
