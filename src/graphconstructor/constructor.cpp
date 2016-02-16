@@ -86,14 +86,6 @@ int main(int argc, char * argv[])
 			"file name",
 			cmd);
 
-		TCLAP::ValueArg<unsigned int> aggregationThreads("g",
-			"aggthreads",
-			"Number of aggregation threads",
-			false,
-			1,
-			"integer",
-			cmd);
-
 		TCLAP::UnlabeledMultiArg<std::string> fileName("filenames",
 			"FASTA file(s) with nucleotide sequences.",
 			true,
@@ -110,13 +102,11 @@ int main(int argc, char * argv[])
 
 		cmd.parse(argc, argv);
 		
-		size_t aggThreads = aggregationThreads.isSet() ? aggregationThreads.getValue() : threads.getValue();
-		std::unique_ptr<Sibelia::VertexEnumerator> vid = Sibelia::CreateEnumerator(fileName.getValue(),
+		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = TwoPaCo::CreateEnumerator(fileName.getValue(),
 			kvalue.getValue(), filterSize.getValue(),
 			hashFunctions.getValue(),
 			rounds.getValue(),
 			threads.getValue(),
-			aggThreads,
 			tmpDirName.getValue(),
 			outFileName.getValue());
 		

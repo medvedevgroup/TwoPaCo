@@ -5,12 +5,12 @@
 #include <tclap/CmdLine.h>
 #include <junctionapi/junctionapi.h>
 
-bool CompareJunctionsById(const Sibelia::JunctionPosition & a, const Sibelia::JunctionPosition & b)
+bool CompareJunctionsById(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
 {
 	return a.GetId() < b.GetId();
 }
 
-bool CompareJunctionsByPos(const Sibelia::JunctionPosition & a, const Sibelia::JunctionPosition & b)
+bool CompareJunctionsByPos(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
 {
 	return std::make_pair(a.GetChr(), a.GetPos()) < std::make_pair(b.GetChr(), b.GetPos());
 }
@@ -18,7 +18,7 @@ bool CompareJunctionsByPos(const Sibelia::JunctionPosition & a, const Sibelia::J
 struct EqClass
 {
 	size_t label;
-	std::vector<Sibelia::JunctionPosition> position;
+	std::vector<TwoPaCo::JunctionPosition> position;
 };
 
 bool CompareJunctionClasses(const EqClass & a, const EqClass & b)
@@ -40,10 +40,10 @@ int main(int argc, char * argv[])
 			cmd);
 		
 		cmd.parse(argc, argv);
-		Sibelia::JunctionPosition pos;
-		Sibelia::JunctionPositionReader reader(inputFileName.getValue().c_str());
+		TwoPaCo::JunctionPosition pos;
+		TwoPaCo::JunctionPositionReader reader(inputFileName.getValue().c_str());
 		std::vector<EqClass> eqClass;
-		std::vector<Sibelia::JunctionPosition> junction;
+		std::vector<TwoPaCo::JunctionPosition> junction;
 		while (reader.NextJunctionPosition(pos))
 		{
 			junction.push_back(pos);

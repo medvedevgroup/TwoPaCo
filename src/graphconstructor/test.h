@@ -5,7 +5,7 @@
 #include <string>
 #include <iostream>
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	bool Runtests();
 	void DnaStringTest(size_t n, std::ostream & log);

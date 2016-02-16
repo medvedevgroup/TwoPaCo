@@ -1,7 +1,7 @@
 #include <cassert>
 #include "dnachar.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	bool DnaChar::isValid_[CHAR_SIZE];
 	bool DnaChar::isDefinite_[CHAR_SIZE];

@@ -60,7 +60,7 @@ public:
 
 	uint32_t MakeUpChar(char ch)
 	{
-		if (!Sibelia::DnaChar::IsDefinite(ch))
+		if (!TwoPaCo::DnaChar::IsDefinite(ch))
 		{
 			if (currentUnknownChar == UINT32_MAX)
 			{
@@ -70,13 +70,13 @@ public:
 			return currentUnknownChar++;
 		}
 
-		return Sibelia::DnaChar::MakeUpChar(ch);
+		return TwoPaCo::DnaChar::MakeUpChar(ch);
 	}
 
 	uint32_t ReverseMadeUpChar(uint32_t ch)
 	{
-		char before = Sibelia::DnaChar::UnMakeUpChar(ch);
-		return MakeUpChar(Sibelia::DnaChar::ReverseChar(before));
+		char before = TwoPaCo::DnaChar::UnMakeUpChar(ch);
+		return MakeUpChar(TwoPaCo::DnaChar::ReverseChar(before));
 	}
 
 	template<class It>
@@ -109,12 +109,12 @@ public:
 
 	void MakeDeBruijnGraph(const std::vector<std::string> & fileName, const std::string outFileName, const std::string & tmpDirName)
 	{
-		Sibelia::JunctionPositionWriter writer(outFileName);
+		TwoPaCo::JunctionPositionWriter writer(outFileName);
 		std::vector<std::vector<DnaString> > strand(2);
 		std::cout << "Parsing input..." << std::endl;
 		for (auto name : fileName)
 		{
-			for (Sibelia::StreamFastaParser parser(name); parser.ReadRecord();)
+			for (TwoPaCo::StreamFastaParser parser(name); parser.ReadRecord();)
 			{
 				strand[0].push_back(DnaString());
 				strand[1].push_back(DnaString());
@@ -213,7 +213,7 @@ public:
 					if (it != junctionMap.end())
 					{
 						++occurences;
- 						writer.WriteJunction(Sibelia::JunctionPosition(chr, i, it->second));
+ 						writer.WriteJunction(TwoPaCo::JunctionPosition(chr, i, it->second));
 					}
 				}
 			}

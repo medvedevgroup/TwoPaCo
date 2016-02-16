@@ -10,7 +10,7 @@
 #include <dnachar.h>
 #include <spooky/SpookyV2.h>
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	using std::min;
 	using std::max;

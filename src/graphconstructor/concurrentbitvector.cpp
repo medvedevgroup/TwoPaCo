@@ -6,7 +6,7 @@
 
 #include "concurrentbitvector.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	ConcurrentBitVector::ConcurrentBitVector(size_t size)
 		: size_(size), realSize_(size / 32 + 1), filter_(new UInt[realSize_])

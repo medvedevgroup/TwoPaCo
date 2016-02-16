@@ -5,7 +5,7 @@
 #include "compressedstring.h"
 
 
-namespace Sibelia
+namespace TwoPaCo
 {
 
 	template<size_t CAPACITY>

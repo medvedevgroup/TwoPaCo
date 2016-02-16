@@ -8,7 +8,7 @@
 #include "test.h"
 #include "vertexenumerator.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	bool IsDefinite(int ch)
 	{
@@ -18,7 +18,7 @@ namespace Sibelia
 	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t threads, std::ostream & log)
 	{
 		size_t edgeLength = vertexLength + 1;
-		std::unique_ptr<Sibelia::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 1, threads, 1, "tmp", "de_bruijn.bin");
+		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 4, 1, threads, "tmp", "de_bruijn.bin");
 		
 		int unknownCount = CHAR_MAX; 
 		typedef std::vector<int> DnaString;

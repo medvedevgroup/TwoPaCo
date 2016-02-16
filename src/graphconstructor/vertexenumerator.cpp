@@ -10,7 +10,7 @@
 
 #include "vertexenumerator.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	namespace
 	{
@@ -21,7 +21,6 @@ namespace Sibelia
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
-			size_t aggregationThreads,
 			const std::string & tmpFileName,
 			const std::string & outFileName)
 		{
@@ -34,7 +33,6 @@ namespace Sibelia
 					hashFunctions,
 					rounds,
 					threads,
-					aggregationThreads,
 					tmpFileName,
 					outFileName));
 			}
@@ -45,7 +43,6 @@ namespace Sibelia
 				hashFunctions,
 				rounds,
 				threads,
-				aggregationThreads,
 				tmpFileName,
 				outFileName);
 		}
@@ -57,7 +54,6 @@ namespace Sibelia
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
-			size_t aggregationThreads,
 			const std::string & tmpFileName,
 			const std::string & outFileName)
 		{
@@ -71,7 +67,6 @@ namespace Sibelia
 		size_t hashFunctions,
 		size_t rounds,
 		size_t threads,
-		size_t aggregationThreads,
 		const std::string & tmpFileName,
 		const std::string & outFileName)
 	{
@@ -81,7 +76,6 @@ namespace Sibelia
 			hashFunctions,
 			rounds,
 			threads,
-			aggregationThreads,
 			tmpFileName,
 			outFileName);
 	}

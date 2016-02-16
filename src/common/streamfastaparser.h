@@ -7,7 +7,7 @@
 
 #include "dnachar.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	class StreamFastaParser
 	{

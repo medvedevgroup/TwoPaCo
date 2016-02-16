@@ -27,7 +27,7 @@
 #include "candidateoccurence.h"
 #include "concurrentbitvector.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	class VertexEnumerator
 	{
@@ -48,7 +48,6 @@ namespace Sibelia
 		size_t hashFunctions,
 		size_t rounds,
 		size_t threads,
-		size_t aggregationThreads,
 		const std::string & tmpFileName,
 		const std::string & outFileName);
 
@@ -117,7 +116,6 @@ namespace Sibelia
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
-			size_t aggregationThreads,
 			const std::string & tmpDirName,
 			const std::string & outFileName) :
 			vertexSize_(vertexLength)
@@ -125,7 +123,6 @@ namespace Sibelia
 			uint64_t realSize = uint64_t(1) << filterSize;
 			std::cout << "Threads = " << threads << std::endl;
 			std::cout << "Vertex length = " << vertexLength << std::endl;
-			std::cout << "Aggregation threads = " << aggregationThreads << std::endl;
 			std::cout << "Hash functions = " << hashFunctions << std::endl;
 			std::cout << "Filter size = " << realSize << std::endl;
 			std::cout << "Capacity = " << CAPACITY << std::endl;
@@ -233,7 +230,8 @@ namespace Sibelia
 				{
 					ConcurrentBitVector bitVector(realSize);
 					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
-					std::cout << "Counting\tEnumeration\tAggregation" << std::endl;
+					std::cout << "Running times of different stages: ";
+					std::cout << "Pass\tFilling\tFiltering" << std::endl << "1\t";
 					{
 						std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 						for (size_t i = 0; i < workerThread.size(); i++)
@@ -271,25 +269,26 @@ namespace Sibelia
 								errorMutex);
 
 							workerThread[i].reset(new tbb::tbb_thread(worker));
-						}
-
-						if (error != 0)
-						{
-							throw *error;
-						}
+						}						
 
 						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 						for (size_t i = 0; i < taskQueue.size(); i++)
 						{
 							workerThread[i]->join();
 						}
+
+						if (error != 0)
+						{
+							throw *error;
+						}
 					}
 
-					std::cout << time(0) - mark << "\t";
+					std::cout << time(0) - mark << "\t" << std::endl;
 				}
 
 				mark = time(0);
 				tbb::spin_rw_mutex mutex;
+				std::cout << "2\t" << std::endl;
 				OccurenceSet occurenceSet(1 << 20);
 				{
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -305,6 +304,12 @@ namespace Sibelia
 							errorMutex);
 
 						workerThread[i].reset(new tbb::tbb_thread(worker));
+					}					
+
+					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+					for (size_t i = 0; i < taskQueue.size(); i++)
+					{
+						workerThread[i]->join();
 					}
 
 					if (error != 0)
@@ -312,20 +317,16 @@ namespace Sibelia
 						throw std::runtime_error(*error);
 					}
 
-					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
-					for (size_t i = 0; i < taskQueue.size(); i++)
-					{
-						workerThread[i]->join();
-					}
+					std::cout << time(0) - mark << "\t";
 				}
 
 				size_t falsePositives = 0;
 				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
 				std::cout << time(0) - mark << std::endl;
-				std::cout << "Vertex count = " << truePositives << std::endl;
-				std::cout << "FP count = " << falsePositives << std::endl;
-				std::cout << "Records = " << occurenceSet.size() << std::endl;
-				std::cout << "Marks count = " << marks << std::endl;
+				std::cout << "True junctions count = " << truePositives << std::endl;
+				std::cout << "False junctions count = " << falsePositives << std::endl;
+				std::cout << "Hash table size = " << occurenceSet.size() << std::endl;
+				std::cout << "Candidate marks count = " << marks << std::endl;
 				std::cout << std::string(80, '-') << std::endl;
 				totalFpCount += falsePositives;
 				verticesCount += truePositives;
@@ -351,7 +352,7 @@ namespace Sibelia
 			}
 
 			std::remove(bifurcationTempReadName.c_str());
-			std::cout << "Reallocating bifurcations: " << time(0) - mark << std::endl;
+			std::cout << "Reallocating bifurcations time: " << time(0) - mark << std::endl;
 
 			mark = time(0);
 
@@ -390,8 +391,8 @@ namespace Sibelia
 				throw std::runtime_error(*error);
 			}
 
-			std::cout << "Occurences: " << occurence << std::endl;
-			std::cout << "Edges construction: " << time(0) - mark << std::endl;
+			std::cout << "True marks count: " << occurence << std::endl;
+			std::cout << "Edges construction time: " << time(0) - mark << std::endl;
 			std::cout << std::string(80, '-') << std::endl;
 		}
 

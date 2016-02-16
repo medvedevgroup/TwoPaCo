@@ -5,7 +5,7 @@
 #include <vector>
 #include <atomic>
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	class ConcurrentBitVector
 	{

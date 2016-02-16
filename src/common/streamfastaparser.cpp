@@ -3,7 +3,7 @@
 
 #include "streamfastaparser.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	
 

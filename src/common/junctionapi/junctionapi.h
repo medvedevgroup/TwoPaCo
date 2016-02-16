@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <exception>
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	struct JunctionPosition
 	{

@@ -11,7 +11,7 @@
 
 #include "ngramhashing/cyclichash.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	using std::max;
 	using std::min;

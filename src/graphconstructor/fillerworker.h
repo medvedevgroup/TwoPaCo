@@ -4,7 +4,7 @@
 #include "common.h"
 #include "concurrentbitvector.h"
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	
 }	

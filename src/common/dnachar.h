@@ -4,7 +4,7 @@
 #include <string>
 #include <cstdint>
 
-namespace Sibelia
+namespace TwoPaCo
 {
 	class DnaChar
 	{
