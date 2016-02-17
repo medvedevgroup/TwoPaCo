@@ -21,14 +21,9 @@ multiple complete genomes
 
 * graphdump -- a utility that turns output of twopaco into text format
 
-* naivegraphconstructor -- a super simple graph constructor that we used for
-verifying twopaco. Since it depends on the TPIE library, makefiles are in
-progress
-
-Disclaimer: though the correctness of the implementation was thoroughly tested,
-this is still a research prototype and the code has not been "officially"
-released yet. Things like compilation, installation, output file format, and
-commandline parameters are subject to change.
+Disclaimer: this is still a research prototype and the code has not been
+"officially" released yet. Things like compilation, installation, output
+file format, and commandline parameters are subject to change.
 
 Compilation
 ===========
@@ -110,15 +105,25 @@ This utility turns the binary file a text one one. You can run:
 It will output a text file to the standard output. Each line will contain a 
 triple indicating an occurence of junction:
 
-	<seq_id_i> <pos_i> <junction_id_i>
+	<seq_id_i> <pos_i> <positive_junction_id_i> <negative_junction_id_i>
 
 The first number is the index number of the sequence, the second one is the
-position, and the last one is the junction id. The index number of the sequence
+position, and the last two are the junction id. The index number of the sequence
 is just the order of the sequence in the input file. All positions/orders count
 from 0. Positions appear in the file in the same order they appear in the input
-genomes. This way, one can obtain all multi-edges of the graph with a linear
-scan, as described in the paper. The negative strand can be obtained easily
-since it is symmetric.
+genomes. The \<positive_junction_id\> is the id of the junction that appears on
+the direct strand, while \<negative_junction_id_i> is the id of the junction
+that appears on the complementary strand. This way, one can obtain all multi-edges
+of the graph with a linear scan, as described in the paper. For example, a sequence
+of pairs of junctions ids:
+
+	a_1 b_1
+	a_2 b_2
+	a_3 b_3
+
+Generates edges a_1 -> a_2, a_2 -> a_3 in the graph corresponding to the positive
+strand and edges b_3 -> b_2, b_2 -> b_1 in the graph coming from the reverse 
+complementary strand.	
 
 One can also output junctions grouped by ids, it is useful for comparison between
 different graphs:

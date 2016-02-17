@@ -200,8 +200,7 @@ public:
 		
 		size_t occurences = 0;
 		std::cout << "Generating edges..." << std::endl;
-		TwoPaCo::JunctionPositionWriter posWriter(outFileName + "_pos.bin");
-		TwoPaCo::JunctionPositionWriter negWriter(outFileName + "_neg.bin");
+		TwoPaCo::JunctionPositionWriter posWriter(outFileName);
 		for (size_t chr = 0; chr < strand[0].size(); chr++)
 		{
 			const DnaString & str = strand[0][chr];
