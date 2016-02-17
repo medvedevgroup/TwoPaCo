@@ -72,12 +72,12 @@ namespace TwoPaCo
 				tbb::parallel_sort(bifurcationKey_.begin(), bifurcationKey_.end(), DnaString::Less);
 			}
 
-			uint64_t GetId(std::string::const_iterator pos) const
+			std::pair<uint64_t, uint64_t> GetId(std::string::const_iterator pos) const
 			{
 				return GetId(pos, true, true);
 			}
 
-			uint64_t GetId(std::string::const_iterator pos, const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash) const
+			std::pair<uint64_t, uint64_t> GetId(std::string::const_iterator pos, const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash) const
 			{
 				bool posFound = true;
 				bool negFound = true;
@@ -104,7 +104,7 @@ namespace TwoPaCo
 			}
 
 		private:
-			uint64_t GetId(std::string::const_iterator pos, bool posFound, bool negFound) const
+			std::pair<uint64_t, uint64_t> GetId(std::string::const_iterator pos, bool posFound, bool negFound) const
 			{				
 				DnaString bitBuf;
 				uint64_t ret = INVALID_VERTEX;
@@ -157,12 +157,22 @@ namespace TwoPaCo
 
 				assert(found == (posFound || negFound));
 #endif
-				if (negFound && !posFound && !DnaChar::IsSelfReverseCompliment(pos, vertexLength_))
+				if (posFound || negFound)
 				{
-					ret += bifurcationKey_.size();
-				}
+					if (DnaChar::IsSelfReverseCompliment(pos, vertexLength_))
+					{
+						return std::make_pair(ret, ret);
+					}
 
-				return ret;
+					if (posFound)
+					{
+						return std::make_pair(ret, ret += bifurcationKey_.size());
+					}
+
+					return std::make_pair(ret += bifurcationKey_.size(), ret);
+				}				
+
+				return std::make_pair(INVALID_VERTEX, INVALID_VERTEX);
 			}
 
 			size_t vertexLength_;

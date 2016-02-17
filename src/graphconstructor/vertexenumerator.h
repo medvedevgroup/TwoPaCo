@@ -34,7 +34,7 @@ namespace TwoPaCo
 	public:
 		virtual size_t GetVerticesCount() const = 0;
 		virtual size_t GetTotalVerticesCount() const = 0;
-		virtual size_t GetId(const std::string & vertex) const = 0;
+		virtual std::pair<uint64_t, uint64_t> GetId(const std::string & vertex) const = 0;
 
 		virtual ~VertexEnumerator()
 		{
@@ -105,7 +105,7 @@ namespace TwoPaCo
 			return bifStorage_.GetTotalVerticesCount();
 		}
 
-		size_t GetId(const std::string & vertex) const
+		std::pair<uint64_t, uint64_t> GetId(const std::string & vertex) const
 		{
 			return bifStorage_.GetId(vertex.begin());
 		}
@@ -117,7 +117,7 @@ namespace TwoPaCo
 			size_t rounds,
 			size_t threads,
 			const std::string & tmpDirName,
-			const std::string & outFileName) :
+			const std::string & outFileNamePrefix) :
 			vertexSize_(vertexLength)
 		{
 			uint64_t realSize = uint64_t(1) << filterSize;
@@ -359,7 +359,8 @@ namespace TwoPaCo
 			std::atomic<uint64_t> occurence;
 			std::atomic<uint64_t> currentPiece;
 			std::atomic<uint64_t> currentStubVertex;
-			JunctionPositionWriter writer(outFileName);
+			JunctionPositionWriter posWriter(outFileNamePrefix + "_dir.bin");
+			JunctionPositionWriter negWriter(outFileNamePrefix + "_cmp.bin");
 			occurence = currentPiece = 0;
 			currentStubVertex = verticesCount * 2;
 			{
@@ -369,7 +370,8 @@ namespace TwoPaCo
 					EdgeConstructionWorker worker(vertexLength,
 						*taskQueue[i],
 						bifStorage_,
-						writer,
+						posWriter,
+						negWriter,
 						currentPiece,
 						occurence,
 						currentStubVertex,
@@ -828,18 +830,27 @@ namespace TwoPaCo
 			std::vector<JunctionPosition> junction;
 		};
 
-		static bool FlushEdgeResults(std::deque<EdgeResult> & result, JunctionPositionWriter & writer,
+		static bool FlushEdgeResults(std::deque<EdgeResult> & posResult,
+			std::deque<EdgeResult> & negResult,
+			JunctionPositionWriter & posWriter,
+			JunctionPositionWriter & negWriter,
 			std::atomic<uint64_t> & currentPiece)
 		{
-			if (result.size() > 0 && result.front().pieceId == currentPiece)
+			if (posResult.size() > 0 && posResult.front().pieceId == currentPiece)
 			{
-				for (auto junction : result.front().junction)
+				for (auto junction : posResult.front().junction)
 				{
-					writer.WriteJunction(junction);
+					posWriter.WriteJunction(junction);
+				}
+
+				for (auto junction : negResult.front().junction)
+				{
+					negWriter.WriteJunction(junction);
 				}
 
 				++currentPiece;
-				result.pop_front();
+				posResult.pop_front();
+				negResult.pop_front();
 				return true;
 			}
 
@@ -852,13 +863,15 @@ namespace TwoPaCo
 			EdgeConstructionWorker(size_t vertexLength,
 				TaskQueue & taskQueue,
 				const BifurcationStorage<CAPACITY> & bifStorage,
-				JunctionPositionWriter & writer,
+				JunctionPositionWriter & posWriter,
+				JunctionPositionWriter & negWriter,
 				std::atomic<uint64_t> & currentPiece,
 				std::atomic<uint64_t> & occurences,
 				std::atomic<uint64_t> & currentStubVertexId,
 				std::unique_ptr<std::runtime_error> & error,
-				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage), writer(writer), currentPiece(currentPiece),
-				occurences(occurences), currentStubVertexId(currentStubVertexId), error(error), errorMutex(errorMutex)
+				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
+				posWriter(posWriter), negWriter(negWriter), currentPiece(currentPiece), occurences(occurences),
+				currentStubVertexId(currentStubVertexId), error(error), errorMutex(errorMutex)
 			{
 
 			}
@@ -868,7 +881,8 @@ namespace TwoPaCo
 				try
 				{
 					DnaString bitBuf;
-					std::deque<EdgeResult> result;
+					std::deque<EdgeResult> posResult;
+					std::deque<EdgeResult> negResult;
 					while (true)
 					{
 						Task task;
@@ -890,31 +904,44 @@ namespace TwoPaCo
 							size_t edgeLength = vertexLength + 1;
 							if (task.str.size() >= vertexLength + 2)
 							{
-								EdgeResult currentResult;
-								currentResult.pieceId = task.piece;
+								EdgeResult currentPosResult;
+								EdgeResult currentNegResult;
+								currentPosResult.pieceId = currentNegResult.pieceId = task.piece;
 								InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 								for (size_t pos = 1;; ++pos)
 								{
-									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
-									uint64_t bifId = INVALID_VERTEX;
+									while (posResult.size() > 0 && FlushEdgeResults(posResult, negResult, posWriter, negWriter, currentPiece));
+
+									std::pair<uint64_t, uint64_t> bifId;
 									char posPrev = task.str[pos - 1];
 									char posExtend = task.str[pos + vertexLength];
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 									if (definiteCount == vertexLength)
 									{
 										bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
-										if (bifId != INVALID_VERTEX)
+										if (bifId.first != INVALID_VERTEX)
 										{
 											occurences++;
-											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
+											currentPosResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId.first));
+											currentNegResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId.second));
 										}
 									}
 
-									if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId == INVALID_VERTEX)
+									if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId.first == INVALID_VERTEX)
 									{
 										occurences++;
-										currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
+										if (definiteCount == vertexLength && DnaChar::IsSelfReverseCompliment(task.str.begin() + pos, vertexLength))
+										{
+											currentPosResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId));
+											currentNegResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
+										}
+										else
+										{
+											currentPosResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
+											currentNegResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
+										}
+										
 									}
 
 									if (pos + edgeLength < task.str.size())
@@ -937,12 +964,13 @@ namespace TwoPaCo
 									}
 								}
 
-								result.push_back(currentResult);
+								posResult.push_back(currentPosResult);
+								negResult.push_back(currentNegResult);
 							}
 						}
 					}
 
-					while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+					while (posResult.size() > 0 && FlushEdgeResults(posResult, negResult, posWriter, negWriter, currentPiece));
 				}
 				catch (std::runtime_error & e)
 				{
@@ -956,7 +984,8 @@ namespace TwoPaCo
 			size_t vertexLength;
 			TaskQueue & taskQueue;
 			const BifurcationStorage<CAPACITY> & bifStorage;
-			JunctionPositionWriter & writer;
+			JunctionPositionWriter & posWriter;
+			JunctionPositionWriter & negWriter;
 			std::atomic<uint64_t> & currentPiece;
 			std::atomic<uint64_t> & occurences;
 			std::atomic<uint64_t> & currentStubVertexId;
