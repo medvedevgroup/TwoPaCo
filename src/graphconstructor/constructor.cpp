@@ -28,7 +28,7 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-	TwoPaCo::Runtests();
+	//TwoPaCo::Runtests();
 	try
 	{
 		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.0.0");
@@ -89,9 +89,9 @@ int main(int argc, char * argv[])
 
 		TCLAP::ValueArg<std::string> outFileName("o",
 			"outfile",
-			"Output file name",
+			"Output file name prefix",
 			false,
-			"de_bruijn.bin",
+			"de_bruijn",
 			"file name",
 			cmd);
 

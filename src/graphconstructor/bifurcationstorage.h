@@ -166,10 +166,10 @@ namespace TwoPaCo
 
 					if (posFound)
 					{
-						return std::make_pair(ret, ret += bifurcationKey_.size());
+						return std::make_pair(ret, ret + bifurcationKey_.size());
 					}
 
-					return std::make_pair(ret += bifurcationKey_.size(), ret);
+					return std::make_pair(ret + bifurcationKey_.size(), ret);
 				}				
 
 				return std::make_pair(INVALID_VERTEX, INVALID_VERTEX);

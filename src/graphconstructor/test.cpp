@@ -116,7 +116,7 @@ namespace TwoPaCo
 		
 		fileName.clear();
 		fileName.push_back("test.fasta");
-		VertexEnumeratorTest(fileName, 4, 16, 1, ss);
+ 		VertexEnumeratorTest(fileName, 4, 16, 1, ss);
 
 		fileName.clear();
 		fileName.push_back("ntest.fasta");

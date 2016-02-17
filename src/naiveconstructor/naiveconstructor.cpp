@@ -108,8 +108,7 @@ public:
 	}
 
 	void MakeDeBruijnGraph(const std::vector<std::string> & fileName, const std::string outFileName, const std::string & tmpDirName)
-	{
-		TwoPaCo::JunctionPositionWriter writer(outFileName);
+	{		
 		std::vector<std::vector<DnaString> > strand(2);
 		std::cout << "Parsing input..." << std::endl;
 		for (auto name : fileName)
@@ -198,9 +197,11 @@ public:
 
 			it = jt;
 		}
-
+		
 		size_t occurences = 0;
 		std::cout << "Generating edges..." << std::endl;
+		TwoPaCo::JunctionPositionWriter posWriter(outFileName + "_pos.bin");
+		TwoPaCo::JunctionPositionWriter negWriter(outFileName + "_neg.bin");
 		for (size_t chr = 0; chr < strand[0].size(); chr++)
 		{
 			const DnaString & str = strand[0][chr];
@@ -213,13 +214,14 @@ public:
 					if (it != junctionMap.end())
 					{
 						++occurences;
- 						writer.WriteJunction(TwoPaCo::JunctionPosition(chr, i, it->second));
+						size_t negPos = strand[0][chr].size() - (i + k);
+						kmer.assign(strand[1][chr].begin() + negPos, strand[1][chr].begin() + negPos + k);
+ 						posWriter.WriteJunction(TwoPaCo::JunctionPosition(chr, i, it->second, junctionMap.find(kmer)->second));
 					}
 				}
-			}
-
-			
+			}			
 		}
+
 		
 		std::cout << "Vertices: " << junctionMap.size() << std::endl;
 		std::cout << "Occurences: " << occurences << std::endl;
@@ -258,9 +260,9 @@ int main(int argc, char * argv[])
 
 		TCLAP::ValueArg<std::string> outFileName("o",
 			"outfile",
-			"Output file name",
+			"Output file name prefix",
 			false,
-			"de_bruijn.bin",
+			"de_bruijn_slow",
 			"file name",
 			cmd);
 
