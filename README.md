@@ -6,6 +6,7 @@ Release date: TBD
 Authors
 =======
 * Ilia Minkin (Pennsylvania State University)
+* Son Pham
 * Paul Medvedev (Pennsylvania State University)
 
 Introduction
@@ -13,6 +14,8 @@ Introduction
 It is an implementation of the algorithm described in the paper
 "TwoPaCo: An efficient algorithm to build the compacted de Bruijn graph from
 many complete genomes".
+
+Test data
 
 This distribution contains two programs:
 
@@ -38,10 +41,16 @@ Once you've got all the things above, do the following:
 
 * Go to the root directory of the project and create the "build" folder
 * Go to the "build" directory
-* Type cmake ../src -DCMAKE_BUILD_TYPE=RELEASE
-* Type make
+* Run cmake ../src
+* Run make
 
-This will make two targets: twopaco and graphdump.
+This will make two targets: twopaco and graphdump. In case if GCC cannot find
+the TBB library, run cmake with options:
+
+	cmake ../src -DTBB_INCLUDE_DIR=<dir_1> -DTBB_LIB_DIR=<dir_2>
+
+Where \<dir_1\> is the directory with TBB include files and \<dir_2\> is the 
+directory with TBB library.
 
 Compilation under platforms is possible, portable makefiles are in progress.
 
@@ -80,7 +89,8 @@ which reduces memory usage. The default is 1. To change, use:
 
 Number of threads
 -----------------
-twopaco can be run in multiple threads. The default is 1. To change, use
+twopaco can be run in multiple threads. The default is 1. To change, use:
+
 	-t <number> or --threads <number>
 
 Temporary directory
@@ -141,6 +151,7 @@ in the order they appear in the input. All numbers count from 0.
 
 License
 =======
+See LICENSE.txt
 
 Contacts
 ========
