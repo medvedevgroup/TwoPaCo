@@ -15,7 +15,15 @@ It is an implementation of the algorithm described in the paper
 "TwoPaCo: An efficient algorithm to build the compacted de Bruijn graph from
 many complete genomes".
 
-Test data
+Test data can be downloaded via the following links:
+
+* 62 E.Coli: https://s3-us-west-2.amazonaws.com/graph.testdata/ecoli.tar.gz
+
+* Seven human: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
+
+* Eight primates: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
+
+* 93 simulated humans: https://s3-us-west-2.amazonaws.com/graph.testdata/human_sim.tar.gz
 
 This distribution contains two programs:
 
