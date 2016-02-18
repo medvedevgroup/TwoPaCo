@@ -44,14 +44,7 @@ Once you've got all the things above, do the following:
 * Run cmake ../src
 * Run make
 
-This will make two targets: twopaco and graphdump. In case if GCC cannot find
-the TBB library, run cmake with options:
-
-	cmake ../src -DTBB_INCLUDE_DIR=<dir_1> -DTBB_LIB_DIR=<dir_2>
-
-Where \<dir_1\> is the directory with TBB include files and \<dir_2\> is the 
-directory with TBB library.
-
+This will make two targets: twopaco and graphdump.
 Compilation under platforms is possible, portable makefiles are in progress.
 
 The twopaco usage
