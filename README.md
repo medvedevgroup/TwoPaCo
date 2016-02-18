@@ -19,7 +19,6 @@ This distribution contains two programs:
 
 * twopaco -- a tool for direct construction of the compressed graph from 
 multiple complete genomes
-
 * graphdump -- a utility that turns output of twopaco into text format
 
 Disclaimer: this is still a research prototype and the code has not been
@@ -28,14 +27,11 @@ file format, and commandline parameters are subject to change.
 
 Test data
 =========
-Test data can be downloaded via the following links:
+Test data from the paper can be downloaded via the following links:
 
 * 62 E.Coli: https://s3-us-west-2.amazonaws.com/graph.testdata/ecoli.tar.gz
-
 * Seven human: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
-
 * Eight primates: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
-
 * 93 simulated humans: https://s3-us-west-2.amazonaws.com/graph.testdata/human_sim.tar.gz
 
 Compilation
