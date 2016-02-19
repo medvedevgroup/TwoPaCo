@@ -6,7 +6,7 @@ Release date: TBD
 Authors
 =======
 * Ilia Minkin (Pennsylvania State University)
-* Son Pham
+* Son Pham (Salk Institute for Biological Studies)
 * Paul Medvedev (Pennsylvania State University)
 
 Introduction
