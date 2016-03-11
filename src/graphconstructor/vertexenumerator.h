@@ -408,12 +408,17 @@ namespace TwoPaCo
 			tie
 		};
 
-		static StrandComparisonResult DetermineStrandExtend(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash, char nextCh, char revNextCh)
+		static StrandComparisonResult DetermineStrandExtend(const std::vector<HashFunctionPtr> & posVertexHash,
+			const std::vector<HashFunctionPtr> & negVertexHash,
+			char nextCh,
+			char revNextCh,
+			uint64_t & posHash,
+			uint64_t & negHash)
 		{
 			for (size_t i = 0; i < posVertexHash.size(); i++)
 			{
-				uint64_t posHash = posVertexHash[i]->hash_extend(nextCh);
-				uint64_t negHash = negVertexHash[i]->hash_prepend(revNextCh);
+				posHash = posVertexHash[i]->hash_extend(nextCh);
+				negHash = negVertexHash[i]->hash_prepend(revNextCh);
 				if (posHash != negHash)
 				{
 					return posHash < negHash ? positiveLess : negativeLess;
@@ -423,12 +428,17 @@ namespace TwoPaCo
 			return tie;
 		}
 
-		static StrandComparisonResult DetermineStrandPrepend(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash, char prevCh, char revPrevCh)
+		static StrandComparisonResult DetermineStrandPrepend(const std::vector<HashFunctionPtr> & posVertexHash,
+			const std::vector<HashFunctionPtr> & negVertexHash,
+			char prevCh,
+			char revPrevCh,
+			uint64_t & posHash,
+			uint64_t & negHash)
 		{
 			for (size_t i = 0; i < posVertexHash.size(); i++)
 			{
-				uint64_t posHash = posVertexHash[i]->hash_prepend(prevCh);
-				uint64_t negHash = negVertexHash[i]->hash_extend(revPrevCh);
+				posHash = posVertexHash[i]->hash_prepend(prevCh);
+				negHash = negVertexHash[i]->hash_extend(revPrevCh);
 				if (posHash != negHash)
 				{
 					return posHash < negHash ? positiveLess : negativeLess;
@@ -438,33 +448,26 @@ namespace TwoPaCo
 			return tie;
 		}
 
-		static bool IsInBloomFilterExtend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
+		static bool IsInBloomFilterExtend(const ConcurrentBitVector & filter, uint64_t hvalue)
 		{
-			for (size_t i = 0; i < hf.size(); i++)
-			{
-				uint64_t hvalue = hf[i]->hash_extend(farg);
 				if (!filter.Get(hvalue))
 				{
 					return false;
 				}
-			}
-
 			return true;
 		}
 
-		static bool IsInBloomFilterPrepend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
+		static bool IsInBloomFilterPrepend(const ConcurrentBitVector & filter, uint64_t hvalue)
 		{
-			for (size_t i = 0; i < hf.size(); i++)
-			{
-				uint64_t hvalue = hf[i]->hash_prepend(farg);
+			
 				if (!filter.Get(hvalue))
 				{
 					return false;
 				}
-			}
 
 			return true;
 		}
+
 
 		static uint64_t NormHash(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash)
 		{
@@ -573,6 +576,8 @@ namespace TwoPaCo
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
+									uint64_t posHash;
+									uint64_t negHash;
 									size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
 									size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
 									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
@@ -585,17 +590,17 @@ namespace TwoPaCo
 										}
 										else
 										{
-											StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, nextCh, revNextCh);
+											StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, nextCh, revNextCh, posHash, negHash);
 											if (result == positiveLess || result == tie)
 											{
-												if (IsInBloomFilterPrepend(bitVector, posVertexHash, nextCh))
+												if (IsInBloomFilterPrepend(bitVector, posHash))
 												{
 													++inCount;
 												}
 											}
 											else
 											{
-												if (IsInBloomFilterExtend(bitVector, negVertexHash, revNextCh))
+												if (IsInBloomFilterExtend(bitVector, negHash))
 												{
 													++inCount;
 												}
@@ -608,17 +613,17 @@ namespace TwoPaCo
 										}
 										else
 										{
-											StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
+											StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh, posHash, negHash);
 											if (result == positiveLess || result == tie)
 											{
-												if (IsInBloomFilterExtend(bitVector, posVertexHash, nextCh))
+												if (IsInBloomFilterExtend(bitVector, posHash))
 												{
 													++outCount;
 												}
 											}
 											else
 											{
-												if (IsInBloomFilterPrepend(bitVector, negVertexHash, revNextCh))
+												if (IsInBloomFilterPrepend(bitVector, negHash))
 												{
 													++outCount;
 												}
@@ -977,25 +982,54 @@ namespace TwoPaCo
 			tbb::mutex & errorMutex;
 		};
 
+		static StrandComparisonResult DetermineStrandExtend2(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash, char nextCh, char revNextCh)
+		{
+			for (size_t i = 0; i < posVertexHash.size(); i++)
+			{
+				uint64_t posHash = posVertexHash[i]->hash_extend(nextCh);
+				uint64_t negHash = negVertexHash[i]->hash_prepend(revNextCh);
+				if (posHash != negHash)
+				{
+					return posHash < negHash ? positiveLess : negativeLess;
+				}
+			}
+
+			return tie;
+		}
+
+		static StrandComparisonResult DetermineStrandPrepend2(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash, char prevCh, char revPrevCh)
+		{
+			for (size_t i = 0; i < posVertexHash.size(); i++)
+			{
+				uint64_t posHash = posVertexHash[i]->hash_prepend(prevCh);
+				uint64_t negHash = negVertexHash[i]->hash_extend(revPrevCh);
+				if (posHash != negHash)
+				{
+					return posHash < negHash ? positiveLess : negativeLess;
+				}
+			}
+
+			return tie;
+		}
+
 		static void PutInBloomFilterExtend(const std::vector<HashFunctionPtr> & posVertexHash,
 			const std::vector<HashFunctionPtr> & negVertexHash,
 			char nextCh,
 			char revNextCh,
 			std::vector<uint64_t> & hashValue)
 		{
-			StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
-			for (size_t i = 0; i < posVertexHash.size(); i++)
-			{
+			uint64_t posHash;
+			uint64_t negHash;
+			StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh, posHash, negHash);
 				if (result == positiveLess || result == tie)
 				{
-					hashValue.push_back(posVertexHash[i]->hash_extend(nextCh));
+					hashValue.push_back(posHash);
 				}
 
 				if (result == negativeLess || result == tie)
 				{
-					hashValue.push_back(negVertexHash[i]->hash_prepend(revNextCh));
+					hashValue.push_back(negHash);
 				}
-			}
 		}
 
 		static void PutInBloomFilterPrepend(const std::vector<HashFunctionPtr> & posVertexHash,
@@ -1004,19 +1038,19 @@ namespace TwoPaCo
 			char revPrevCh,
 			std::vector<uint64_t> & hashValue)
 		{
-			StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, prevCh, revPrevCh);
-			for (size_t i = 0; i < posVertexHash.size(); i++)
-			{
+			uint64_t posHash;
+			uint64_t negHash;
+			StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, prevCh, revPrevCh, posHash, negHash);
+			
 				if (result == positiveLess || result == tie)
 				{
-					hashValue.push_back(posVertexHash[i]->hash_prepend(prevCh));
+					hashValue.push_back(posHash);
 				}
 
 				if (result == negativeLess || result == tie)
 				{
-					hashValue.push_back(negVertexHash[i]->hash_extend(revPrevCh));
+					hashValue.push_back(negHash);
 				}
-			}
 		}
 
 		class InitialFilterFillerWorker
