@@ -6,7 +6,7 @@ Release date: TBD
 Authors
 =======
 * Ilia Minkin (Pennsylvania State University)
-* Son Pham
+* Son Pham (Salk Institute for Biological Studies)
 * Paul Medvedev (Pennsylvania State University)
 
 Introduction
@@ -30,8 +30,8 @@ Test data
 Test data from the paper can be downloaded via the following links:
 
 * 62 E.Coli: https://s3-us-west-2.amazonaws.com/graph.testdata/ecoli.tar.gz
-* Seven human: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
-* Eight primates: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
+* Seven humans: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
+* Eight primates: https://s3-us-west-2.amazonaws.com/graph.testdata/primates.tar
 * 93 simulated humans: https://s3-us-west-2.amazonaws.com/graph.testdata/human_sim.tar.gz
 
 Compilation
