@@ -9,7 +9,7 @@
 namespace TwoPaCo
 {
 	ConcurrentBitVector::ConcurrentBitVector(size_t size)
-		: size_(size), realSize_(size / 32 + 1), filter_(new UInt[realSize_])
+		: size_(size), realSize_(size / BASIC_TYPE_BITS + 1), filter_(new UInt[realSize_])
 	{
 		Reset();
 	}
@@ -32,7 +32,7 @@ namespace TwoPaCo
 		uint64_t bit;
 		uint64_t element;
 		GetCoord(idx, element, bit);
-		filter_[element].fetch_or(uint32_t(1) << uint32_t(bit));
+		filter_[element].fetch_or(BASIC_TYPE(1) << BASIC_TYPE(bit));
 	}
 
 	bool ConcurrentBitVector::Get(size_t idx) const
@@ -40,14 +40,14 @@ namespace TwoPaCo
 		uint64_t bit;
 		uint64_t element;
 		GetCoord(idx, element, bit);
-		return (filter_[element] & (uint32_t(1) << uint32_t(bit))) != 0;
+		return (filter_[element] & (BASIC_TYPE(1) << BASIC_TYPE(bit))) != 0;
 	}
 
 	void ConcurrentBitVector::GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const
 	{
-		bit = idx & ((uint32_t(1) << uint64_t(5)) - 1);
-		element = idx >> 5;
-		assert(element < size_ / 32 + 1);
+		bit = idx & ((uint64_t(1) << uint64_t(BASIC_TYPE_POWER)) - uint64_t(1));
+		element = idx >> BASIC_TYPE_POWER;
+		assert(element < size_ / BASIC_TYPE_BITS + 1);
 	}
 
 	ConcurrentBitVector::~ConcurrentBitVector()

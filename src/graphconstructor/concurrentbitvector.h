@@ -21,14 +21,15 @@ namespace TwoPaCo
 		void ReadFromFile(const std::string & fileName, bool cleanUp);
 	private:		
 		static const size_t SUCCESS = -1;
-		typedef uint32_t BASIC_TYPE;
+		typedef uint16_t BASIC_TYPE;
 		typedef std::atomic<BASIC_TYPE> UInt;
+		static const uint64_t BASIC_TYPE_POWER = 4;
+		static const uint64_t BASIC_TYPE_BITS = sizeof(BASIC_TYPE) * 8;
 		size_t size_;
 		size_t realSize_;
 		UInt * filter_;
 		void GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const;
 	};
-
 }
 
 #endif
