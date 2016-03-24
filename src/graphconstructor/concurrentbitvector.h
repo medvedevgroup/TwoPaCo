@@ -16,6 +16,11 @@ namespace TwoPaCo
 		void Reset();
 		size_t Size() const;
 		BASIC_TYPE GetElement(size_t idx) const;
+		static int PopCount(BASIC_TYPE element)
+		{
+			return bitCount_[element];
+		}
+
 		void OrElementCouncerrently(size_t idx, BASIC_TYPE bit);
 		void SetBitConcurrently(size_t idx);
 		bool GetBit(size_t idx) const;		

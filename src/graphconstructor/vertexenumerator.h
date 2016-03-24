@@ -143,7 +143,7 @@ namespace TwoPaCo
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
-				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
+				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize - 2));
 			}
 
 			size_t edgeLength = vertexLength + 1;
@@ -157,6 +157,7 @@ namespace TwoPaCo
 			const uint64_t BIN_SIZE = max(uint64_t(1), realSize / BINS_COUNT);
 			std::atomic<uint32_t> * binCounter = 0;
 
+			/*
 			if (rounds > 1)
 			{
 				std::cout << "Splitting the input kmers set...";
@@ -180,7 +181,7 @@ namespace TwoPaCo
 				{
 					workerThread[i]->join();
 				}
-			}
+			}*/
 
 			double roundSize = 0;
 			if (rounds > 1)
@@ -517,60 +518,18 @@ namespace TwoPaCo
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
-									size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
-									size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
-									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
+									int bitCount = (DnaChar::IsDefinite(posPrev) && DnaChar::IsDefinite(posExtend)) ? 0 : 2;
+									if (bitCount == 0)
 									{
-										char nextCh = DnaChar::LITERAL[i];
-										char revNextCh = DnaChar::ReverseChar(nextCh);
-										if (nextCh == posPrev)
+										uint16_t = (1 << 16) - 1;
+										StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
+										for (size_t i = 0; i < posVertexHash.size(); i++)
 										{
-											++inCount;
-										}
-										else
-										{
-											StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, nextCh, revNextCh);
-											if (result == positiveLess || result == tie)
-											{
-												if (IsInBloomFilterPrepend(bitVector, posVertexHash, nextCh))
-												{
-													++inCount;
-												}
-											}
-											else
-											{
-												if (IsInBloomFilterExtend(bitVector, negVertexHash, revNextCh))
-												{
-													++inCount;
-												}
-											}
-										}
 
-										if (nextCh == posExtend)
-										{
-											++outCount;
-										}
-										else
-										{
-											StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
-											if (result == positiveLess || result == tie)
-											{
-												if (IsInBloomFilterExtend(bitVector, posVertexHash, nextCh))
-												{
-													++outCount;
-												}
-											}
-											else
-											{
-												if (IsInBloomFilterPrepend(bitVector, negVertexHash, revNextCh))
-												{
-													++outCount;
-												}
-											}
 										}
 									}
 
-									if (inCount > 1 || outCount > 1)
+									if (bitCount > 1)
 									{
 										++marksCount;
 										candidateMask.SetBitConcurrently(pos);
@@ -920,48 +879,32 @@ namespace TwoPaCo
 			tbb::mutex & errorMutex;
 		};
 
-		static void PutInBloomFilterExtend(const std::vector<HashFunctionPtr> & posVertexHash,
-			const std::vector<HashFunctionPtr> & negVertexHash,
-			char nextCh,
-			char revNextCh,
-			std::vector<uint64_t> & hashValue)
+		static StrandComparisonResult DetermineStrand(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash)
 		{
-			StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
 			for (size_t i = 0; i < posVertexHash.size(); i++)
 			{
-				if (result == positiveLess || result == tie)
+				uint64_t posHash = posVertexHash[i]->hash;
+				uint64_t negHash = negVertexHash[i]->hash;
+				if (posHash != negHash)
 				{
-					hashValue.push_back(posVertexHash[i]->hash_extend(nextCh));
-				}
-
-				if (result == negativeLess || result == tie)
-				{
-					hashValue.push_back(negVertexHash[i]->hash_prepend(revNextCh));
+					return posHash < negHash ? positiveLess : negativeLess;
 				}
 			}
+
+			return tie;
 		}
 
-		static void PutInBloomFilterPrepend(const std::vector<HashFunctionPtr> & posVertexHash,
-			const std::vector<HashFunctionPtr> & negVertexHash,
-			char prevCh,
-			char revPrevCh,
-			std::vector<uint64_t> & hashValue)
+		static uint16_t EncodeSet(char prev, char next)
 		{
-			StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, prevCh, revPrevCh);
-			for (size_t i = 0; i < posVertexHash.size(); i++)
-			{
-				if (result == positiveLess || result == tie)
-				{
-					hashValue.push_back(posVertexHash[i]->hash_prepend(prevCh));
-				}
-
-				if (result == negativeLess || result == tie)
-				{
-					hashValue.push_back(negVertexHash[i]->hash_extend(revPrevCh));
-				}
-			}
+			return DnaChar::MakeUpChar(prev) * 4 + DnaChar::MakeUpChar(next);
 		}
 
+		static void DecodeSet(uint16_t set, char & prev, char & next)
+		{
+			prev = DnaChar::UnMakeUpChar(set / 4);
+			next = DnaChar::UnMakeUpChar(set % 4);
+		}
+		/*
 		class InitialFilterFillerWorker
 		{
 		public:
@@ -1061,6 +1004,7 @@ namespace TwoPaCo
 			TaskQueue & taskQueue;
 			std::atomic<uint32_t> * binCounter;
 		};
+		*/
 
 		class FilterFillerWorker
 		{
@@ -1107,21 +1051,23 @@ namespace TwoPaCo
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
-								fistMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
-								if (DnaChar::IsDefinite(nextCh))
+								StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
+								if (res == positiveLess || res == tie)
 								{
-									PutInBloomFilterExtend(posVertexHash, negVertexHash, nextCh, revNextCh, hashValue);
-								}
-								else
-								{
-									PutInBloomFilterExtend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
-									PutInBloomFilterExtend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
+									uint16_t mask = EncodeSet(prevCh, nextCh);
+									for (size_t i = 0; i < posVertexHash.size(); i++)
+									{
+										filter.OrElementCouncerrently(posVertexHash[i]->hashvalue, mask);
+									}
 								}
 
-								if (pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1]))
+								if (res == negativeLess || res == tie)
 								{
-									PutInBloomFilterPrepend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
-									PutInBloomFilterPrepend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
+									uint16_t mask = EncodeSet(revNextCh, DnaChar::ReverseChar(prevCh));
+									for (size_t i = 0; i < negVertexHash.size(); i++)
+									{
+										filter.OrElementCouncerrently(negVertexHash[i]->hashvalue, mask);
+									}
 								}
 							}
 
