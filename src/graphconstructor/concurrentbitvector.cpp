@@ -25,9 +25,9 @@ namespace TwoPaCo
 		}
 	}
 
-	size_t ConcurrentBitVector::GetElementBitCount(size_t idx) const
+	ConcurrentBitVector::BASIC_TYPE ConcurrentBitVector::GetElement(size_t idx) const
 	{
-		return bitCount_[filter_[idx]];
+		return filter_[idx];
 	}
 
 	void ConcurrentBitVector::OrElementCouncerrently(size_t idx, BASIC_TYPE bit)

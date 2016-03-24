@@ -409,63 +409,6 @@ namespace TwoPaCo
 			tie
 		};
 
-		static StrandComparisonResult DetermineStrandExtend(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash, char nextCh, char revNextCh)
-		{
-			for (size_t i = 0; i < posVertexHash.size(); i++)
-			{
-				uint64_t posHash = posVertexHash[i]->hash_extend(nextCh);
-				uint64_t negHash = negVertexHash[i]->hash_prepend(revNextCh);
-				if (posHash != negHash)
-				{
-					return posHash < negHash ? positiveLess : negativeLess;
-				}
-			}
-
-			return tie;
-		}
-
-		static StrandComparisonResult DetermineStrandPrepend(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash, char prevCh, char revPrevCh)
-		{
-			for (size_t i = 0; i < posVertexHash.size(); i++)
-			{
-				uint64_t posHash = posVertexHash[i]->hash_prepend(prevCh);
-				uint64_t negHash = negVertexHash[i]->hash_extend(revPrevCh);
-				if (posHash != negHash)
-				{
-					return posHash < negHash ? positiveLess : negativeLess;
-				}
-			}
-
-			return tie;
-		}
-
-		static bool IsInBloomFilterExtend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
-		{
-			for (size_t i = 0; i < hf.size(); i++)
-			{
-				uint64_t hvalue = hf[i]->hash_extend(farg);
-				if (!filter.GetBit(hvalue))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-		static bool IsInBloomFilterPrepend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
-		{
-			for (size_t i = 0; i < hf.size(); i++)
-			{
-				uint64_t hvalue = hf[i]->hash_prepend(farg);
-				if (!filter.GetBit(hvalue))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
 
 		static uint64_t NormHash(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash)
 		{
@@ -1134,14 +1077,11 @@ namespace TwoPaCo
 
 			void operator()()
 			{
-				std::vector<uint64_t> setup;
-				std::vector<uint64_t> hashValue;
 				const char DUMMY_CHAR = DnaChar::LITERAL[0];
 				const char REV_DUMMY_CHAR = DnaChar::ReverseChar(DUMMY_CHAR);
 				while (true)
 				{
 					Task task;
-					int c = taskQueue.size();
 					if (taskQueue.try_pop(task))
 					{
 						if (task.start == Task::GAME_OVER)
@@ -1154,8 +1094,6 @@ namespace TwoPaCo
 							continue;
 						}
 
-						uint64_t fistMinHash0;
-						uint64_t secondMinHash0;
 						size_t vertexLength = edgeLength - 1;
 						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
 						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
@@ -1163,7 +1101,6 @@ namespace TwoPaCo
 						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
 						for (size_t pos = 0;; ++pos)
 						{
-							hashValue.clear();
 							char prevCh = task.str[pos];
 							char nextCh = task.str[pos + edgeLength - 1];
 							char revNextCh = DnaChar::ReverseChar(nextCh);
@@ -1188,26 +1125,6 @@ namespace TwoPaCo
 								}
 							}
 
-							for (size_t i = 0; i < hashFunction.size(); i++)
-							{
-								posVertexHash[i]->update(prevCh, nextCh);
-								assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-								negVertexHash[i]->reverse_update(revNextCh, DnaChar::ReverseChar(prevCh));
-								assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-							}
-
-							if (definiteCount == vertexLength)
-							{
-								secondMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
-								if (Within(fistMinHash0, low, high) || Within(secondMinHash0, low, high))
-								{
-									for (uint64_t value : hashValue)
-									{
-										setup.push_back(value);
-									}
-								}
-							}
-
 							if (pos + vertexLength < task.str.size() - 1)
 							{
 								definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(prevCh) ? 1 : 0);
@@ -1218,16 +1135,6 @@ namespace TwoPaCo
 							}
 						}
 					}
-
-					for (uint64_t hashValue : setup)
-					{
-						if (!filter.GetBit(hashValue))
-						{
-							filter.SetBitConcurrently(hashValue);
-						}
-					}
-
-					setup.clear();
 				}
 			}
 

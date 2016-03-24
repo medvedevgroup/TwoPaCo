@@ -15,7 +15,7 @@ namespace TwoPaCo
 		ConcurrentBitVector(size_t size);
 		void Reset();
 		size_t Size() const;
-		size_t GetElementBitCount(size_t idx) const;
+		BASIC_TYPE GetElement(size_t idx) const;
 		void OrElementCouncerrently(size_t idx, BASIC_TYPE bit);
 		void SetBitConcurrently(size_t idx);
 		bool GetBit(size_t idx) const;		
