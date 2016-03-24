@@ -10,21 +10,23 @@ namespace TwoPaCo
 	class ConcurrentBitVector
 	{
 	public:		
+		typedef uint16_t BASIC_TYPE;
 		~ConcurrentBitVector();
 		ConcurrentBitVector(size_t size);
 		void Reset();
 		size_t Size() const;
-		size_t GetPower() const;	
-		void SetConcurrently(size_t idx);
-		bool Get(size_t idx) const;		
+		size_t GetElementBitCount(size_t idx) const;
+		void OrElementCouncerrently(size_t idx, BASIC_TYPE bit);
+		void SetBitConcurrently(size_t idx);
+		bool GetBit(size_t idx) const;		
 		void WriteToFile(const std::string & fileName) const;
 		void ReadFromFile(const std::string & fileName, bool cleanUp);
-	private:		
-		static const size_t SUCCESS = -1;
-		typedef uint16_t BASIC_TYPE;
+	private:
+		static const size_t SUCCESS = -1;		
 		typedef std::atomic<BASIC_TYPE> UInt;
-		static const uint64_t BASIC_TYPE_POWER = 4;
+		static const uint64_t BASIC_TYPE_POWER = 4;		
 		static const uint64_t BASIC_TYPE_BITS = sizeof(BASIC_TYPE) * 8;
+		static char bitCount_[1 << sizeof(BASIC_TYPE_BITS)];
 		size_t size_;
 		size_t realSize_;
 		UInt * filter_;

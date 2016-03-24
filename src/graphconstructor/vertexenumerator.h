@@ -444,7 +444,7 @@ namespace TwoPaCo
 			for (size_t i = 0; i < hf.size(); i++)
 			{
 				uint64_t hvalue = hf[i]->hash_extend(farg);
-				if (!filter.Get(hvalue))
+				if (!filter.GetBit(hvalue))
 				{
 					return false;
 				}
@@ -458,7 +458,7 @@ namespace TwoPaCo
 			for (size_t i = 0; i < hf.size(); i++)
 			{
 				uint64_t hvalue = hf[i]->hash_prepend(farg);
-				if (!filter.Get(hvalue))
+				if (!filter.GetBit(hvalue))
 				{
 					return false;
 				}
@@ -630,7 +630,7 @@ namespace TwoPaCo
 									if (inCount > 1 || outCount > 1)
 									{
 										++marksCount;
-										candidateMask.SetConcurrently(pos);
+										candidateMask.SetBitConcurrently(pos);
 									}
 								}
 
@@ -735,7 +735,7 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								if (candidateMask.Get(pos))
+								if (candidateMask.GetBit(pos))
 								{
 									Occurence now;
 									now.Set(posVertexHash[0]->hashvalue,
@@ -1077,10 +1077,10 @@ namespace TwoPaCo
 									hvalue = negVertexHash[i]->hash_prepend(revNextCh);
 								}
 
-								if (!filter.Get(hvalue))
+								if (!filter.GetBit(hvalue))
 								{
 									wasSet = false;
-									filter.SetConcurrently(hvalue);
+									filter.SetBitConcurrently(hvalue);
 								}
 							}
 
@@ -1221,9 +1221,9 @@ namespace TwoPaCo
 
 					for (uint64_t hashValue : setup)
 					{
-						if (!filter.Get(hashValue))
+						if (!filter.GetBit(hashValue))
 						{
-							filter.SetConcurrently(hashValue);
+							filter.SetBitConcurrently(hashValue);
 						}
 					}
 

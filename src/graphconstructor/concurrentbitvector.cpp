@@ -12,6 +12,27 @@ namespace TwoPaCo
 		: size_(size), realSize_(size / BASIC_TYPE_BITS + 1), filter_(new UInt[realSize_])
 	{
 		Reset();
+		for (size_t i = 0; i < (1 << BASIC_TYPE_BITS); i++)
+		{
+			bitCount_[i] = 0;
+			for (size_t j = 0; j < BASIC_TYPE_BITS; j++)
+			{
+				if (i & (1 << j))
+				{
+					bitCount_[i]++;
+				}
+			}
+		}
+	}
+
+	size_t ConcurrentBitVector::GetElementBitCount(size_t idx) const
+	{
+		return bitCount_[filter_[idx]];
+	}
+
+	void ConcurrentBitVector::OrElementCouncerrently(size_t idx, BASIC_TYPE bit)
+	{
+		filter_[idx].fetch_or(BASIC_TYPE(1) << BASIC_TYPE(bit));
 	}
 
 	void ConcurrentBitVector::Reset()
@@ -27,7 +48,7 @@ namespace TwoPaCo
 		return size_;
 	}
 
-	void ConcurrentBitVector::SetConcurrently(size_t idx)
+	void ConcurrentBitVector::SetBitConcurrently(size_t idx)
 	{
 		uint64_t bit;
 		uint64_t element;
@@ -35,7 +56,7 @@ namespace TwoPaCo
 		filter_[element].fetch_or(BASIC_TYPE(1) << BASIC_TYPE(bit));
 	}
 
-	bool ConcurrentBitVector::Get(size_t idx) const
+	bool ConcurrentBitVector::GetBit(size_t idx) const
 	{
 		uint64_t bit;
 		uint64_t element;
