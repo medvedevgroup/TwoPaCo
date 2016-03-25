@@ -934,8 +934,8 @@ namespace TwoPaCo
 
 		static void DecodeSet(uint16_t set, char & prev, char & next)
 		{
-			prev = DnaChar::UnMakeUpChar(set / 4);
-			next = DnaChar::UnMakeUpChar(set % 4);
+			prev = DnaChar::UnMakeUpChar(set >> 2);
+			next = DnaChar::UnMakeUpChar(set & 12);
 		}
 		/*
 		class InitialFilterFillerWorker
