@@ -538,7 +538,7 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								bool x = task.str.substr(pos, vertexLength) == "TCAT" || task.str.substr(pos, vertexLength) == "ATGA";
+								//bool x = task.str.substr(pos, vertexLength) == "TCAT" || task.str.substr(pos, vertexLength) == "ATGA";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
@@ -547,7 +547,7 @@ namespace TwoPaCo
 									{
 										uint16_t mask = (1 << 16) - 1;
 										StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
-										for (size_t i = 0; i < posVertexHash.size(); i++)
+										for (size_t i = 0; i < posVertexHash.size() && PopCount(mask) > 1; i++)
 										{
 											if (res == positiveLess || res == tie)
 											{
@@ -1051,14 +1051,14 @@ namespace TwoPaCo
 			{
 
 			}
-
+			
 			void operator()()
 			{
-				const char DUMMY_CHAR = DnaChar::LITERAL[0];
-				const char REV_DUMMY_CHAR = DnaChar::ReverseChar(DUMMY_CHAR);
 				while (true)
 				{
 					Task task;
+					const char DUMMY_CHAR = DnaChar::LITERAL[0];
+					const char REV_DUMMY_CHAR = DnaChar::ReverseChar(DUMMY_CHAR);
 					if (taskQueue.try_pop(task))
 					{
 						if (task.start == Task::GAME_OVER)
@@ -1070,62 +1070,68 @@ namespace TwoPaCo
 						{
 							continue;
 						}
-
+						
 						size_t vertexLength = edgeLength - 1;
-						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-						size_t definiteCount = std::count_if(task.str.begin(), task.str.begin() + vertexLength, DnaChar::IsDefinite);
-						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
-						for (size_t pos = 0;; ++pos)
+						if (task.str.size() >= vertexLength + 2)
 						{
-							char prevCh = task.str[pos];
-							char nextCh = task.str[pos + edgeLength - 1];
-							char revNextCh = DnaChar::ReverseChar(nextCh);
-							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
-							if (definiteCount == vertexLength)
+							std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
+							std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
+							InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+							size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
+							for (size_t pos = 1;; ++pos)
 							{
-//								bool x = task.str.substr(pos, vertexLength) == "TCAT" || task.str.substr(pos, vertexLength) == "ATGA";
-								//bool x = task.str.substr(pos, vertexLength) == "CTTT" || task.str.substr(pos, vertexLength) == "AAAG";
-								StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
-								uint16_t mask = res == positiveLess || tie ? EncodeSet(prevCh, nextCh) : EncodeSet(revNextCh, DnaChar::ReverseChar(prevCh));
-								if (prevCh == 'N' || nextCh == 'N')
+								char posPrev = task.str[pos - 1];
+								char posExtend = task.str[pos + vertexLength];
+								//bool x = task.str.substr(pos, vertexLength) == "GTAC" || task.str.substr(pos, vertexLength) == "GTAC";
+								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
+								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
-									mask = 1 | 2;
+									StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
+									uint16_t mask = res == positiveLess || tie ? EncodeSet(posPrev, posExtend) : EncodeSet(DnaChar::ReverseChar(posExtend), DnaChar::ReverseChar(posPrev));
+									if (posPrev == 'N' || posExtend == 'N' || (tie && DnaChar::IsSelfReverseCompliment(task.str.begin() + pos, vertexLength)))
+									{
+										mask = 1 | 2;
+									}
+
+									if (res == positiveLess || res == tie)
+									{
+										for (size_t i = 0; i < posVertexHash.size(); i++)
+										{
+											filter.OrElementCouncerrently(posVertexHash[i]->hashvalue, mask);
+										}
+									}
+
+									if (res == negativeLess || res == tie)
+									{
+										for (size_t i = 0; i < negVertexHash.size(); i++)
+										{
+											filter.OrElementCouncerrently(negVertexHash[i]->hashvalue, mask);
+										}
+									}
+
 								}
 
-								if (res == positiveLess || res == tie)
+								if (pos + edgeLength < task.str.size())
 								{
-									for (size_t i = 0; i < posVertexHash.size(); i++)
+									char negExtend = DnaChar::ReverseChar(posExtend);
+									char posPrev = task.str[pos];
+									char negPrev = DnaChar::ReverseChar(task.str[pos]);
+									definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
+									for (size_t i = 0; i < hashFunction.size(); i++)
 									{
-										filter.OrElementCouncerrently(posVertexHash[i]->hashvalue, mask);
+										posVertexHash[i]->update(posPrev, posExtend);
+										negVertexHash[i]->reverse_update(negExtend, negPrev);
+										assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+										assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
 									}
 								}
-
-								if (res == negativeLess || res == tie)
-								{									
-									for (size_t i = 0; i < negVertexHash.size(); i++)
-									{
-										filter.OrElementCouncerrently(negVertexHash[i]->hashvalue, mask);
-									}
-								}
-							}
-
-							if (pos + vertexLength < task.str.size() - 1)
-							{
-								definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(prevCh) ? 1 : 0);
-								for (size_t i = 0; i < hashFunction.size(); i++)
+								else
 								{
-									posVertexHash[i]->update(prevCh, nextCh);
-									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-									negVertexHash[i]->reverse_update(revNextCh, DnaChar::ReverseChar(prevCh));
-									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+									break;
 								}
-							}
-							else
-							{
-								break;
 							}
 						}
+
 					}
 				}
 			}
