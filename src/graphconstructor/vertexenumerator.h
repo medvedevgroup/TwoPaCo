@@ -538,7 +538,7 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								//bool x = task.str.substr(pos, vertexLength) == "TCAT" || task.str.substr(pos, vertexLength) == "ATGA";
+								bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
@@ -1082,22 +1082,23 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								//bool x = task.str.substr(pos, vertexLength) == "GTAC" || task.str.substr(pos, vertexLength) == "GTAC";
+								bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
 									StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
-									uint16_t mask = res == positiveLess || tie ? EncodeSet(posPrev, posExtend) : EncodeSet(DnaChar::ReverseChar(posExtend), DnaChar::ReverseChar(posPrev));
+									uint16_t posMask = EncodeSet(posPrev, posExtend);
+									uint16_t negMask = EncodeSet(DnaChar::ReverseChar(posExtend), DnaChar::ReverseChar(posPrev));
 									if (posPrev == 'N' || posExtend == 'N' || (tie && DnaChar::IsSelfReverseCompliment(task.str.begin() + pos, vertexLength)))
 									{
-										mask = 1 | 2;
+										posMask = negMask = 1 | 2;
 									}
 
 									if (res == positiveLess || res == tie)
 									{
 										for (size_t i = 0; i < posVertexHash.size(); i++)
 										{
-											filter.OrElementCouncerrently(posVertexHash[i]->hashvalue, mask);
+											filter.OrElementCouncerrently(posVertexHash[i]->hashvalue, posMask);
 										}
 									}
 
@@ -1105,7 +1106,7 @@ namespace TwoPaCo
 									{
 										for (size_t i = 0; i < negVertexHash.size(); i++)
 										{
-											filter.OrElementCouncerrently(negVertexHash[i]->hashvalue, mask);
+											filter.OrElementCouncerrently(negVertexHash[i]->hashvalue, negMask);
 										}
 									}
 
