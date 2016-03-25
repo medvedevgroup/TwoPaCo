@@ -162,7 +162,7 @@ namespace TwoPaCo
 			const uint64_t BIN_SIZE = max(uint64_t(1), realSize / BINS_COUNT);
 			std::atomic<uint32_t> * binCounter = 0;
 
-			/*
+			
 			if (rounds > 1)
 			{
 				std::cout << "Splitting the input kmers set...";
@@ -186,7 +186,7 @@ namespace TwoPaCo
 				{
 					workerThread[i]->join();
 				}
-			}*/
+			}
 
 			double roundSize = 0;
 			if (rounds > 1)
@@ -538,7 +538,6 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								//bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
@@ -937,7 +936,7 @@ namespace TwoPaCo
 			prev = DnaChar::UnMakeUpChar(set >> 2);
 			next = DnaChar::UnMakeUpChar(set & 12);
 		}
-		/*
+		
 		class InitialFilterFillerWorker
 		{
 		public:
@@ -1037,8 +1036,7 @@ namespace TwoPaCo
 			TaskQueue & taskQueue;
 			std::atomic<uint32_t> * binCounter;
 		};
-		*/
-/**/
+	
 		class FilterFillerWorker
 		{
 		public:
@@ -1082,7 +1080,6 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								//bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
