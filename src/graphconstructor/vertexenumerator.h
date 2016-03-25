@@ -538,7 +538,7 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								bool x = task.str.substr(pos, vertexLength) == "CTTT" || task.str.substr(pos, vertexLength) == "AAAG";
+								bool x = task.str.substr(pos, vertexLength) == "TCAT" || task.str.substr(pos, vertexLength) == "ATGA";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
@@ -1038,7 +1038,7 @@ namespace TwoPaCo
 			std::atomic<uint32_t> * binCounter;
 		};
 		*/
-
+/**/
 		class FilterFillerWorker
 		{
 		public:
@@ -1084,7 +1084,7 @@ namespace TwoPaCo
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
-								bool x = task.str.substr(pos, vertexLength) == "AGTT" || task.str.substr(pos, vertexLength) == "AACT";
+//								bool x = task.str.substr(pos, vertexLength) == "TCAT" || task.str.substr(pos, vertexLength) == "ATGA";
 								//bool x = task.str.substr(pos, vertexLength) == "CTTT" || task.str.substr(pos, vertexLength) == "AAAG";
 								StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
 								uint16_t mask = res == positiveLess || tie ? EncodeSet(prevCh, nextCh) : EncodeSet(revNextCh, DnaChar::ReverseChar(prevCh));
