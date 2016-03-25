@@ -538,7 +538,7 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
+								//bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
@@ -1082,7 +1082,7 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
-								bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
+								//bool x = task.str.substr(pos, vertexLength) == "AACTCCT" || task.str.substr(pos, vertexLength) == "AGGAGTT";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
