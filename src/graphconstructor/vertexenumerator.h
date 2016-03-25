@@ -27,6 +27,11 @@
 #include "candidateoccurence.h"
 #include "concurrentbitvector.h"
 
+#if _MSC_VER && !__INTEL_COMPILER
+	#define MSVS
+	#include <intrin.h> 
+#endif
+
 namespace TwoPaCo
 {
 	class VertexEnumerator
@@ -143,7 +148,7 @@ namespace TwoPaCo
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
-				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize - 2));
+				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize - 4));
 			}
 
 			size_t edgeLength = vertexLength + 1;
@@ -466,6 +471,24 @@ namespace TwoPaCo
 			errorMutex.unlock();
 		}
 
+		static int PopCount(uint16_t mask)
+		{
+#ifdef MSVS
+			return __popcnt16(mask);
+#else
+			int ret = 0;		
+			for (size_t j = 0; j < sizeof(mask) * 8; j++)
+			{
+				if (mask & (1 << j))
+				{
+					++ret;
+				}
+			}
+
+			return ret;
+#endif
+		}
+
 		class CandidateCheckingWorker
 		{
 		public:
@@ -515,18 +538,28 @@ namespace TwoPaCo
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
+								bool x = task.str.substr(pos, vertexLength) == "CTTT" || task.str.substr(pos, vertexLength) == "AAAG";
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
 								{
 									int bitCount = (DnaChar::IsDefinite(posPrev) && DnaChar::IsDefinite(posExtend)) ? 0 : 2;
 									if (bitCount == 0)
 									{
-										uint16_t = (1 << 16) - 1;
+										uint16_t mask = (1 << 16) - 1;
 										StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
 										for (size_t i = 0; i < posVertexHash.size(); i++)
 										{
-
+											if (res == positiveLess || res == tie)
+											{
+												mask &= bitVector.GetElement(posVertexHash[i]->hashvalue);
+											}
+											else
+											{
+												mask &= bitVector.GetElement(negVertexHash[i]->hashvalue);
+											}
 										}
+
+										bitCount = PopCount(mask);
 									}
 
 									if (bitCount > 1)
@@ -883,8 +916,8 @@ namespace TwoPaCo
 		{
 			for (size_t i = 0; i < posVertexHash.size(); i++)
 			{
-				uint64_t posHash = posVertexHash[i]->hash;
-				uint64_t negHash = negVertexHash[i]->hash;
+				uint64_t posHash = posVertexHash[i]->hashvalue;
+				uint64_t negHash = negVertexHash[i]->hashvalue;
 				if (posHash != negHash)
 				{
 					return posHash < negHash ? positiveLess : negativeLess;
@@ -896,7 +929,7 @@ namespace TwoPaCo
 
 		static uint16_t EncodeSet(char prev, char next)
 		{
-			return DnaChar::MakeUpChar(prev) * 4 + DnaChar::MakeUpChar(next);
+			return 1 << (DnaChar::MakeUpChar(prev) * 4 + DnaChar::MakeUpChar(next));
 		}
 
 		static void DecodeSet(uint16_t set, char & prev, char & next)
@@ -1051,10 +1084,17 @@ namespace TwoPaCo
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
+								bool x = task.str.substr(pos, vertexLength) == "AGTT" || task.str.substr(pos, vertexLength) == "AACT";
+								//bool x = task.str.substr(pos, vertexLength) == "CTTT" || task.str.substr(pos, vertexLength) == "AAAG";
 								StrandComparisonResult res = DetermineStrand(posVertexHash, negVertexHash);
+								uint16_t mask = res == positiveLess || tie ? EncodeSet(prevCh, nextCh) : EncodeSet(revNextCh, DnaChar::ReverseChar(prevCh));
+								if (prevCh == 'N' || nextCh == 'N')
+								{
+									mask = 1 | 2;
+								}
+
 								if (res == positiveLess || res == tie)
 								{
-									uint16_t mask = EncodeSet(prevCh, nextCh);
 									for (size_t i = 0; i < posVertexHash.size(); i++)
 									{
 										filter.OrElementCouncerrently(posVertexHash[i]->hashvalue, mask);
@@ -1062,8 +1102,7 @@ namespace TwoPaCo
 								}
 
 								if (res == negativeLess || res == tie)
-								{
-									uint16_t mask = EncodeSet(revNextCh, DnaChar::ReverseChar(prevCh));
+								{									
 									for (size_t i = 0; i < negVertexHash.size(); i++)
 									{
 										filter.OrElementCouncerrently(negVertexHash[i]->hashvalue, mask);
@@ -1074,6 +1113,13 @@ namespace TwoPaCo
 							if (pos + vertexLength < task.str.size() - 1)
 							{
 								definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(prevCh) ? 1 : 0);
+								for (size_t i = 0; i < hashFunction.size(); i++)
+								{
+									posVertexHash[i]->update(prevCh, nextCh);
+									assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
+									negVertexHash[i]->reverse_update(revNextCh, DnaChar::ReverseChar(prevCh));
+									assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
+								}
 							}
 							else
 							{

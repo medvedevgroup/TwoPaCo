@@ -15,15 +15,10 @@ namespace TwoPaCo
 		ConcurrentBitVector(size_t size);
 		void Reset();
 		size_t Size() const;
-		BASIC_TYPE GetElement(size_t idx) const;
-		static int PopCount(BASIC_TYPE element)
-		{
-			return bitCount_[element];
-		}
-
+		bool GetBit(size_t idx) const;
+		BASIC_TYPE GetElement(size_t idx) const;		
 		void OrElementCouncerrently(size_t idx, BASIC_TYPE bit);
-		void SetBitConcurrently(size_t idx);
-		bool GetBit(size_t idx) const;		
+		void SetBitConcurrently(size_t idx);		
 		void WriteToFile(const std::string & fileName) const;
 		void ReadFromFile(const std::string & fileName, bool cleanUp);
 	private:
@@ -31,7 +26,6 @@ namespace TwoPaCo
 		typedef std::atomic<BASIC_TYPE> UInt;
 		static const uint64_t BASIC_TYPE_POWER = 4;		
 		static const uint64_t BASIC_TYPE_BITS = sizeof(BASIC_TYPE) * 8;
-		static char bitCount_[1 << sizeof(BASIC_TYPE_BITS)];
 		size_t size_;
 		size_t realSize_;
 		UInt * filter_;
