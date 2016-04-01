@@ -1,6 +1,7 @@
 #ifndef _COMPRESSED_STRING_H_
 #define _COMPRESSED_STRING_H_
 
+#include <atomic>
 #include <string>
 #include <cstdint>
 #include <fstream>
@@ -23,7 +24,7 @@ namespace TwoPaCo
 		CompressedString()
 		{
 			std::fill(str_, str_ + CAPACITY, 0);
-		}
+		}		
 
 		void WriteToFile(std::ofstream & out) const
 		{
@@ -37,7 +38,20 @@ namespace TwoPaCo
 
 		CompressedString(const CompressedString & toCopy)
 		{
-			std::copy(toCopy.str_, toCopy.str_ + CAPACITY, str_);
+			for (size_t i = 0; i < CAPACITY; i++)
+			{
+				str_[i] = uint64_t(toCopy.str_[i]);
+			}
+		}
+
+		const CompressedString& operator = (const CompressedString & str)
+		{
+			for (size_t i = 0; i < CAPACITY; i++)
+			{
+				str_[i] = uint64_t(str.str_[i]);
+			}
+
+			return *this;
 		}
 
 		static uint64_t Mask(uint64_t prefix)
@@ -72,7 +86,7 @@ namespace TwoPaCo
 
 				remain -= current;
 			}
-
+			
 			return true;
 		}
 
@@ -85,7 +99,7 @@ namespace TwoPaCo
 					return v1.str_[i] < v2.str_[i];
 				}
 			}
-
+			
 			return false;
 		}
 
@@ -112,7 +126,7 @@ namespace TwoPaCo
 
 				remain -= current;
 			}
-
+			
 			return false;
 		}
 
@@ -224,7 +238,7 @@ namespace TwoPaCo
 		}
 
 	private:
-		uint64_t str_[CAPACITY];
+		std::atomic<uint64_t> str_[CAPACITY];
 
 		template<class T, class F>
 		void StrCpy(T src, size_t element, size_t idx, size_t size, F f)
