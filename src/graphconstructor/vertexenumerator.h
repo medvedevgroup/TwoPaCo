@@ -96,7 +96,7 @@ namespace TwoPaCo
 		};
 
 		typedef std::unordered_map<DnaString, uint64_t, DnaStringHash> BifurcationMap;
-		typedef tbb::concurrent_unordered_multiset<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
+		typedef tbb::concurrent_unordered_set<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
 
 	public:
 
@@ -683,44 +683,15 @@ namespace TwoPaCo
 									size_t count = 0;
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
-									bool newBifurcation = false;
-									bool alreadyBifurcation = false;
-									mutex.lock_read();
-									auto range = occurenceSet.equal_range(now);
-									for (auto it = range.first; it != range.second; ++it)
+									auto ret = occurenceSet.insert(now);
+									auto it = ret.first;
+									if (!it->IsBifurcation())
 									{
-										++count;
-										inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
-										outUnknownCount += DnaChar::IsDefinite(it->Next()) ? 0 : 1;
-										if (!alreadyBifurcation && it->IsBifurcation())
-										{
-											alreadyBifurcation = true;
-										}
-
 										if (it->Next() != now.Next() || it->Prev() != now.Prev() || inUnknownCount > 1 || outUnknownCount > 1)
 										{
-											newBifurcation = true;
+											it->MakeBifurcation();
 										}
 									}
-
-									if (count == 0)
-									{
-										occurenceSet.insert(now);
-									}
-									else
-									{
-										if ((newBifurcation && !alreadyBifurcation) || (alreadyBifurcation && count > 1))
-										{
-											now.MakeBifurcation();
-											mutex.unlock();
-											mutex.lock();
-											range = occurenceSet.equal_range(now);
-											occurenceSet.unsafe_erase(range.first, range.second);
-											occurenceSet.insert(now);
-										}
-									}
-
-									mutex.unlock();
 								}
 
 								if (pos + edgeLength < task.str.size())

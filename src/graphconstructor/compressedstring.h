@@ -190,8 +190,17 @@ namespace TwoPaCo
 			uint64_t element = TranslateIdx(idx);
 			uint64_t charIdx = str_[element] >> (2 * idx);
 			uint64_t mask = uint64_t(0x3) << (idx * 2);
-			str_[element] &= ~(mask);
+			str_[element] &= ~mask;
 			str_[element] |= DnaChar::MakeUpChar(ch) << (2 * idx++);
+		}
+
+		void SetCharConcurrently(uint64_t idx, char ch) const
+		{
+			uint64_t element = TranslateIdx(idx);
+			uint64_t charIdx = str_[element] >> (2 * idx);
+			uint64_t mask = uint64_t(0x3) << (idx * 2);
+			const_cast<std::atomic<uint64_t>&>(str_[element]).fetch_and(~mask);
+			const_cast<std::atomic<uint64_t>&>(str_[element]).fetch_or(DnaChar::MakeUpChar(ch) << (2 * idx++));
 		}
 
 		char GetChar(uint64_t idx) const

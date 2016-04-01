@@ -65,9 +65,9 @@ namespace TwoPaCo
 			return body_.GetChar(IS_BIF_POS) == TRUE_BIF;
 		}
 
-		void MakeBifurcation()
+		void MakeBifurcation() const
 		{
-			body_.SetChar(IS_BIF_POS, TRUE_BIF);
+			body_.SetCharConcurrently(IS_BIF_POS, TRUE_BIF);
 		}
 
 		bool EqualBase(const CandidateOccurence & occurence) const
