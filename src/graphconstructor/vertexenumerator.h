@@ -679,14 +679,15 @@ namespace TwoPaCo
 										posExtend,
 										posPrev,
 										false);
-
-									size_t count = 0;
+//add handling of revcomp vertices
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
-									auto it = ret.first;
-									if (!it->IsBifurcation())
+									OccurenceSet::iterator it = ret.first;
+									if (!ret.second && !it->IsBifurcation())
 									{
+										inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
+										outUnknownCount += DnaChar::IsDefinite(it->Next()) ? 0 : 1;
 										if (it->Next() != now.Next() || it->Prev() != now.Prev() || inUnknownCount > 1 || outUnknownCount > 1)
 										{
 											it->MakeBifurcation();
@@ -1202,41 +1203,10 @@ namespace TwoPaCo
 		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t & falsePositives) const
 		{
 			uint64_t truePositives = falsePositives = 0;
-			std::vector<Occurence> store;
-			for (auto it = occurenceSet.begin(); it != occurenceSet.end();)
+			for (auto it = occurenceSet.begin(); it != occurenceSet.end();++it)
 			{
-				Occurence base = *it;
-				size_t inUnknownCount = 0;
-				size_t outUnknownCount = 0;
 				bool bifurcation = it->IsBifurcation();
-				bool selfReverseCompliment = base.IsSelfReverseCompliment(vertexSize);
-
-				auto jt = it;
-				for (; jt != occurenceSet.end(); ++jt)
-				{
-					Occurence next = *jt;
-					if (!base.EqualBase(next))
-					{
-						break;
-					}
-
-					inUnknownCount += DnaChar::IsDefinite(next.Prev()) ? 0 : 1;
-					outUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;
-					if (!bifurcation)
-					{
-						bifurcation = jt->IsBifurcation() || base.Prev() != next.Prev() || base.Next() != next.Next();
-						if (selfReverseCompliment)
-						{
-							inUnknownCount += DnaChar::IsDefinite(next.Next()) ? 0 : 1;
-							outUnknownCount += DnaChar::IsDefinite(next.Prev()) ? 0 : 1;
-							bifurcation = bifurcation ||
-								base.Prev() != DnaChar::ReverseChar(next.Next()) ||
-								base.Next() != DnaChar::ReverseChar(next.Prev());
-						}
-					}
-				}
-
-				if (bifurcation || inUnknownCount > 1 || outUnknownCount > 1)
+				if (bifurcation)
 				{
 					++truePositives;
 					it->GetBase().WriteToFile(out);
@@ -1249,8 +1219,6 @@ namespace TwoPaCo
 				{
 					falsePositives++;
 				}
-
-				it = jt;
 			}
 
 			return truePositives;
