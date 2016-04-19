@@ -27,9 +27,7 @@ file format, and commandline parameters are subject to change.
 
 Test data
 =========
-Test data from the paper can be downloaded via the following links:
-
-TBA
+Links to the data: https://github.com/medvedevgroup/TwoPaCo/blob/master/data.txt
 
 Compilation
 ===========
