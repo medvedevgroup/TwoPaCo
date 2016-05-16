@@ -27,12 +27,7 @@ file format, and commandline parameters are subject to change.
 
 Test data
 =========
-Test data from the paper can be downloaded via the following links:
-
-* 62 E.Coli: https://s3-us-west-2.amazonaws.com/graph.testdata/ecoli.tar.gz
-* Seven humans: https://s3-us-west-2.amazonaws.com/graph.testdata/human.tar
-* Eight primates: https://s3-us-west-2.amazonaws.com/graph.testdata/primates.tar
-* 93 simulated humans: https://s3-us-west-2.amazonaws.com/graph.testdata/human_sim.tar.gz
+Links to the data: https://github.com/medvedevgroup/TwoPaCo/blob/master/data.txt
 
 Compilation
 ===========
@@ -53,7 +48,7 @@ Once you've got all the things above, do the following:
 This will make two targets: twopaco and graphdump.
 Compilation under platforms is possible, portable makefiles are in progress.
 
-The twopaco usage
+TwoPaCo usage
 =============
 To construct the graph (assuming you're in the "build/graphconstructor" dir), type:
 

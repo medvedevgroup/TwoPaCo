@@ -1,0 +1,15 @@
+E.Coli and real human datasets can be found here:
+https://www.uni-ulm.de/en/in/institute-of-theoretical-computer-science/research/seqana/compressed-debruijn-graph-data.html
+
+Primates dataset:
+http://hgdownload.cse.ucsc.edu/goldenPath/nomLeu2/bigZips/nomLeu2.fa.gz
+http://hgdownload.cse.ucsc.edu/goldenPath/gorGor3/bigZips/gorGor3.fa.gz
+http://hgdownload.cse.ucsc.edu/goldenPath/ponAbe2/bigZips/chromFa.tar.gz
+http://hgdownload.cse.ucsc.edu/goldenPath/rheMac3/bigZips/rheMac3.fa.gz
+http://hgdownload.cse.ucsc.edu/goldenPath/papAnu2/bigZips/papAnu2.fa.gz
+http://hgdownload.cse.ucsc.edu/goldenPath/panTro4/bigZips/panTro4.fa.gz
+http://hgdownload.cse.ucsc.edu/goldenPath/panPan1/bigZips/panPan1.fa.gz
+http://www.uni-ulm.de/fileadmin/website_uni_ulm/iui.inst.190/Mitarbeiter/beller/CPM2015/05_hg38.fa.bz2
+
+Simulated human dataset: http://www.bx.psu.edu/medvedev_lab/human_sim_2.tar.gz
+
