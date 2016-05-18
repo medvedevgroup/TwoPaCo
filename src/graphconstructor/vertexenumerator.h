@@ -369,6 +369,7 @@ namespace TwoPaCo
 						posWriter,
 						currentPiece,
 						occurence,
+						tmpDirName,
 						error,
 						errorMutex);
 
@@ -646,7 +647,7 @@ namespace TwoPaCo
 							{
 								try
 								{
-									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start), true);
+									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start), false);
 								}
 								catch (std::runtime_error & err)
 								{
@@ -758,13 +759,14 @@ namespace TwoPaCo
 				JunctionPositionWriter & writer,
 				std::atomic<uint64_t> & currentPiece,
 				std::atomic<uint64_t> & occurences,
+				const std::string & tmpDirectory,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
-				writer(writer), currentPiece(currentPiece), occurences(occurences),
+				writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
 				error(error), errorMutex(errorMutex)
 			{
 
-			}
+			}							
 
 			void operator()()
 			{
@@ -772,6 +774,7 @@ namespace TwoPaCo
 				{
 					DnaString bitBuf;
 					std::deque<EdgeResult> result;
+					ConcurrentBitVector candidateMask(Task::TASK_SIZE);
 					while (true)
 					{
 						Task task;
@@ -790,6 +793,15 @@ namespace TwoPaCo
 							size_t edgeLength = vertexLength + 1;
 							if (task.str.size() >= vertexLength + 2)
 							{
+								try
+								{
+									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start), true);
+								}
+								catch (std::runtime_error & err)
+								{
+									ReportError(errorMutex, error, err.what());
+								}
+
 								bool positiveStrand;
 								EdgeResult currentResult;
 								currentResult.pieceId = task.piece;
@@ -798,7 +810,7 @@ namespace TwoPaCo
 								{
 									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
-									if (definiteCount == vertexLength)
+									if (definiteCount == vertexLength && candidateMask.GetBit(pos))
 									{
 										uint64_t bifId = bifStorage.GetId(task.str.begin() + pos, positiveStrand);
 										if (bifId != INVALID_VERTEX)
@@ -840,6 +852,7 @@ namespace TwoPaCo
 			JunctionPositionWriter & writer;
 			std::atomic<uint64_t> & currentPiece;
 			std::atomic<uint64_t> & occurences;
+			const std::string & tmpDirectory;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};
