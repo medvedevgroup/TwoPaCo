@@ -353,10 +353,11 @@ namespace TwoPaCo
 			std::remove(bifurcationTempReadName.c_str());
 			std::cout << "Reallocating bifurcations time: " << time(0) - mark << std::endl;
 
-			mark = time(0);
-
+			mark = time(0);			
 			std::atomic<uint64_t> occurence;
-			std::atomic<uint64_t> currentPiece;
+			tbb::mutex currentStubVertexMutex;
+			std::atomic<uint64_t> currentPiece;			
+			uint64_t currentStubVertexId = verticesCount * 2;
 			JunctionPositionWriter posWriter(outFileNamePrefix);
 			occurence = currentPiece = 0;
 			{
@@ -369,6 +370,8 @@ namespace TwoPaCo
 						posWriter,
 						currentPiece,
 						occurence,
+						currentStubVertexId,
+						currentStubVertexMutex,
 						tmpDirName,
 						error,
 						errorMutex);
@@ -759,11 +762,13 @@ namespace TwoPaCo
 				JunctionPositionWriter & writer,
 				std::atomic<uint64_t> & currentPiece,
 				std::atomic<uint64_t> & occurences,
+				uint64_t & currentStubVertexId,
+				tbb::mutex & currentStubVertexMutex,
 				const std::string & tmpDirectory,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
 				writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
-				error(error), errorMutex(errorMutex)
+				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex)
 			{
 
 			}							
@@ -802,22 +807,40 @@ namespace TwoPaCo
 									ReportError(errorMutex, error, err.what());
 								}
 
-								bool positiveStrand;
 								EdgeResult currentResult;
 								currentResult.pieceId = task.piece;
 								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 								for (size_t pos = 1;; ++pos)
 								{
 									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+									std::pair<uint64_t, uint64_t> bifId(INVALID_VERTEX, INVALID_VERTEX);
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 									if (definiteCount == vertexLength && candidateMask.GetBit(pos))
 									{
-										std::pair<uint64_t, uint64_t> bifId = bifStorage.GetId(task.str.begin() + pos);
+										bifId = bifStorage.GetId(task.str.begin() + pos);
 										if (bifId.first != INVALID_VERTEX)
 										{
 											occurences++;
 											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId.first, bifId.second));
 										}
+									}
+
+									if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId.first == INVALID_VERTEX)
+									{
+										occurences++;
+										currentStubVertexMutex.lock();
+										if (definiteCount == vertexLength && DnaChar::IsSelfReverseCompliment(task.str.begin() + pos, vertexLength))
+										{
+											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId, currentStubVertexId));
+											currentStubVertexId += 1;
+										}
+										else
+										{
+											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId, currentStubVertexId + 1));
+											currentStubVertexId += 2;
+										}
+
+										currentStubVertexMutex.unlock();
 									}
 
 									if (pos + edgeLength < task.str.size())
@@ -848,6 +871,7 @@ namespace TwoPaCo
 		private:
 			size_t vertexLength;
 			TaskQueue & taskQueue;
+			uint64_t & currentStubVertexId;
 			const BifurcationStorage<CAPACITY> & bifStorage;
 			JunctionPositionWriter & writer;
 			std::atomic<uint64_t> & currentPiece;
@@ -855,6 +879,7 @@ namespace TwoPaCo
 			const std::string & tmpDirectory;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
+			tbb::mutex & currentStubVertexMutex;
 		};
 
 		static StrandComparisonResult DetermineStrand(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash)
