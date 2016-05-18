@@ -18,7 +18,6 @@
 #include <tbb/parallel_reduce.h>
 #include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_unordered_set.h>
-#include <tbb/concurrent_unordered_map.h>
 
 #include <junctionapi/junctionapi.h>
 
@@ -38,8 +37,7 @@ namespace TwoPaCo
 	{
 	public:
 		virtual size_t GetVerticesCount() const = 0;
-		virtual size_t GetTotalVerticesCount() const = 0;
-		virtual std::pair<uint64_t, uint64_t> GetId(const std::string & vertex) const = 0;
+		virtual uint64_t GetId(const std::string & vertex, bool & positiveStrand) const = 0;
 
 		virtual ~VertexEnumerator()
 		{
@@ -95,25 +93,20 @@ namespace TwoPaCo
 			}
 		};
 
-		typedef std::unordered_map<DnaString, uint64_t, DnaStringHash> BifurcationMap;
 		typedef tbb::concurrent_unordered_set<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
 
 	public:
+
+		uint64_t GetId(const std::string & vertex, bool & positiveStrand) const
+		{
+			return bifStorage_.GetId(vertex.begin(), positiveStrand);
+		}
 
 		size_t GetVerticesCount() const
 		{
 			return bifStorage_.GetDistinctVerticesCount();
 		}
 
-		size_t GetTotalVerticesCount() const
-		{
-			return bifStorage_.GetTotalVerticesCount();
-		}
-
-		std::pair<uint64_t, uint64_t> GetId(const std::string & vertex) const
-		{
-			return bifStorage_.GetId(vertex.begin());
-		}
 
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
 			size_t vertexLength,
@@ -161,7 +154,6 @@ namespace TwoPaCo
 
 			const uint64_t BIN_SIZE = max(uint64_t(1), realSize / BINS_COUNT);
 			std::atomic<uint32_t> * binCounter = 0;
-
 			
 			if (rounds > 1)
 			{
@@ -326,8 +318,8 @@ namespace TwoPaCo
 					std::cout << time(0) - mark << "\t";
 				}
 
-				size_t falsePositives = 0;
 				mark = time(0);
+				size_t falsePositives = 0;
 				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
 				std::cout << time(0) - mark << std::endl;
 				std::cout << "True junctions count = " << truePositives << std::endl;
@@ -345,7 +337,7 @@ namespace TwoPaCo
 				delete[] binCounter;
 			}
 
-			mark = time(0);
+			mark = time(0);			
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
 			bifurcationTempWrite.close();
 			{
@@ -365,10 +357,8 @@ namespace TwoPaCo
 
 			std::atomic<uint64_t> occurence;
 			std::atomic<uint64_t> currentPiece;
-			std::atomic<uint64_t> currentStubVertex;
 			JunctionPositionWriter posWriter(outFileNamePrefix);
 			occurence = currentPiece = 0;
-			currentStubVertex = verticesCount * 2;
 			{
 				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 				for (size_t i = 0; i < workerThread.size(); i++)
@@ -379,7 +369,6 @@ namespace TwoPaCo
 						posWriter,
 						currentPiece,
 						occurence,
-						currentStubVertex,
 						error,
 						errorMutex);
 
@@ -672,14 +661,20 @@ namespace TwoPaCo
 								if (candidateMask.GetBit(pos))
 								{
 									Occurence now;
+									bool isBifurcation = false;
+									if (DnaChar::IsSelfReverseCompliment(task.str.begin() + pos, vertexLength))
+									{
+										isBifurcation = (posPrev != DnaChar::ReverseChar(posExtend)) || (posExtend != DnaChar::ReverseChar(posPrev));
+									}
+
 									now.Set(posVertexHash[0]->hashvalue,
 										negVertexHash[0]->hashvalue,
 										task.str.begin() + pos,
 										vertexLength,
 										posExtend,
 										posPrev,
-										false);
-//add handling of revcomp vertices
+										isBifurcation);
+
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
@@ -688,7 +683,7 @@ namespace TwoPaCo
 									{
 										inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
 										outUnknownCount += DnaChar::IsDefinite(it->Next()) ? 0 : 1;
-										if (it->Next() != now.Next() || it->Prev() != now.Prev() || inUnknownCount > 1 || outUnknownCount > 1)
+										if (isBifurcation || it->Next() != now.Next() || it->Prev() != now.Prev() || inUnknownCount > 1 || outUnknownCount > 1)
 										{
 											it->MakeBifurcation();
 										}
@@ -763,11 +758,10 @@ namespace TwoPaCo
 				JunctionPositionWriter & writer,
 				std::atomic<uint64_t> & currentPiece,
 				std::atomic<uint64_t> & occurences,
-				std::atomic<uint64_t> & currentStubVertexId,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
 				writer(writer), currentPiece(currentPiece), occurences(occurences),
-				currentStubVertexId(currentStubVertexId), error(error), errorMutex(errorMutex)
+				error(error), errorMutex(errorMutex)
 			{
 
 			}
@@ -793,62 +787,30 @@ namespace TwoPaCo
 								continue;
 							}
 
-							const std::vector<HashFunctionPtr> & hashFunction = bifStorage.GetHashFunctions();
-							std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-							std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 							size_t edgeLength = vertexLength + 1;
 							if (task.str.size() >= vertexLength + 2)
 							{
+								bool positiveStrand;
 								EdgeResult currentResult;
 								currentResult.pieceId = task.piece;
-								InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
 								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 								for (size_t pos = 1;; ++pos)
 								{
 									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
-									std::pair<uint64_t, uint64_t> bifId(INVALID_VERTEX, INVALID_VERTEX);
-									char posPrev = task.str[pos - 1];
-									char posExtend = task.str[pos + vertexLength];
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 									if (definiteCount == vertexLength)
 									{
-										bifId = bifStorage.GetId(task.str.begin() + pos, posVertexHash, negVertexHash);
-										if (bifId.first != INVALID_VERTEX)
+										uint64_t bifId = bifStorage.GetId(task.str.begin() + pos, positiveStrand);
+										if (bifId != INVALID_VERTEX)
 										{
 											occurences++;
-											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId.first, bifId.second));
+											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId, bifId));
 										}
-									}
-
-									if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) && bifId.first == INVALID_VERTEX)
-									{
-										occurences++;
-										if (definiteCount == vertexLength && DnaChar::IsSelfReverseCompliment(task.str.begin() + pos, vertexLength))
-										{
-											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId, currentStubVertexId));
-											currentStubVertexId += 1;
-										}
-										else
-										{
-											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId, currentStubVertexId + 1));
-											currentStubVertexId += 2;
-										}
-
 									}
 
 									if (pos + edgeLength < task.str.size())
 									{
-										char negExtend = DnaChar::ReverseChar(posExtend);
-										char posPrev = task.str[pos];
-										char negPrev = DnaChar::ReverseChar(task.str[pos]);
 										definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
-										for (size_t i = 0; i < hashFunction.size(); i++)
-										{
-											posVertexHash[i]->update(posPrev, posExtend);
-											negVertexHash[i]->reverse_update(negExtend, negPrev);
-											assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-											assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-										}
 									}
 									else
 									{
@@ -878,7 +840,6 @@ namespace TwoPaCo
 			JunctionPositionWriter & writer;
 			std::atomic<uint64_t> & currentPiece;
 			std::atomic<uint64_t> & occurences;
-			std::atomic<uint64_t> & currentStubVertexId;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};

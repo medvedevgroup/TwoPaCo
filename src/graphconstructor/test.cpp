@@ -99,8 +99,9 @@ namespace TwoPaCo
 					std::string cand(it->first.begin(), it->first.end());
 					bif.insert(cand);
 					bif.insert(DnaChar::ReverseCompliment(cand));
-					std::pair<uint64_t, uint64_t> res = vid->GetId(cand);
-					assert(res.first != INVALID_VERTEX);
+					bool positiveStrand;
+					uint64_t res = vid->GetId(cand, positiveStrand);
+					assert(res != INVALID_VERTEX);
 				}
 			}
 		}
@@ -122,7 +123,7 @@ namespace TwoPaCo
 		fileName.push_back("ntest.fasta");
 		for (size_t k = 4; k <= 20; k++)
 		{
-			VertexEnumeratorTest(fileName, k, 20, 1, ss);
+			VertexEnumeratorTest(fileName, k, 20, 4, ss);
 		}
 
 		fileName.clear();

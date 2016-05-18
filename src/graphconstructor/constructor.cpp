@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
 			tmpDirName.getValue(),
 			outFileName.getValue());
 			
-		std::cout << "Total junctions = " << vid->GetTotalVerticesCount() << std::endl;
+		std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
 		std::cout << std::endl;
 	}
 	catch (TCLAP::ArgException & e)
