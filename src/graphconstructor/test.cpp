@@ -99,9 +99,8 @@ namespace TwoPaCo
 					std::string cand(it->first.begin(), it->first.end());
 					bif.insert(cand);
 					bif.insert(DnaChar::ReverseCompliment(cand));
-					bool positiveStrand;
-					uint64_t res = vid->GetId(cand, positiveStrand);
-					assert(res != INVALID_VERTEX);
+					auto res = vid->GetId(cand);
+					assert(res.first != INVALID_VERTEX);
 				}
 			}
 		}

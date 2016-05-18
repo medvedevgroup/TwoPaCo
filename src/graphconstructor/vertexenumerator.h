@@ -37,7 +37,7 @@ namespace TwoPaCo
 	{
 	public:
 		virtual size_t GetVerticesCount() const = 0;
-		virtual uint64_t GetId(const std::string & vertex, bool & positiveStrand) const = 0;
+		virtual std::pair<uint64_t, uint64_t> GetId(const std::string & vertex) const = 0;
 
 		virtual ~VertexEnumerator()
 		{
@@ -97,9 +97,9 @@ namespace TwoPaCo
 
 	public:
 
-		uint64_t GetId(const std::string & vertex, bool & positiveStrand) const
+		std::pair<uint64_t, uint64_t> GetId(const std::string & vertex) const
 		{
-			return bifStorage_.GetId(vertex.begin(), positiveStrand);
+			return bifStorage_.GetId(vertex.begin());
 		}
 
 		size_t GetVerticesCount() const
@@ -812,11 +812,11 @@ namespace TwoPaCo
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 									if (definiteCount == vertexLength && candidateMask.GetBit(pos))
 									{
-										uint64_t bifId = bifStorage.GetId(task.str.begin() + pos, positiveStrand);
-										if (bifId != INVALID_VERTEX)
+										std::pair<uint64_t, uint64_t> bifId = bifStorage.GetId(task.str.begin() + pos);
+										if (bifId.first != INVALID_VERTEX)
 										{
 											occurences++;
-											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId, bifId));
+											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId.first, bifId.second));
 										}
 									}
 
