@@ -807,6 +807,8 @@ namespace TwoPaCo
 									ReportError(errorMutex, error, err.what());
 								}
 
+								size_t taskstart = task.start;
+
 								EdgeResult currentResult;
 								currentResult.pieceId = task.piece;
 								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
@@ -858,7 +860,10 @@ namespace TwoPaCo
 						}
 					}
 
-					while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+					while (result.size() > 0)
+					{
+						FlushEdgeResults(result, writer, currentPiece);
+					}
 				}
 				catch (std::runtime_error & e)
 				{

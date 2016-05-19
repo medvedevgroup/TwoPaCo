@@ -28,7 +28,7 @@ size_t Atoi(const char * str)
 
 int main(int argc, char * argv[])
 {
-	assert(TwoPaCo::Runtests());
+	//assert(TwoPaCo::Runtests());
 	try
 	{
 		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.0.0");
