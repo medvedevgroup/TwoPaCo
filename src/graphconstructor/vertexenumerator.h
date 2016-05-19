@@ -684,7 +684,7 @@ namespace TwoPaCo
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
-									OccurenceSet::iterator it = ret.first;
+									typename OccurenceSet::iterator it = ret.first;
 									if (!ret.second && !it->IsBifurcation())
 									{
 										inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
