@@ -468,6 +468,8 @@ namespace TwoPaCo
 		{
 #ifdef MSVS
 			return __popcnt16(mask);
+#elif __GNUG__
+			return __builtin_popcount(mask);
 #else
 			int ret = 0;		
 			for (size_t j = 0; j < sizeof(mask) * 8; j++)
