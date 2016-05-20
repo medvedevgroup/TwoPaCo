@@ -46,7 +46,7 @@ Once you've got all the things above, do the following:
 * Run make
 
 This will make two targets: twopaco and graphdump.
-Compilation under platforms is possible, portable makefiles are in progress.
+Compilation under other platforms is possible, portable makefiles are in progress.
 
 TwoPaCo usage
 =============
@@ -60,7 +60,8 @@ indicates junction positions on the positive strand. The default output file nam
 is "de_bruiijn. bin". You can read directly using an API (will be documented later)
 or make it into a text file using the "graphdump" utility. The program has several
 additional parameters, see subsections below. You can also type "./twopaco --help"
-to get a short parameter description.
+to get a short parameter description. Note that TwoPaCo supports only odd values 
+of k for the sake of easier graph manipulation.
 
 A note: the release version will likely use the GFA format, see:
 https://github.com/pmelsted/GFA-spec/issues/7
@@ -109,28 +110,28 @@ This utility turns the binary file a text one one. You can run:
 It will output a text file to the standard output. Each line will contain a 
 triple indicating an occurence of junction:
 
-	<seq_id_i> <pos_i> <positive_junction_id_i> <negative_junction_id_i>
+	<seq_id_i> <pos_i> <junction_id_i> 
 
 The first number is the index number of the sequence, the second one is the
-position, and the last two are the junction id. The index number of the sequence
-is just the order of the sequence in the input file. All positions/orders count
+position, and the third one is the junction id. The index number of the sequence
+is the order of the sequence in the input file(s). All positions/orders count
 from 0. Positions appear in the file in the same order they appear in the input
-genomes. The \<positive_junction_id\> is the id of the junction that appears on
-the direct strand, while \<negative_junction_id_i> is the id of the junction
-that appears on the complementary strand. This way, one can obtain all multi-edges
-of the graph with a linear scan, as described in the paper. For example, a sequence
-of pairs of junctions ids:
+genomes. The \<junction_id\> is a signed integer, the id of the junction that
+appears on the positive strand strand. A positive number indicates "direct" version
+of the junction, while a negative one shows the reverse complimentary version of the
+same junction. For example +1 and -1 are different versions of the same junction.
+This way, one can obtain all multi-edges of the graph with a linear scan, as described
+in the paper. For example, a sequence of pairs of junctions ids:
 
-	a_1 b_1
-	a_2 b_2
-	a_3 b_3
+	a_1
+	a_2
+	a_3
 
 Generates edges a_1 -> a_2, a_2 -> a_3 in the graph corresponding to the positive
-strand and edges b_3 -> b_2, b_2 -> b_1 in the graph coming from the reverse 
-complementary strand.	
-
-One can also output junctions grouped by ids, it is useful for comparison between
-different graphs:
+strand. To obtain the edges from the positive strand, one has to traverse them 
+in the backwards order and negate signs, e.g. for the example above the sequence
+will be -a_3 -> -a_2 -> -a_1. One can also output junctions grouped by ids, it is
+useful for comparison between different graphs:
 
 	graphdump -g <twopaco_output_file>
 
@@ -140,8 +141,7 @@ In this format the i-th line line corresponds to the i-th junction and is of for
 
 Where each pair "seq_id_i pos_j" corresponds to an occurence of the junction in
 sequence "seq_id_i" at position "pos_j". Sequence ids are just the numbers of sequences
-in the order they appear in the input. All numbers count from 0.
-
+in the order they appear in the input. All positions count from 0.
 
 License
 =======
