@@ -136,7 +136,7 @@ namespace TwoPaCo
 			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
 			for (HashFunctionPtr & ptr : hashFunction)
 			{
-				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize - 4));
+				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
 			}
 
 			size_t edgeLength = vertexLength + 1;
