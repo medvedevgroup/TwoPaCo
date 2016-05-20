@@ -2,6 +2,6 @@
 
 namespace TwoPaCo
 {
-	const size_t INVALID_VERTEX = -1;
+	const uint64_t INVALID_VERTEX = INT64_MAX;
 	const uint32_t MAX_COUNTER = UINT32_MAX >> 1;
 }

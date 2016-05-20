@@ -11,8 +11,8 @@ namespace TwoPaCo
 	{
 	public:
 		JunctionPosition() {}
-		JunctionPosition(uint32_t chr, uint32_t pos, uint64_t posBifId, uint64_t negBifId) :
-			chr_(chr), pos_(pos), posBifId_(posBifId), negBifId_(negBifId) {}
+		JunctionPosition(uint32_t chr, uint32_t pos, int64_t bifId) :
+			chr_(chr), pos_(pos), bifId_(bifId) {}
 		uint32_t GetPos() const
 		{
 			return pos_;
@@ -23,23 +23,17 @@ namespace TwoPaCo
 			return chr_;
 		}
 
-		uint64_t GetPosId() const
+		int64_t GetId() const
 		{
-			return posBifId_;
-		}
-
-		uint64_t GetNegId() const
-		{
-			return negBifId_;
+			return bifId_;
 		}
 
 	private:
 		uint32_t chr_;
 		uint32_t pos_;
-		uint64_t posBifId_;
-		uint64_t negBifId_;
-		static const uint32_t SEPARATOR_POS = -1;
-		static const uint64_t SEPARATOR_BIF = -1;
+		int64_t bifId_;
+		static const int64_t SEPARATOR_BIF = 0;
+		static const uint32_t SEPARATOR_POS = -1;		
 		friend class JunctionPositionReader;
 		friend class JunctionPositionWriter;
 	};
@@ -59,17 +53,16 @@ namespace TwoPaCo
 		{
 			for (;; nowChr_++)
 			{
-				pos = JunctionPosition(nowChr_, 0, 0, 0);
+				pos = JunctionPosition(nowChr_, 0, 0);
 				in_.read(reinterpret_cast<char*>(&pos.pos_), sizeof(pos.pos_));
-				in_.read(reinterpret_cast<char*>(&pos.posBifId_), sizeof(pos.posBifId_));
-				in_.read(reinterpret_cast<char*>(&pos.negBifId_), sizeof(pos.negBifId_));
+				in_.read(reinterpret_cast<char*>(&pos.bifId_), sizeof(pos.bifId_));
 
 				if (!in_)
 				{
 					return false;
 				}
 
-				if (pos.pos_ != JunctionPosition::SEPARATOR_POS && pos.posBifId_ != JunctionPosition::SEPARATOR_BIF)
+				if (pos.pos_ != JunctionPosition::SEPARATOR_POS && pos.bifId_ != JunctionPosition::SEPARATOR_BIF)
 				{
 					return true;
 				}
@@ -97,12 +90,11 @@ namespace TwoPaCo
 		{
 			for (; pos.chr_ > nowChr_; ++nowChr_)
 			{
-				WriteJunction(JunctionPosition(nowChr_, JunctionPosition::SEPARATOR_POS, JunctionPosition::SEPARATOR_BIF, JunctionPosition::SEPARATOR_BIF));
+				WriteJunction(JunctionPosition(nowChr_, JunctionPosition::SEPARATOR_POS, JunctionPosition::SEPARATOR_BIF));
 			}
 
 			out_.write(reinterpret_cast<const char*>(&pos.pos_), sizeof(pos.pos_));
-			out_.write(reinterpret_cast<const char*>(&pos.posBifId_), sizeof(pos.posBifId_));
-			out_.write(reinterpret_cast<const char*>(&pos.negBifId_), sizeof(pos.negBifId_));
+			out_.write(reinterpret_cast<const char*>(&pos.bifId_), sizeof(pos.bifId_));
 
 			if (!out_)
 			{

@@ -100,7 +100,7 @@ namespace TwoPaCo
 					bif.insert(cand);
 					bif.insert(DnaChar::ReverseCompliment(cand));
 					auto res = vid->GetId(cand);
-					assert(res.first != INVALID_VERTEX);
+					assert(res != INVALID_VERTEX);
 				}
 			}
 		}
@@ -116,11 +116,11 @@ namespace TwoPaCo
 		
 		fileName.clear();
 		fileName.push_back("test.fasta");
- 		VertexEnumeratorTest(fileName, 4, 16, 1, ss);
+ 		VertexEnumeratorTest(fileName, 5, 16, 1, ss);
 
 		fileName.clear();
 		fileName.push_back("ntest.fasta");
-		for (size_t k = 4; k <= 20; k++)
+		for (size_t k = 5; k <= 20; k+=2)
 		{
 			VertexEnumeratorTest(fileName, k, 20, 4, ss);
 		}
@@ -128,9 +128,6 @@ namespace TwoPaCo
 		fileName.clear();
 		fileName.push_back("tiny.fasta");
 		VertexEnumeratorTest(fileName, 25, 24, 4, ss);
-		
-		fileName.push_back("ntest.fasta");
-		VertexEnumeratorTest(fileName, 10, 32, 4, ss);
 
 		return true;
 	}

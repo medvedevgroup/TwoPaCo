@@ -14,20 +14,6 @@ namespace TwoPaCo
 	{
 		DnaChar helper;
 	}
-
-	bool DnaChar::IsSelfReverseCompliment(std::string::const_iterator it, uint64_t vertexSize)
-	{
-		for (size_t i = 0; i < vertexSize; i++)
-		{
-			char ch = DnaChar::ReverseChar(*(it + (vertexSize - i - 1)));
-			if (*(it + i) != DnaChar::ReverseChar(*(it + (vertexSize - i - 1))))
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
 	
 	size_t DnaChar::MakeUpChar(char ch)
 	{

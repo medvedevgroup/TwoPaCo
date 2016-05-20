@@ -7,7 +7,7 @@
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
 {
-	return std::make_pair(a.GetPosId(), a.GetNegId()) < std::make_pair(b.GetPosId(), b.GetNegId());
+	return a.GetId() < b.GetId();
 }
 
 bool CompareJunctionsByPos(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
@@ -17,7 +17,7 @@ bool CompareJunctionsByPos(const TwoPaCo::JunctionPosition & a, const TwoPaCo::J
 
 struct EqClass
 {
-	std::pair<uint64_t, uint64_t> label;
+	int64_t label;
 	std::vector<TwoPaCo::JunctionPosition> position;
 };
 
@@ -58,10 +58,10 @@ int main(int argc, char * argv[])
 			for (size_t i = 0; i < junction.size();)
 			{
 				size_t j = i;
-				for (; j < junction.size() && junction[i].GetPosId() == junction[j].GetPosId() && junction[i].GetNegId() == junction[j].GetNegId(); j++);
+				for (; j < junction.size() && junction[i].GetId() == junction[j].GetId() ; j++);
 				std::sort(junction.begin() + i, junction.begin() + j, CompareJunctionsByPos);
 				eqClass.push_back(EqClass());
-				eqClass.back().label = std::make_pair(junction[i].GetPosId(), junction[i].GetNegId());
+				eqClass.back().label = junction[i].GetId();
 				for (size_t k = i; k < j; k++)
 				{
 					eqClass.back().position.push_back(junction[k]);
@@ -85,7 +85,7 @@ int main(int argc, char * argv[])
 		{
 			while (reader.NextJunctionPosition(pos))
 			{
-				std::cout << pos.GetChr() << ' ' << pos.GetPos() << ' ' << pos.GetPosId() << ' ' << pos.GetNegId() << std::endl;
+				std::cout << pos.GetChr() << ' ' << pos.GetPos() << ' ' << pos.GetId() << std::endl;
 			}
 		}
 	}

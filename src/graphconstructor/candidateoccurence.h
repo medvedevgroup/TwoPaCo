@@ -91,19 +91,6 @@ namespace TwoPaCo
 		{
 			return CompressedString<CAPACITY>::LessPrefix(body_, other.body_, VERTEX_SIZE);
 		}
-
-		bool IsSelfReverseCompliment(size_t vertexSize) const
-		{
-			for (size_t i = 0; i < vertexSize; i++)
-			{
-				if (body_.GetChar(i) != DnaChar::ReverseChar(body_.GetChar(vertexSize - i - 1)))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
 		
 	private:
 		char EncodeNmask(char next, char prev)

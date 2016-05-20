@@ -26,9 +26,34 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
+class OddConstraint : public TCLAP::Constraint < unsigned int >
+{
+public:
+	~OddConstraint()
+	{
+
+	}
+
+	std::string description() const
+	{
+		return "value of K must be odd";
+	}
+
+	std::string shortID() const
+	{
+		return "oddc";
+	}
+
+	bool check(const unsigned & value) const
+	{
+		return (value % 2) == 1;
+	}
+};
+
 int main(int argc, char * argv[])
 {
-	//assert(TwoPaCo::Runtests());
+	OddConstraint constraint;
+	assert(TwoPaCo::Runtests());
 	try
 	{
 		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.0.0");
@@ -38,7 +63,7 @@ int main(int argc, char * argv[])
 			"Value of k",
 			false,
 			25,
-			"integer",
+			&constraint,
 			cmd);
 
 		TCLAP::ValueArg<uint64_t> filterSize("f",
