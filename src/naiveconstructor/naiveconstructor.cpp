@@ -213,9 +213,7 @@ public:
 					if (it != junctionMap.end())
 					{
 						++occurences;
-						size_t negPos = strand[0][chr].size() - (i + k);
-						kmer.assign(strand[1][chr].begin() + negPos, strand[1][chr].begin() + negPos + k);
- 						posWriter.WriteJunction(TwoPaCo::JunctionPosition(chr, i, it->second, junctionMap.find(kmer)->second));
+ 						posWriter.WriteJunction(TwoPaCo::JunctionPosition(chr, i, it->second));
 					}
 				}
 			}			

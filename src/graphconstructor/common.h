@@ -16,7 +16,7 @@ namespace TwoPaCo
 	using std::max;
 	using std::min;
 
-	extern const size_t INVALID_VERTEX;
+	extern const int64_t INVALID_VERTEX;
 	extern const uint32_t MAX_COUNTER;
 
 	typedef CyclicHash<uint64_t> HashFunction;

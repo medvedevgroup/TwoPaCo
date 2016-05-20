@@ -32,7 +32,7 @@ namespace TwoPaCo
 		uint32_t chr_;
 		uint32_t pos_;
 		int64_t bifId_;
-		static const int64_t SEPARATOR_BIF = 0;
+		static const int64_t SEPARATOR_BIF = INT64_MAX;
 		static const uint32_t SEPARATOR_POS = -1;		
 		friend class JunctionPositionReader;
 		friend class JunctionPositionWriter;
