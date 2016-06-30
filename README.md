@@ -27,7 +27,7 @@ file format, and commandline parameters are subject to change.
 
 Test data
 =========
-Links to the data: https://github.com/medvedevgroup/TwoPaCo/blob/master/data.txt
+Links to the data used for bencharmking in the paper: https://github.com/medvedevgroup/TwoPaCo/blob/master/data.txt
 
 Compilation
 ===========
@@ -57,7 +57,7 @@ To construct the graph (assuming you're in the "build/graphconstructor" dir), ty
 This will constuct the compressed graph for the vertex size of \<value_of_k\> using
 2^\<filter_size\> bits in the Bloom filter. The output file is a binary file that
 indicates junction positions on the positive strand. The default output file name
-is "de_bruiijn. bin". You can read directly using an API (will be documented later)
+is "de_bruiijn. bin". You can it read directly using an API (will be documented later)
 or make it into a text file using the "graphdump" utility. The program has several
 additional parameters, see subsections below. You can also type "./twopaco --help"
 to get a short parameter description. Note that TwoPaCo supports only odd values 
@@ -103,11 +103,35 @@ The name of the output file. The default is "de_bruijn.bin". To change, use:
 
 The graphdump usage
 ===================
-This utility turns the binary file a text one one. You can run:
+This utility turns the binary file a text one. There are several output formats
+available.
+
+GFA
+---
+GFA is the most handy option. It **explicitly** represents the graph as a list
+non-branching paths, adjacencies between them, and all occurrences of the segments
+in the input genomes, i.e. a colored de Bruijn graph. Work on the format specification
+is still in progress, the version implemented in TwoPaCo can be found here:
+
+	https://github.com/ilyaminkin/GFA-spec/blob/record_style_occurence/GFA-spec.md
+
+To get GFA output, run:
+
+	graphdummp --gfa -k <value_of_k> -s <input_genomes> <twopaco_output_file>
+
+Although GFA is quite easy to understand and parse, it is quite bulky, especially
+for larger graphs.
+
+Junctions List Format
+---------------------
+In this format the output file only contains positions of junctions in the input
+genomes. As described in the paper, you can trivially restore information about
+edges from this junctions list. Note that junctions are mapped to genomes, i.e.
+one can reconstruct a **colored graph** from it. To get the junctions list, run:
 
 	graphdump <twopaco_output_file>
 
-It will output a text file to the standard output. Each line will contain a 
+This command will output a text file to the standard output. Each line will contain a 
 triple indicating an occurence of junction:
 
 	<seq_id_i> <pos_i> <junction_id_i> 
@@ -142,6 +166,12 @@ In this format the i-th line line corresponds to the i-th junction and is of for
 Where each pair "seq_id_i pos_j" corresponds to an occurence of the junction in
 sequence "seq_id_i" at position "pos_j". Sequence ids are just the numbers of sequences
 in the order they appear in the input. All positions count from 0.
+
+Read The Binary File Directly
+-----------------------------
+This is the most parsimonious option in terms of involved resources.
+One can read junctions and/or edges from the output file using a very simple
+C++ API. It will be documented slightly later.
 
 License
 =======

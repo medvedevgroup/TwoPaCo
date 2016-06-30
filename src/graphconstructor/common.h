@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <algorithm>
 #include <functional>
+
+#include <dnachar.h>
 #include <tbb/concurrent_queue.h>
 
 #include "ngramhashing/cyclichash.h"

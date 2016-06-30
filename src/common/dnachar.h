@@ -17,7 +17,7 @@ namespace TwoPaCo
 		static bool IsDefinite(char ch);
 		static char ReverseChar(char ch);		
 		static std::string ReverseCompliment(const std::string & str);
-		static bool IsSelfReverseCompliment(std::string::const_iterator it, uint64_t vertexSize);
+		
 		static size_t MakeUpChar(char ch);
 		static char UnMakeUpChar(size_t ch);
 		static bool LessSelfReverseComplement(std::string::const_iterator pit, size_t vertexSize);

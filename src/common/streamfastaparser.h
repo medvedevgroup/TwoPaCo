@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <stdexcept>
+#include <algorithm>
 #include <tbb/mutex.h>
 
 #include "dnachar.h"
