@@ -11,6 +11,50 @@
 #include <streamfastaparser.h>
 #include <junctionapi/junctionapi.h>
 
+class ChrReader
+{
+public:
+	ChrReader(const std::vector<std::string> & fileName) : currentFile_(0), fileName_(fileName)
+	{
+		if (fileName.size() > 0)
+		{
+			parser_.reset(new TwoPaCo::StreamFastaParser(fileName[0]));
+		}
+	}
+
+	bool NextChr(std::string & buf)
+	{
+		buf.clear();
+		while (currentFile_ < fileName_.size())
+		{
+			if (parser_->ReadRecord())
+			{
+				char ch;
+				while (parser_->GetChar(ch))
+				{
+					buf.push_back(ch);
+				}
+
+				return true;
+			}
+			else
+			{
+				if (++currentFile_ < fileName_.size())
+				{
+					parser_.reset(new TwoPaCo::StreamFastaParser(fileName_[currentFile_]));
+				}
+			}
+		}
+
+		return false;
+	}
+
+private:
+	size_t currentFile_;
+	std::vector<std::string> fileName_;
+	std::auto_ptr<TwoPaCo::StreamFastaParser> parser_;
+};
+
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
 {
 	return a.GetId() < b.GetId();
@@ -110,6 +154,7 @@ void GenerateOrdinaryOutput(const std::string & inputFileName)
 	}
 
 }
+
 
 void GenerateGfaOutupt(const std::string & inputFileName, size_t k)
 {		
