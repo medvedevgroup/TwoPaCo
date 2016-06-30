@@ -6,6 +6,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 	list(APPEND "CMAKE_CXX_FLAGS" "-std=c++0x")
 endif()
 
-add_executable(graphdump graphdump.cpp)
-include_directories(${graphdump_SOURCE_DIR} "../common") 
+add_executable(graphdump graphdump.cpp ../common/dnachar.cpp)
+link_directories(${TBB_LIB_DIR})
+include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIR} "../common")
+target_link_libraries(graphdump  "tbb")
 
