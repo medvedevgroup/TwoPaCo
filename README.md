@@ -113,7 +113,7 @@ non-branching paths, adjacencies between them, and all occurrences of the segmen
 in the input genomes, i.e. a colored de Bruijn graph. Work on the format specification
 is still in progress, the version implemented in TwoPaCo can be found here:
 
-	https://github.com/ilyaminkin/GFA-spec/blob/record_style_occurence/GFA-spec.md
+https://github.com/ilyaminkin/GFA-spec/blob/record_style_occurence/GFA-spec.md
 
 To get GFA output, run:
 
