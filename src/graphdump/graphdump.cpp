@@ -34,7 +34,7 @@ public:
 				{
 					buf.push_back(ch);
 				}
-
+																																			
 				return true;
 			}
 			else
@@ -152,39 +152,86 @@ void GenerateOrdinaryOutput(const std::string & inputFileName)
 	{
 		std::cout << pos.GetChr() << ' ' << pos.GetPos() << ' ' << pos.GetId() << std::endl;
 	}
-
 }
 
+char Sign(int64_t arg)
+{
+	return arg >= 0 ? '+' : '-';
+}
 
-void GenerateGfaOutupt(const std::string & inputFileName, size_t k)
-{		
+void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k)
+{
+	if (currentPath.size() > 0)
+	{
+		std::cout << "P\t" << seqId + 1;
+		std::copy(currentPath.begin(), currentPath.end(), std::ostream_iterator<int64_t>(std::cout, ","));
+		std::cout << '\t';
+
+		if (currentPath.size() == 1)
+		{
+			std::cout << k << "M";
+		}
+		else
+		{
+			for (size_t i = 0; i < currentPath.size() - 2; i++)
+			{
+				std::cout << k << "M,";
+			}
+
+			std::cout << k << "M";
+		}
+
+		std::cout << std::endl;
+		currentPath.clear();
+	}
+}
+
+void GenerateGfaOutupt(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k)
+{
+	const int64_t NO_SEGMENT = 0;
+	std::string chr;
 	bool start = true;
-	std::deque<char> edge;
-	int64_t prevSegmentId = 0;
+	int64_t seqId = NO_SEGMENT;
+	int64_t prevSegmentId = NO_SEGMENT;
 	TwoPaCo::JunctionPosition end;
 	TwoPaCo::JunctionPosition begin;
+	ChrReader chrReader(genomes);
 	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
 	std::bitset<int64_t(1) << int64_t(32)> seen;
 	seen.reset();
 	int64_t previousId = 0;
 	std::cout << "H\tVN:Z:1.0" << std::endl;
+	std::vector<int64_t> currentPath;
 	while (reader.NextJunctionPosition(end))
 	{
 		if (!start)
 		{
+			if (begin.GetChr() != seqId)
+			{
+				throw std::runtime_error("The input is corrupted");
+			}
+
 			if (begin.GetChr() == end.GetChr())
 			{
-				int64_t segmentId = SegmentId(begin, end, 'A');
+				int64_t segmentId = SegmentId(begin, end, chr[begin.GetPos() + k]);
+				currentPath.push_back(segmentId);
 				if (!seen[segmentId])
 				{
 					std::cout << "S\t" << segmentId << "\t" << "*" << std::endl;
 					seen[segmentId] = true;
 				}
 
+				if (prevSegmentId != NO_SEGMENT)
+				{
+					std::cout << "L\t" << Abs(prevSegmentId) << '\t' << prevSegmentId << '\t' << Abs(segmentId) << '\t' << segmentId << '\t' << k << 'M' << std::endl;
+				}
+
+				prevSegmentId = segmentId;
 			}
 			else
 			{
-
+				prevSegmentId = 0;
+				FlushPath(currentPath, seqId, k);
 			}
 			
 			begin = end;
@@ -193,8 +240,11 @@ void GenerateGfaOutupt(const std::string & inputFileName, size_t k)
 		{
 			start = false;
 			begin = end;
+			for (; !chrReader.NextChr(chr); ++seqId);
 		}
 	}
+
+	FlushPath(currentPath, seqId, k);
 }
 
 int main(int argc, char * argv[])
@@ -211,13 +261,12 @@ int main(int argc, char * argv[])
 			"",
 			"file name",
 			cmd);
-
-		TCLAP::ValueArg<std::string> seqFileName("s",
+		
+		TCLAP::MultiArg<std::string> seqFileName("s",
 			"seqfile",
 			"sequences file name",
 			false,
 			"",
-			"file name",
 			cmd);
 
 		TCLAP::ValueArg<unsigned int> kvalue("k",
@@ -241,7 +290,7 @@ int main(int argc, char * argv[])
 				throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
 			}
 
-			GenerateGfaOutupt(inputFileName.getValue(), kvalue.getValue());
+			GenerateGfaOutupt(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue());
 		}
 		else
 		{
