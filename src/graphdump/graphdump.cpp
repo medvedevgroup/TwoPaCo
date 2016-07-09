@@ -1,6 +1,7 @@
 #include <deque>
 #include <vector>
 #include <bitset>
+#include <memory>
 #include <iostream>
 #include <algorithm>
 
