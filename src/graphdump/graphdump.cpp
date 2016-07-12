@@ -218,13 +218,15 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 				currentPath.push_back(segmentId);
 				if (!seen[Abs(segmentId)])
 				{
-					std::cout << "S\t" << segmentId << "\t"; std::cout << std::endl;
+					std::cout << "S\t" << segmentId << "\t"; 
+					std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(std::cout));
+					std::cout << std::endl;
 					seen[Abs(segmentId)] = true;
 				}
 
 				if (prevSegmentId != NO_SEGMENT)
 				{
-					std::cout << "L\t" << Sign(prevSegmentId) << '\t' << prevSegmentId << '\t' << Sign(segmentId) << '\t' << segmentId << '\t' << k << 'M' << std::endl;
+					std::cout << "L\t" << Sign(prevSegmentId) << '\t' << Abs(prevSegmentId) << '\t' << Sign(segmentId) << '\t' << Abs(segmentId) << '\t' << k << 'M' << std::endl;
 				}
 
 				prevSegmentId = segmentId;
