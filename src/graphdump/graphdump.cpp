@@ -95,7 +95,7 @@ int64_t SegmentId(TwoPaCo::JunctionPosition begin, TwoPaCo::JunctionPosition end
 		throw std::runtime_error("A vertex id is too large, cannot generate GFA");
 	}
 
-	int64_t ret = (beginId << 2) || TwoPaCo::DnaChar::MakeUpChar(ch);
+	int64_t ret = (beginId << 2) | TwoPaCo::DnaChar::MakeUpChar(ch);
 	return beginId == begin.GetId() ? ret : -ret;
 }
 
@@ -186,7 +186,8 @@ void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k)
 	}
 }
 
-void GenerateGfaOutupt(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k)
+
+void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k)
 {
 	const int64_t NO_SEGMENT = 0;
 	std::string chr;
@@ -197,8 +198,7 @@ void GenerateGfaOutupt(const std::string & inputFileName, const std::vector<std:
 	TwoPaCo::JunctionPosition begin;
 	ChrReader chrReader(genomes);
 	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
-	std::bitset<int64_t(1) << int64_t(32)> seen;
-	seen.reset();
+	std::vector<bool> seen(int64_t(1) << int64_t(32), 0);
 	int64_t previousId = 0;
 	std::cout << "H\tVN:Z:1.0" << std::endl;
 	std::vector<int64_t> currentPath;
@@ -215,15 +215,15 @@ void GenerateGfaOutupt(const std::string & inputFileName, const std::vector<std:
 			{
 				int64_t segmentId = SegmentId(begin, end, chr[begin.GetPos() + k]);
 				currentPath.push_back(segmentId);
-				if (!seen[segmentId])
+				if (!seen[Abs(segmentId)])
 				{
-					std::cout << "S\t" << segmentId << "\t" << "*" << std::endl;
-					seen[segmentId] = true;
+					std::cout << "S\t" << segmentId << "\t"; std::cout << std::endl;
+					seen[Abs(segmentId)] = true;
 				}
 
 				if (prevSegmentId != NO_SEGMENT)
 				{
-					std::cout << "L\t" << Abs(prevSegmentId) << '\t' << prevSegmentId << '\t' << Abs(segmentId) << '\t' << segmentId << '\t' << k << 'M' << std::endl;
+					std::cout << "L\t" << Sign(prevSegmentId) << '\t' << prevSegmentId << '\t' << Sign(segmentId) << '\t' << segmentId << '\t' << k << 'M' << std::endl;
 				}
 
 				prevSegmentId = segmentId;
@@ -290,7 +290,7 @@ int main(int argc, char * argv[])
 				throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
 			}
 
-			GenerateGfaOutupt(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue());
+			GenerateGfaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue());
 		}
 		else
 		{
