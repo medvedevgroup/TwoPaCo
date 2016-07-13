@@ -225,21 +225,23 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 					std::cout << "L\t" << Sign(prevSegmentId) << '\t' << Abs(prevSegmentId) << '\t' << Sign(segmentId) << '\t' << Abs(segmentId) << '\t' << k << 'M' << std::endl;
 				}
 
-				prevSegmentId = segmentId;				
+				prevSegmentId = segmentId;
+				begin = end;
 			}
 			else
 			{
 				FlushPath(currentPath, seqId, k);
 				chrReader.NextChr(chr);
-				prevSegmentId = 0;					
+				prevSegmentId = 0;
+				begin = end;
 
-				if (begin.GetChr() != seqId)
+				if (begin.GetChr() != ++seqId)
 				{
 					throw std::runtime_error("The input is corrupted");
 				}
 			}
 
-			begin = end;
+			
 		}
 	}
 

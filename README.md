@@ -64,9 +64,11 @@ to get a short parameter description. Note that TwoPaCo supports only odd values
 of k for the sake of easier graph manipulation.
 
 A note: the release version will likely use the GFA format, see:
-https://github.com/pmelsted/GFA-spec/issues/7
+https://github.com/pmelsted/GFA-spec/issues/7. The current version implements
+a preliminary variant of GFA specification. This variant contains a comprehensive
+description of the colored de Bruijn graph built from many genomes.
 
-Here is description of other parameters 
+Here is description of other parameters.
 
 Number of hash functions
 ------------------------
