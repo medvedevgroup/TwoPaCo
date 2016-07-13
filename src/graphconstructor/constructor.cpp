@@ -116,7 +116,7 @@ int main(int argc, char * argv[])
 			"outfile",
 			"Output file name prefix",
 			false,
-			"de_bruijn",
+			"de_bruijn.bin",
 			"file name",
 			cmd);
 

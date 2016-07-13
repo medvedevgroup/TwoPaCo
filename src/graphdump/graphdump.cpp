@@ -191,8 +191,7 @@ void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k)
 void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k)
 {
 	const int64_t NO_SEGMENT = 0;
-	std::string chr;
-	bool start = true;
+	std::string chr;	
 	int64_t seqId = NO_SEGMENT;
 	int64_t prevSegmentId = NO_SEGMENT;
 	TwoPaCo::JunctionPosition end;
@@ -203,22 +202,19 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	int64_t previousId = 0;
 	std::cout << "H\tVN:Z:1.0" << std::endl;
 	std::vector<int64_t> currentPath;
-	while (reader.NextJunctionPosition(end))
-	{
-		if (!start)
-		{
-			if (begin.GetChr() != seqId)
-			{
-				throw std::runtime_error("The input is corrupted");
-			}
 
+	if (reader.NextJunctionPosition(begin))
+	{
+		chrReader.NextChr(chr);
+		while (reader.NextJunctionPosition(end))
+		{
 			if (begin.GetChr() == end.GetChr())
 			{
 				int64_t segmentId = SegmentId(begin, end, chr[begin.GetPos() + k]);
 				currentPath.push_back(segmentId);
 				if (!seen[Abs(segmentId)])
 				{
-					std::cout << "S\t" << segmentId << "\t"; 
+					std::cout << "S\t" << segmentId << "\t";
 					std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(std::cout));
 					std::cout << std::endl;
 					seen[Abs(segmentId)] = true;
@@ -229,21 +225,21 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 					std::cout << "L\t" << Sign(prevSegmentId) << '\t' << Abs(prevSegmentId) << '\t' << Sign(segmentId) << '\t' << Abs(segmentId) << '\t' << k << 'M' << std::endl;
 				}
 
-				prevSegmentId = segmentId;
+				prevSegmentId = segmentId;				
 			}
 			else
 			{
-				prevSegmentId = 0;
 				FlushPath(currentPath, seqId, k);
+				chrReader.NextChr(chr);
+				prevSegmentId = 0;					
+
+				if (begin.GetChr() != seqId)
+				{
+					throw std::runtime_error("The input is corrupted");
+				}
 			}
-			
+
 			begin = end;
-		}
-		else
-		{
-			start = false;
-			begin = end;
-			for (; !chrReader.NextChr(chr); ++seqId);
 		}
 	}
 
