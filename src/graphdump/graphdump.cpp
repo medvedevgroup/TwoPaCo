@@ -164,8 +164,13 @@ void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k)
 {
 	if (currentPath.size() > 0)
 	{
-		std::cout << "P\t" << seqId + 1;
-		std::copy(currentPath.begin(), currentPath.end(), std::ostream_iterator<int64_t>(std::cout, ","));
+		std::cout << "P\t" << seqId + 1 << '\t';
+		if (currentPath.size() > 0)
+		{
+			std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(std::cout, ","));
+			std::cout << currentPath.back();
+		}
+		
 		std::cout << '\t';
 
 		if (currentPath.size() == 1)
@@ -214,13 +219,22 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 				currentPath.push_back(segmentId);
 				if (!seen[Abs(segmentId)])
 				{
-					std::cout << "S\t" << segmentId << "\t";
-					std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(std::cout));
+					std::cout << "S\t" << Abs(segmentId) << "\t";
+					if (segmentId == Abs(segmentId))
+					{
+						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(std::cout));
+					}
+					else
+					{
+						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(std::cout));
+					}
+
 					std::cout << std::endl;
 					seen[Abs(segmentId)] = true;
 				}
-
-				std::cout << "O\t" << segmentId << '\t' << seqId << '\t' << Sign(segmentId) << '\t' << begin.GetPos() << std::endl;
+				
+				std::cout << "O\t" << Abs(segmentId) << '\t' << seqId << '\t' << Sign(segmentId) << '\t' << begin.GetPos() << std::endl;
 
 				if (prevSegmentId != NO_SEGMENT)
 				{
