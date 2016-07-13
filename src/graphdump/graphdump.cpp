@@ -220,10 +220,12 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 					seen[Abs(segmentId)] = true;
 				}
 
+				std::cout << "O\t" << segmentId << '\t' << seqId << '\t' << Sign(segmentId) << '\t' << begin.GetPos() << std::endl;
+
 				if (prevSegmentId != NO_SEGMENT)
 				{
 					std::cout << "L\t" << Sign(prevSegmentId) << '\t' << Abs(prevSegmentId) << '\t' << Sign(segmentId) << '\t' << Abs(segmentId) << '\t' << k << 'M' << std::endl;
-				}
+				}				
 
 				prevSegmentId = segmentId;
 				begin = end;
