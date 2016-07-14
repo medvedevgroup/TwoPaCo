@@ -1,7 +1,10 @@
+#include <map>
 #include <deque>
+#include <string>
 #include <vector>
 #include <bitset>
 #include <memory>
+#include <cassert>
 #include <iostream>
 #include <algorithm>
 
@@ -77,28 +80,64 @@ int64_t Abs(int64_t x)
 	return x > 0 ? x : -x;
 }
 
-int64_t CanonicalBeginId(TwoPaCo::JunctionPosition begin, TwoPaCo::JunctionPosition end)
+class Segment
 {
-	return begin.GetId() > 0 ? begin.GetId() : -end.GetId();
-}
-
-int64_t CanonicalEndId(TwoPaCo::JunctionPosition begin, TwoPaCo::JunctionPosition end)
-{
-	return begin.GetId() > 0 ? end.GetId() : -begin.GetId();
-}
-
-int64_t SegmentId(TwoPaCo::JunctionPosition begin, TwoPaCo::JunctionPosition end, char ch)
-{
-	int64_t beginId = CanonicalBeginId(begin, end);
-	int64_t endId = CanonicalEndId(begin, end);
-	if (Abs(beginId) >= INT32_MAX || Abs(endId) >= INT32_MAX)
+public:
+	Segment() {}
+	Segment(TwoPaCo::JunctionPosition begin, TwoPaCo::JunctionPosition end, char posEdgeCh, char negEdgeCh)
 	{
-		throw std::runtime_error("A vertex id is too large, cannot generate GFA");
+		int64_t absBeginId = Abs(begin.GetId());
+		int64_t absEndId = Abs(end.GetId());
+		if (absBeginId >= INT32_MAX || absEndId >= INT32_MAX)
+		{
+			throw std::runtime_error("A vertex id is too large, cannot generate GFA");
+		}
+
+		if (absBeginId < absEndId || (absBeginId == absEndId  && absBeginId > 0))
+		{
+			segmentId_ = TwoPaCo::DnaChar::MakeUpChar(posEdgeCh);
+			begin_ = begin;
+			end_ = end;
+		}
+		else
+		{
+			segmentId_ = TwoPaCo::DnaChar::MakeUpChar(negEdgeCh);
+			begin_ = TwoPaCo::JunctionPosition(begin.GetChr(), begin.GetPos(), -end.GetId());
+			end_ = TwoPaCo::JunctionPosition(end.GetChr(), end.GetPos(), -begin.GetId());
+		}
+
+		
+		if (begin_.GetId() < 0)
+		{
+			segmentId_ |= 1 << 3;
+			segmentId_ |= Abs(begin_.GetId()) << 4;
+		}
+		else
+		{
+			segmentId_ |= begin_.GetId() << 4;
+		}
+
+		if (begin.GetId() != begin_.GetId())
+		{
+			segmentId_ = -segmentId_;
+		}		
 	}
 
-	int64_t ret = (beginId << 2) | TwoPaCo::DnaChar::MakeUpChar(ch);
-	return beginId == begin.GetId() ? ret : -ret;
-}
+	int64_t GetSegmentId() const
+	{
+		return segmentId_;
+	}	
+
+	int64_t GetAbsSegmentId() const
+	{
+		return Abs(segmentId_);
+	}
+
+private:
+	int64_t segmentId_;
+	TwoPaCo::JunctionPosition begin_;
+	TwoPaCo::JunctionPosition end_;	
+};
 
 bool CompareJunctionClasses(const EqClass & a, const EqClass & b)
 {
@@ -115,7 +154,7 @@ void GenerateGroupOutupt(const std::string & inputFileName)
 	{
 		junction.push_back(pos);
 	}
-
+	 
 	std::sort(junction.begin(), junction.end(), CompareJunctionsById);
 	for (size_t i = 0; i < junction.size();)
 	{
@@ -203,11 +242,13 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	TwoPaCo::JunctionPosition begin;
 	ChrReader chrReader(genomes);
 	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
-	std::vector<bool> seen(int64_t(1) << int64_t(32), 0);
+	std::vector<bool> seen(int64_t(1) << int64_t(34), 0);
 	int64_t previousId = 0;
 	std::cout << "H\tVN:Z:1.0" << std::endl;
 	std::vector<int64_t> currentPath;
-
+#ifdef _DEBUG
+	std::map<int64_t, std::string> segmentBody;
+#endif
 	if (reader.NextJunctionPosition(begin))
 	{
 		chrReader.NextChr(chr);
@@ -215,14 +256,16 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 		{
 			if (begin.GetChr() == end.GetChr())
 			{
-				int64_t segmentId = SegmentId(begin, end, chr[begin.GetPos() + k]);
+				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));				
+				int64_t segmentId = nowSegment.GetSegmentId();
 				currentPath.push_back(segmentId);
 				if (!seen[Abs(segmentId)])
 				{
-					std::cout << "S\t" << Abs(segmentId) << "\t";
-					if (segmentId == Abs(segmentId))
+					std::cout << "S\t" << Abs(segmentId) << "\t";					
+					if (segmentId > 0)
 					{
 						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(std::cout));
+
 					}
 					else
 					{
@@ -233,6 +276,21 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 					std::cout << std::endl;
 					seen[Abs(segmentId)] = true;
 				}
+
+#ifdef _DEBUG
+				int64_t absSegmentId = Abs(segmentId);
+				std::string buf = segmentId > 0 ? std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k) : 
+					TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+				Segment nowSegment2(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
+				if (segmentBody.count(absSegmentId) == 0)
+				{
+					segmentBody[absSegmentId] = buf;
+				}
+				else
+				{
+					assert(segmentBody[absSegmentId] == buf);
+				}
+#endif
 				
 				std::cout << "O\t" << Abs(segmentId) << '\t' << seqId << '\t' << Sign(segmentId) << '\t' << begin.GetPos() << std::endl;
 
