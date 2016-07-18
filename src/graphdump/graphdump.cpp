@@ -80,47 +80,60 @@ int64_t Abs(int64_t x)
 	return x > 0 ? x : -x;
 }
 
+int64_t reservedPath = int64_t(1) << int64_t(34);
+const int64_t MAX_JUNCTION_ID = int64_t(1) << int64_t(31);
+
 class Segment
 {
 public:
 	Segment() {}
 	Segment(TwoPaCo::JunctionPosition begin, TwoPaCo::JunctionPosition end, char posEdgeCh, char negEdgeCh)
 	{
+		bool uniquePath = false;
 		int64_t absBeginId = Abs(begin.GetId());
 		int64_t absEndId = Abs(end.GetId());
-		if (absBeginId >= INT32_MAX || absEndId >= INT32_MAX)
+		if (absBeginId >= MAX_JUNCTION_ID|| absEndId >= MAX_JUNCTION_ID)
 		{
 			throw std::runtime_error("A vertex id is too large, cannot generate GFA");
 		}
 
 		if (absBeginId < absEndId || (absBeginId == absEndId  && absBeginId > 0))
 		{
+			uniquePath = posEdgeCh == 'N';
 			segmentId_ = TwoPaCo::DnaChar::MakeUpChar(posEdgeCh);
 			begin_ = begin;
 			end_ = end;
 		}
 		else
 		{
+			uniquePath = negEdgeCh == 'N';
 			segmentId_ = TwoPaCo::DnaChar::MakeUpChar(negEdgeCh);
 			begin_ = TwoPaCo::JunctionPosition(begin.GetChr(), begin.GetPos(), -end.GetId());
 			end_ = TwoPaCo::JunctionPosition(end.GetChr(), end.GetPos(), -begin.GetId());
 		}
 
 		
-		if (begin_.GetId() < 0)
+		if (!uniquePath)
 		{
-			segmentId_ |= 1 << 3;
-			segmentId_ |= Abs(begin_.GetId()) << 4;
+			if (begin_.GetId() < 0)
+			{
+				segmentId_ |= 1 << 2;
+				segmentId_ |= Abs(begin_.GetId()) << 3;
+			}
+			else
+			{
+				segmentId_ |= begin_.GetId() << 3;
+			}
+
+			if (begin.GetId() != begin_.GetId())
+			{
+				segmentId_ = -segmentId_;
+			}
 		}
 		else
 		{
-			segmentId_ |= begin_.GetId() << 4;
+			segmentId_ = reservedPath++;
 		}
-
-		if (begin.GetId() != begin_.GetId())
-		{
-			segmentId_ = -segmentId_;
-		}		
 	}
 
 	int64_t GetSegmentId() const
@@ -204,19 +217,11 @@ void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k)
 	if (currentPath.size() > 0)
 	{
 		std::cout << "P\t" << seqId + 1 << '\t';
-		if (currentPath.size() > 0)
-		{
-			std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(std::cout, ","));
-			std::cout << currentPath.back();
-		}
-		
+		std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(std::cout, ","));			
+		std::cout << currentPath.back();
 		std::cout << '\t';
 
-		if (currentPath.size() == 1)
-		{
-			std::cout << k << "M";
-		}
-		else
+		if (currentPath.size() > 1)
 		{
 			for (size_t i = 0; i < currentPath.size() - 2; i++)
 			{
@@ -225,7 +230,7 @@ void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k)
 
 			std::cout << k << "M";
 		}
-
+		
 		std::cout << std::endl;
 		currentPath.clear();
 	}
@@ -242,7 +247,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	TwoPaCo::JunctionPosition begin;
 	ChrReader chrReader(genomes);
 	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
-	std::vector<bool> seen(int64_t(1) << int64_t(34), 0);
+	std::vector<bool> seen(int64_t(1) << int64_t(35), 0);
 	int64_t previousId = 0;
 	std::cout << "H\tVN:Z:1.0" << std::endl;
 	std::vector<int64_t> currentPath;
@@ -292,7 +297,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 				}
 #endif
 				
-				std::cout << "O\t" << Abs(segmentId) << '\t' << seqId << '\t' << Sign(segmentId) << '\t' << begin.GetPos() << std::endl;
+				std::cout << "C\t" << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << seqId << "\t+\t" << begin.GetPos() << std::endl;
 
 				if (prevSegmentId != NO_SEGMENT)
 				{
