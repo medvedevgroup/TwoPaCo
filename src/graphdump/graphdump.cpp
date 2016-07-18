@@ -301,7 +301,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 
 				if (prevSegmentId != NO_SEGMENT)
 				{
-					std::cout << "L\t" << Sign(prevSegmentId) << '\t' << Abs(prevSegmentId) << '\t' << Sign(segmentId) << '\t' << Abs(segmentId) << '\t' << k << 'M' << std::endl;
+					std::cout << "L\t" << Abs(prevSegmentId) << '\t' << Sign(prevSegmentId) << '\t' << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << k << 'M' << std::endl;
 				}				
 
 				prevSegmentId = segmentId;
