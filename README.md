@@ -185,3 +185,10 @@ Please e-mail your feedback at ivminkin@gmail.com.
 
 You also can report bugs or suggest features using issue tracker at GitHub
 https://github.com/medvedevgroup/TwoPaCo
+
+Acknowledgements
+========
+If using TwoPaCo, please cite:
+Minkin, Pham and Medvedev, "TwoPaCo: An efficient algorithm to build the compacted de Bruijn graph from many complete genomes" 2016, arXiv, http://arxiv.org/abs/1602.05856
+
+This project has been supported in part by NSF awards DBI-1356529, CCF-1439057, IIS-1453527, and IIS-1421908.
