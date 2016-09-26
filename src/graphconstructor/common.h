@@ -1,10 +1,12 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
+#define __STDC_LIMIT_MACROS
 
 #include <atomic>
 #include <vector>
 #include <memory>
 #include <cstdint>
+#include <climits>
 #include <algorithm>
 #include <functional>
 
