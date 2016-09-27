@@ -1,4 +1,4 @@
-TwoPaCo 0.0.0	
+TwoPaCo 0.0.1
 
 Release date: TBD
 =================
@@ -19,7 +19,7 @@ This distribution contains two programs:
 
 * twopaco -- a tool for direct construction of the compressed graph from 
 multiple complete genomes
-* graphdump -- a utility that turns output of twopaco into text format
+* graphdump -- a utility that turns output of twopaco into a text format
 
 Disclaimer: this is still a research prototype and the code has not been
 "officially" released yet. Things like compilation, installation, output
@@ -50,32 +50,37 @@ Compilation under other platforms is possible, portable makefiles are in progres
 
 TwoPaCo usage
 =============
-To construct the graph (assuming you're in the "build/graphconstructor" dir), type:
+To construct the graph (assuming you are in dir with "twopaco"), type:
 
 	./twopaco -f <filter_size> -k <value_of_k> <input_files>
 
 This will constuct the compressed graph for the vertex size of \<value_of_k\> using
-2^\<filter_size\> bits in the Bloom filter. The output file is a binary file that
-indicates junction positions on the positive strand. The default output file name
-is "de_bruiijn. bin". You can it read directly using an API (will be documented later)
-or make it into a text file using the "graphdump" utility. The program has several
-additional parameters, see subsections below. You can also type "./twopaco --help"
-to get a short parameter description. Note that TwoPaCo supports only odd values 
-of k for the sake of easier graph manipulation.
+2^\<filter_size\> bits in the Bloom filter. The output file is a binary that can be
+either converted to a text file or read directly using an API (will be available soon).
 
-A note: the release version will likely use the GFA format, see:
-https://github.com/pmelsted/GFA-spec/issues/7. The current version implements
-a preliminary variant of GFA specification. This variant contains a comprehensive
-description of the colored de Bruijn graph built from many genomes.
+Below is description of the other parameters.
 
-Here is description of other parameters.
+K-mer size
+----------
+This value sets the size of a vertex in the de Bruijn graph. Default is 25, to
+change, use:
+
+	-k <number> or --kvalue <number>
+
+Note that:
+1) TwoPaCo uses **k** as the size of the vertex and **(k + 1)** as the size of 
+the edge 
+2) **k** must be odd
 
 Number of hash functions
 ------------------------
-The number of hash functions used for the Bloom filter. The default is 5. To
+The number of hash functions used for the Bloom filter. The default is five. To
 change, use:
 
 	-q <number> or --hashfnumber <number>
+
+More hash functions increases the running time. At the same time, more hash functions
+may decrease the number of false positives and the memory usage.
 
 Number of rounds
 ----------------
@@ -84,16 +89,18 @@ which reduces memory usage. The default is 1. To change, use:
 
 	-r <number> or --rounds <number>
 
+The more the number of rounds, the longer the program works.
+
 Number of threads
 -----------------
-twopaco can be run in multiple threads. The default is 1. To change, use:
+twopaco can be run with multiple threads. The default is 1. To change, use:
 
 	-t <number> or --threads <number>
 
 Temporary directory
 -------------------
 The directory for temporary files. The default is the current working directory.
-To change, use (the directory must exist!):
+To change, use (the directory must exist):
 
 	--tmpdir <path_to_the_directory>
 
@@ -110,19 +117,36 @@ available.
 
 GFA
 ---
-GFA is the most handy option. It **explicitly** represents the graph as a list
-non-branching paths, adjacencies between them, and all occurrences of the segments
-in the input genomes, i.e. a colored de Bruijn graph. Work on the format specification
-is still in progress, the version implemented in TwoPaCo can be found here:
+GFA is the most handy option. It **explicitly** represents the graph as a list of
+edges (non-branching paths in the non-compacted de Bruijn graph) graph and adjacencies
+between them. The file also contains all occurrences of the strings spelled by the paths
+in the input genomes.
 
-	https://github.com/ilyaminkin/GFA-spec/tree/containment_in_chromosome
+In other words, it describes a colored de Bruijn graph where each path is mapped
+to several locations in the input ("colored"). TwoPaCo uses GFA v1.0 described here:
+
+	https://github.com/GFA-spec/GFA-spec
 
 To get GFA output, run:
 
-	graphdummp --gfa -k <value_of_k> -s <input_genomes> <twopaco_output_file>
+	graphdummp <twopaco_output_file> --gfa -k <value_of_k> -s <input_genomes>
 
-Although GFA is quite easy to understand and parse, it is quite bulky, especially
-for larger graphs.
+In the resulting file compacted non-branching paths are "segments" with "links"
+between them. "Containment" records dsrcibe the mapping between the paths in
+the graph and the input. Each input chromosome is also a "segment" described in
+the very beginning of the GFA file. Then each occurrence of an edge in the input
+corresponds to a single "containment" record which describes the coordinates of
+the occurrence in the input "segments" (chromosomes). Each segment representing
+an input chromosome has a name:
+
+	"s<number>_" + header of the sequence in input FASTA file
+
+If you you would like to not include a prefix, run with option "noprefix", but
+headers of sequence in the FASTA files should be unique:
+
+	--noprefix
+
+For an example of GFA output, see GFA_EXAMPLE.md.
 
 Junctions List Format
 ---------------------
@@ -173,7 +197,7 @@ Read The Binary File Directly
 -----------------------------
 This is the most parsimonious option in terms of involved resources.
 One can read junctions and/or edges from the output file using a very simple
-C++ API. It will be documented slightly later.
+C++ API. 
 
 License
 =======
@@ -186,9 +210,12 @@ Please e-mail your feedback at ivminkin@gmail.com.
 You also can report bugs or suggest features using issue tracker at GitHub
 https://github.com/medvedevgroup/TwoPaCo
 
-Acknowledgements
-========
-If using TwoPaCo, please cite:
-Minkin, Pham and Medvedev, "TwoPaCo: An efficient algorithm to build the compacted de Bruijn graph from many complete genomes" 2016, arXiv, http://arxiv.org/abs/1602.05856
+Citation
+================
+If you use TwoPaCo, please cite:
+
+	Ilia Minkin, Son Pham, and Paul Medvedev
+	"TwoPaCo: An efficient algorithm to build the compacted de Bruijn graph from many complete genomes"
+	Bioinformatics, 2016 doi:10.1093/bioinformatics/btw609
 
 This project has been supported in part by NSF awards DBI-1356529, CCF-1439057, IIS-1453527, and IIS-1421908.

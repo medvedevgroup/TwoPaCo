@@ -124,12 +124,15 @@ namespace TwoPaCo
 			{
 				std::cout << fn << std::endl;
 			}
-
+#ifdef LOGGING
 			std::ofstream logFile((tmpDirName + "/log.txt").c_str());
 			if (!logFile)
 			{
 				throw StreamFastaParser::Exception("Can't open the log file");
 			}
+#else
+			std::ostream & logFile = std::cerr;
+#endif
 
 			tbb::mutex errorMutex;
 			std::unique_ptr<std::runtime_error> error;
@@ -1232,10 +1235,14 @@ namespace TwoPaCo
 			size_t record = 0;
 			size_t nowQueue = 0;
 			uint32_t pieceCount = 0;
+#ifdef LOGGING
 			logFile << "Starting a new stage" << std::endl;
+#endif
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
+#ifdef LOGGING
 				logFile << "Reading " << fileName[file] << std::endl;
+#endif
 				const std::string & nowFileName = fileName[file];
 				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
 				{
@@ -1250,8 +1257,9 @@ namespace TwoPaCo
 					}
 
 					std::stringstream ss;
+#ifdef LOGGING
 					logFile << "Processing sequence " << parser.GetCurrentHeader() << " " << ss.str() << std::endl;
-
+#endif
 					char ch;
 					uint64_t prev = 0;
 					uint64_t start = 0;
@@ -1284,7 +1292,9 @@ namespace TwoPaCo
 									}
 
 									q->push(Task(record, prev, pieceCount++, over, std::move(buf)));
+#ifdef LOGGING
 									logFile << "Passed chunk " << prev << " to worker " << nowQueue << std::endl;
+#endif
 									prev = start - overlapSize + 1;
 									buf.swap(overlap);
 									found = true;

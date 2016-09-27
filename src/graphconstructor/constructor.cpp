@@ -56,7 +56,7 @@ int main(int argc, char * argv[])
 	//assert(TwoPaCo::Runtests());
 	try
 	{
-		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.0.0");
+		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.0.1");
 		
 		TCLAP::ValueArg<unsigned int> kvalue("k",
 			"kvalue",
