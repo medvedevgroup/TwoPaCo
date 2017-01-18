@@ -18,7 +18,7 @@
 #include <streamfastaparser.h>
 #include <junctionapi/junctionapi.h>
 
-const size_t MAX_K = 80;
+const size_t MAX_K = 128;
 
 template <size_t k>
 struct NaiveGraphConstructor
