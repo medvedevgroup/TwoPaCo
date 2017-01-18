@@ -89,4 +89,12 @@ namespace TwoPaCo
 			std::remove(fileName.c_str());
 		}
 	}
+
+	void ConcurrentBitVector::MergeOr(const ConcurrentBitVector & mask)
+	{
+		for (size_t i = 0; i < realSize_; i++)
+		{
+			filter_[i] |= mask.filter_[i];
+		}
+	}
 }

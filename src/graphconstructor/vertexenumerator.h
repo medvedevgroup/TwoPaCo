@@ -155,7 +155,7 @@ namespace TwoPaCo
 			
 			if (rounds > 1)
 			{
-				std::cout << "Splitting the input kmers set...";
+				std::cout << "Splitting the input kmers set..." << std::endl;
 				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 				binCounter = new std::atomic<uint32_t>[BINS_COUNT];
 				std::fill(binCounter, binCounter + BINS_COUNT, 0);
@@ -261,6 +261,7 @@ namespace TwoPaCo
 								*taskQueue[i],
 								tmpDirName,
 								marks,
+								round,
 								error,
 								errorMutex);
 
@@ -296,6 +297,7 @@ namespace TwoPaCo
 							occurenceSet,
 							mutex,
 							tmpDirName,
+							round,
 							error,
 							errorMutex);
 
@@ -371,6 +373,7 @@ namespace TwoPaCo
 						currentStubVertexId,
 						currentStubVertexMutex,
 						tmpDirName,
+						rounds,
 						error,
 						errorMutex);
 
@@ -503,10 +506,10 @@ namespace TwoPaCo
 			}
 		}
 
-		static std::string CandidateMaskFileName(const std::string & directory, size_t sequence, size_t pos)
+		static std::string CandidateMaskFileName(const std::string & directory, size_t sequence, size_t pos, size_t round)
 		{
 			std::stringstream ss;
-			ss << directory << "/" << sequence << "_" << pos << ".tmp";
+			ss << directory << "/" << sequence << "_" << pos << "_" << round << ".tmp";
 			return ss.str();
 		}
 
@@ -531,9 +534,10 @@ namespace TwoPaCo
 				TaskQueue & taskQueue,
 				const std::string & tmpDirectory,
 				std::atomic<uint64_t> & marksCount,
-				std::unique_ptr<std::runtime_error> & error,
+				size_t round,
+				std::unique_ptr<std::runtime_error> & error,				
 				tbb::mutex & errorMutex) : bound(bound), hashFunction(hashFunction), bitVector(bitVector), vertexLength(vertexLength), taskQueue(taskQueue),
-				tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex)
+				tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex), round(round)
 			{
 
 			}
@@ -655,7 +659,7 @@ namespace TwoPaCo
 
 							try
 							{
-								candidateMask.WriteToFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start));
+								candidateMask.WriteToFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round));
 							}
 							catch (std::runtime_error & err)
 							{
@@ -674,6 +678,7 @@ namespace TwoPaCo
 			TaskQueue & taskQueue;
 			const std::string & tmpDirectory;
 			std::atomic<uint64_t> & marksCount;
+			size_t round;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};
@@ -689,9 +694,10 @@ namespace TwoPaCo
 				OccurenceSet & occurenceSet,
 				tbb::spin_rw_mutex & mutex,
 				const std::string & tmpDirectory,
+				size_t round,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
-				mutex(mutex), tmpDirectory(tmpDirectory), error(error), errorMutex(errorMutex)
+				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex)
 			{
 
 			}
@@ -723,7 +729,7 @@ namespace TwoPaCo
 							{
 								try
 								{
-									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start), false);
+									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round), false);
 								}
 								catch (std::runtime_error & err)
 								{
@@ -792,6 +798,7 @@ namespace TwoPaCo
 			OccurenceSet & occurenceSet;
 			tbb::spin_rw_mutex & mutex;
 			const std::string & tmpDirectory;
+			size_t round;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};
@@ -833,10 +840,11 @@ namespace TwoPaCo
 				uint64_t & currentStubVertexId,
 				tbb::mutex & currentStubVertexMutex,
 				const std::string & tmpDirectory,
+				size_t totalRounds,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
 				writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
-				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex)
+				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), totalRounds(totalRounds)
 			{
 
 			}							
@@ -865,10 +873,15 @@ namespace TwoPaCo
 
 							size_t edgeLength = vertexLength + 1;
 							if (task.str.size() >= vertexLength + 2)
-							{
+							{																
 								try
 								{
-									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start), true);
+									ConcurrentBitVector temporaryMask(Task::TASK_SIZE);
+									for (size_t i = 0; i < totalRounds; i++)
+									{
+										temporaryMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, i), true);
+										candidateMask.MergeOr(temporaryMask);
+									}
 								}
 								catch (std::runtime_error & err)
 								{
@@ -941,6 +954,7 @@ namespace TwoPaCo
 			std::atomic<uint64_t> & occurences;
 			const std::string & tmpDirectory;
 			std::unique_ptr<std::runtime_error> & error;
+			size_t totalRounds;
 			tbb::mutex & errorMutex;
 			tbb::mutex & currentStubVertexMutex;
 		};

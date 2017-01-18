@@ -53,7 +53,7 @@ public:
 int main(int argc, char * argv[])
 {
 	OddConstraint constraint;
-	//assert(TwoPaCo::Runtests());
+	assert(TwoPaCo::Runtests());
 	try
 	{
 		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.0.1");
