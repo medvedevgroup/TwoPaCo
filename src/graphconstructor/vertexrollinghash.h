@@ -100,7 +100,7 @@ namespace TwoPaCo
 			return min(posHash, negHash);
 		}
 
-		uint64_t GetIngoingEdgeHash(char nextPositiveCharacter, std::vector<uint64_t> & value) const
+		void GetIngoingEdgeHash(char nextPositiveCharacter, std::vector<uint64_t> & value) const
 		{
 			char nextNegativeCharacter = DnaChar::ReverseChar(nextPositiveCharacter);
 			StrandComparisonResult result = DetermineStrandPrepend(nextPositiveCharacter, nextNegativeCharacter);
@@ -114,7 +114,7 @@ namespace TwoPaCo
 			}
 		}
 
-		uint64_t GetOutgoingEdgeHash(char previousPositiveCharacter, std::vector<uint64_t> & value) const
+		void GetOutgoingEdgeHash(char previousPositiveCharacter, std::vector<uint64_t> & value) const
 		{
 			char previousNegativeCharacter = DnaChar::ReverseChar(previousPositiveCharacter);
 			StrandComparisonResult result = DetermineStrandExtend(previousPositiveCharacter, previousNegativeCharacter);

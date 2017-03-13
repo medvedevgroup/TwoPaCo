@@ -361,7 +361,7 @@ namespace TwoPaCo
 			static std::vector<uint64_t> value;
 			value.clear();
 			hf.GetIngoingEdgeHash(farg, value);
-			for (size_t i = 0; i < hf.size(); i++)
+			for (size_t i = 0; i < value.size(); i++)
 			{
 				uint64_t hvalue = value[i];
 				if (!filter.GetBit(hvalue))
@@ -549,7 +549,7 @@ namespace TwoPaCo
 						size_t edgeLength = vertexLength + 1;
 						if (task.str.size() >= vertexLength + 2)
 						{
-							VertexRollingHash hash(hashFunction, task.str.begin + 1, 1);
+							VertexRollingHash hash(hashFunction, task.str.begin() + 1, 1);
 							{
 								try
 								{
@@ -831,13 +831,13 @@ namespace TwoPaCo
 								else
 								{
 									hash.GetOutgoingEdgeHash(DUMMY_CHAR, hashValue);
-									hash.GetOutgoingEdgeHash(DUMMY_REV_CHAR, hashValue);
+									hash.GetOutgoingEdgeHash(REV_DUMMY_CHAR, hashValue);
 								}
 
 								if (pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1]))
 								{
 									hash.GetIngoingEdgeHash(DUMMY_CHAR, hashValue);
-									hash.GetOutgoingEdgeHash(DUMMY_CHAR, hashValue);
+									hash.GetIngoingEdgeHash(REV_DUMMY_CHAR, hashValue);
 								}
 							}
 
