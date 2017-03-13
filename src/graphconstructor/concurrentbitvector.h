@@ -14,7 +14,6 @@ namespace TwoPaCo
 		ConcurrentBitVector(size_t size);
 		void Reset();
 		size_t Size() const;
-		size_t GetPower() const;
 		void SetBitConcurrently(size_t idx);
 		bool GetBit(size_t idx) const;
 		void MergeOr(const ConcurrentBitVector & mask);
