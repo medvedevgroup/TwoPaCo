@@ -13,18 +13,18 @@
 #include <dnachar.h>
 #include <tbb/concurrent_queue.h>
 
-#include "ngramhashing/cyclichash.h"
-
 namespace TwoPaCo
 {
+
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+	TypeName(const TypeName&); \
+	void operator=(const TypeName&)
+
 	using std::max;
 	using std::min;
 
 	extern const int64_t INVALID_VERTEX;
 	extern const uint32_t MAX_COUNTER;
-
-	typedef CyclicHash<uint64_t> HashFunction;
-	typedef std::unique_ptr<HashFunction> HashFunctionPtr;
 
 	struct Task
 	{
