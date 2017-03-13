@@ -19,7 +19,12 @@ namespace TwoPaCo
 			{
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, bits));
 			}
-		}	
+		}
+
+		size_t HashFunctionsNumber() const
+		{
+			return hashFunction_.size();
+		}
 
 	private:
 		DISALLOW_COPY_AND_ASSIGN(VertexRollingHashSeed);
@@ -30,11 +35,11 @@ namespace TwoPaCo
 	class VertexRollingHash
 	{
 	public:
-		VertexRollingHash(const VertexRollingHashSeed & seed, std::string::const_iterator begin)
+		VertexRollingHash(const VertexRollingHashSeed & seed, std::string::const_iterator begin, size_t hashFunctions)
 		{
 			size_t size = seed.hashFunction_[0]->wordsize;
-			posVertexHash_.resize(seed.hashFunction_.size());
-			negVertexHash_.resize(seed.hashFunction_.size());
+			posVertexHash_.resize(hashFunctions);
+			negVertexHash_.resize(hashFunctions);
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				posVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));
@@ -78,16 +83,25 @@ namespace TwoPaCo
 			return true;
 		}
 
+		uint64_t RawPositiveHash(size_t hf) const
+		{
+			return posVertexHash_[hf]->hashvalue;
+		}
+
+		uint64_t RawNegativeHash(size_t hf) const
+		{
+			return negVertexHash_[hf]->hashvalue;
+		}
+
 		uint64_t GetVertexHash() const
 		{			
 			uint64_t posHash = posVertexHash_[0]->hashvalue;
 			uint64_t negHash = negVertexHash_[0]->hashvalue;
-			return std::min(posHash, negHash);
+			return min(posHash, negHash);
 		}
 
 		uint64_t GetIngoingEdgeHash(char nextPositiveCharacter, std::vector<uint64_t> & value) const
 		{
-			value.clear();
 			char nextNegativeCharacter = DnaChar::ReverseChar(nextPositiveCharacter);
 			StrandComparisonResult result = DetermineStrandPrepend(nextPositiveCharacter, nextNegativeCharacter);
 			if (result == positiveLess || result == tie)
@@ -102,7 +116,6 @@ namespace TwoPaCo
 
 		uint64_t GetOutgoingEdgeHash(char previousPositiveCharacter, std::vector<uint64_t> & value) const
 		{
-			value.clear();
 			char previousNegativeCharacter = DnaChar::ReverseChar(previousPositiveCharacter);
 			StrandComparisonResult result = DetermineStrandExtend(previousPositiveCharacter, previousNegativeCharacter);
 			if (result == positiveLess || result == tie)

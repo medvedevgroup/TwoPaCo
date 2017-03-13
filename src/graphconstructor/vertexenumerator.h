@@ -21,6 +21,7 @@
 
 #include <junctionapi/junctionapi.h>
 
+#include "vertexrollinghash.h"
 #include "streamfastaparser.h"
 #include "bifurcationstorage.h"
 #include "candidateoccurence.h"
@@ -135,12 +136,8 @@ namespace TwoPaCo
 
 			tbb::mutex errorMutex;
 			std::unique_ptr<std::runtime_error> error;
-			std::vector<HashFunctionPtr> hashFunction(hashFunctions);
-			for (HashFunctionPtr & ptr : hashFunction)
-			{
-				ptr = HashFunctionPtr(new HashFunction(vertexLength, filterSize));
-			}
 
+			VertexRollingHashSeed hashFunctionSeed(hashFunctions, vertexLength, filterSize);
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
 			for (size_t i = 0; i < taskQueue.size(); i++)
@@ -151,7 +148,7 @@ namespace TwoPaCo
 
 			std::cout << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
-			uint64_t high = 0;
+			uint64_t high = realSize;
 			size_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
 			uint64_t verticesCount = 0;
@@ -168,27 +165,6 @@ namespace TwoPaCo
 				std::atomic<uint64_t> marks;
 				marks = 0;
 				mark = time(0);
-				if (rounds > 1)
-				{
-					uint64_t accumulated = binCounter[lowBoundary];
-					for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
-					{
-						if (accumulated <= roundSize || round + 1 == rounds)
-						{
-							accumulated += binCounter[lowBoundary];
-						}
-						else
-						{
-							break;
-						}
-					}
-
-					high = lowBoundary * BIN_SIZE;
-				}
-				else
-				{
-					high = realSize;
-				}
 
 				{
 					ConcurrentBitVector bitVector(realSize);
@@ -200,7 +176,7 @@ namespace TwoPaCo
 						{
 							FilterFillerWorker worker(low,
 								high,
-								std::cref(hashFunction),
+								std::cref(hashFunctionSeed),
 								std::ref(bitVector),
 								edgeLength,
 								std::ref(*taskQueue[i]));
@@ -221,7 +197,7 @@ namespace TwoPaCo
 						for (size_t i = 0; i < workerThread.size(); i++)
 						{
 							CandidateCheckingWorker worker(std::make_pair(low, high),
-								hashFunction,
+								hashFunctionSeed,
 								bitVector,
 								vertexLength,
 								*taskQueue[i],
@@ -257,7 +233,7 @@ namespace TwoPaCo
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						CandidateFilteringWorker worker(hashFunction,
+						CandidateFinalFilteringWorker worker(hashFunctionSeed,
 							vertexLength,
 							*taskQueue[i],
 							occurenceSet,
@@ -296,11 +272,6 @@ namespace TwoPaCo
 				totalFpCount += falsePositives;
 				verticesCount += truePositives;
 				low = high + 1;
-			}
-
-			if (rounds > 1)
-			{
-				delete[] binCounter;
 			}
 
 			mark = time(0);			
@@ -368,15 +339,14 @@ namespace TwoPaCo
 		static const size_t QUEUE_CAPACITY = 16;
 		static const uint64_t BINS_COUNT = 1 << 24;
 
-		
-
-
-
-		static bool IsInBloomFilterExtend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
+		static bool IsOutgoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
 		{
-			for (size_t i = 0; i < hf.size(); i++)
+			static std::vector<uint64_t> value;
+			value.clear();
+			hf.GetOutgoingEdgeHash(farg, value);
+			for (size_t i = 0; i < value.size(); i++)
 			{
-				uint64_t hvalue = hf[i]->hash_extend(farg);
+				uint64_t hvalue = value[i];
 				if (!filter.GetBit(hvalue))
 				{
 					return false;
@@ -386,11 +356,14 @@ namespace TwoPaCo
 			return true;
 		}
 
-		static bool IsInBloomFilterPrepend(const ConcurrentBitVector & filter, std::vector<HashFunctionPtr> & hf, char farg)
+		static bool IsIngoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
 		{
+			static std::vector<uint64_t> value;
+			value.clear();
+			hf.GetIngoingEdgeHash(farg, value);
 			for (size_t i = 0; i < hf.size(); i++)
 			{
-				uint64_t hvalue = hf[i]->hash_prepend(farg);
+				uint64_t hvalue = value[i];
 				if (!filter.GetBit(hvalue))
 				{
 					return false;
@@ -398,44 +371,11 @@ namespace TwoPaCo
 			}
 
 			return true;
-		}
-
-		static uint64_t NormHash(const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash)
-		{
-			return std::min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
 		}
 
 		static bool Within(uint64_t hvalue, uint64_t low, uint64_t high)
 		{
 			return hvalue >= low && hvalue <= high;
-		}
-
-
-		static void InitializeHashFunctions(const std::vector<HashFunctionPtr> & seed,
-			std::vector<HashFunctionPtr> & posEdgeHash,
-			std::vector<HashFunctionPtr> & negEdgeHash,
-			const std::string & fragment,
-			size_t length,
-			size_t offset = 0)
-		{
-			for (size_t i = 0; i < posEdgeHash.size(); i++)
-			{
-				posEdgeHash[i] = HashFunctionPtr(new HashFunction(*seed[i]));
-				negEdgeHash[i] = HashFunctionPtr(new HashFunction(*seed[i]));
-				for (auto it = fragment.begin() + offset; it != fragment.begin() + length + offset; ++it)
-				{
-					posEdgeHash[i]->eat(*it);
-				}
-
-				assert(posEdgeHash[i]->hashvalue == posEdgeHash[i]->hash(fragment.substr(offset, length)));
-				for (std::string::const_reverse_iterator it(fragment.begin() + length + offset); it != fragment.rend() - offset; ++it)
-				{
-					char ch = DnaChar::ReverseChar(*it);
-					negEdgeHash[i]->eat(DnaChar::ReverseChar(*it));
-				}
-
-				assert(negEdgeHash[i]->hashvalue == negEdgeHash[i]->hash(DnaChar::ReverseCompliment(fragment.substr(offset, length))));
-			}
 		}
 
 		static std::string CandidateMaskFileName(const std::string & directory, size_t sequence, size_t pos, size_t round)
@@ -460,7 +400,7 @@ namespace TwoPaCo
 		{
 		public:
 			CandidateCheckingWorker(std::pair<uint64_t, uint64_t> bound,
-				const std::vector<HashFunctionPtr> & hashFunction,
+				const VertexRollingHashSeed & hashFunction,
 				const ConcurrentBitVector & bitVector,
 				size_t vertexLength,
 				TaskQueue & taskQueue,
@@ -498,67 +438,28 @@ namespace TwoPaCo
 						if (task.str.size() >= vertexLength + 2)
 						{
 							candidateMask.Reset();
-							std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-							std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
-							InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+							VertexRollingHash hash(hashFunction, task.str.begin() + 1, hashFunction.HashFunctionsNumber());
 							size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 							for (size_t pos = 1;; ++pos)
 							{
 								char posPrev = task.str[pos - 1];
 								char posExtend = task.str[pos + vertexLength];
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
-								if (Within(min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue), low, high) && definiteCount == vertexLength)
+								if (Within(hash.GetVertexHash(), low, high) && definiteCount == vertexLength)
 								{
 									size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
 									size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
 									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 									{
 										char nextCh = DnaChar::LITERAL[i];
-										char revNextCh = DnaChar::ReverseChar(nextCh);
-										if (nextCh == posPrev)
+										if (nextCh == posPrev || IsIngoingEdgeInBloomFilter(bitVector, hash, nextCh))
 										{
 											++inCount;
 										}
-										else
-										{
-											StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, nextCh, revNextCh);
-											if (result == positiveLess || result == tie)
-											{
-												if (IsInBloomFilterPrepend(bitVector, posVertexHash, nextCh))
-												{
-													++inCount;
-												}
-											}
-											else
-											{
-												if (IsInBloomFilterExtend(bitVector, negVertexHash, revNextCh))
-												{
-													++inCount;
-												}
-											}
-										}
 
-										if (nextCh == posExtend)
+										if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(bitVector, hash, nextCh))
 										{
 											++outCount;
-										}
-										else
-										{
-											StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
-											if (result == positiveLess || result == tie)
-											{
-												if (IsInBloomFilterExtend(bitVector, posVertexHash, nextCh))
-												{
-													++outCount;
-												}
-											}
-											else
-											{
-												if (IsInBloomFilterPrepend(bitVector, negVertexHash, revNextCh))
-												{
-													++outCount;
-												}
-											}
 										}
 									}
 
@@ -571,17 +472,10 @@ namespace TwoPaCo
 
 								if (pos + edgeLength < task.str.size())
 								{
-									char negExtend = DnaChar::ReverseChar(posExtend);
 									char posPrev = task.str[pos];
-									char negPrev = DnaChar::ReverseChar(task.str[pos]);
 									definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
-									for (size_t i = 0; i < hashFunction.size(); i++)
-									{
-										posVertexHash[i]->update(posPrev, posExtend);
-										negVertexHash[i]->reverse_update(negExtend, negPrev);
-										assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-										assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-									}
+									hash.Update(posPrev, posExtend);
+									assert(hash.Assert(task.str.begin() + pos));
 								}
 								else
 								{
@@ -604,7 +498,7 @@ namespace TwoPaCo
 
 		private:
 			std::pair<uint64_t, uint64_t> bound;
-			const std::vector<HashFunctionPtr> & hashFunction;
+			const VertexRollingHashSeed & hashFunction;
 			const ConcurrentBitVector & bitVector;
 			size_t vertexLength;
 			TaskQueue & taskQueue;
@@ -617,10 +511,10 @@ namespace TwoPaCo
 
 
 
-		class CandidateFilteringWorker
+		class CandidateFinalFilteringWorker
 		{
 		public:
-			CandidateFilteringWorker(const std::vector<HashFunctionPtr> & hashFunction,
+			CandidateFinalFilteringWorker(const VertexRollingHashSeed & hashFunction,
 				size_t vertexLength,
 				TaskQueue & taskQueue,
 				OccurenceSet & occurenceSet,
@@ -652,12 +546,10 @@ namespace TwoPaCo
 							continue;
 						}
 
-						std::vector<HashFunctionPtr> posVertexHash(1);
-						std::vector<HashFunctionPtr> negVertexHash(1);
 						size_t edgeLength = vertexLength + 1;
 						if (task.str.size() >= vertexLength + 2)
 						{
-							InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength, 1);
+							VertexRollingHash hash(hashFunction, task.str.begin + 1, 1);
 							{
 								try
 								{
@@ -677,8 +569,8 @@ namespace TwoPaCo
 								{
 									Occurence now;
 									bool isBifurcation = false;						
-									now.Set(posVertexHash[0]->hashvalue,
-										negVertexHash[0]->hashvalue,
+									now.Set(hash.RawPositiveHash(0),
+										hash.RawNegativeHash(0),
 										task.str.begin() + pos,
 										vertexLength,
 										posExtend,
@@ -702,16 +594,9 @@ namespace TwoPaCo
 
 								if (pos + edgeLength < task.str.size())
 								{
-									char negExtend = DnaChar::ReverseChar(posExtend);
 									char posPrev = task.str[pos];
-									char negPrev = DnaChar::ReverseChar(task.str[pos]);
-									for (size_t i = 0; i < 1; i++)
-									{
-										posVertexHash[i]->update(posPrev, posExtend);
-										negVertexHash[i]->reverse_update(negExtend, negPrev);
-										assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-										assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-									}
+									hash.Update(posPrev, posExtend);
+									assert(hash.Assert(task.str.begin() + pos));
 								}
 								else
 								{
@@ -724,7 +609,7 @@ namespace TwoPaCo
 			}
 
 		private:
-			const std::vector<HashFunctionPtr> & hashFunction;
+			const VertexRollingHashSeed & hashFunction;
 			size_t vertexLength;
 			TaskQueue & taskQueue;
 			OccurenceSet & occurenceSet;
@@ -889,56 +774,14 @@ namespace TwoPaCo
 			size_t totalRounds;
 			tbb::mutex & errorMutex;
 			tbb::mutex & currentStubVertexMutex;
-		};
-
-		static void PutInBloomFilterExtend(const std::vector<HashFunctionPtr> & posVertexHash,
-			const std::vector<HashFunctionPtr> & negVertexHash,
-			char nextCh,
-			char revNextCh,
-			std::vector<uint64_t> & hashValue)
-		{
-			StrandComparisonResult result = DetermineStrandExtend(posVertexHash, negVertexHash, nextCh, revNextCh);
-			for (size_t i = 0; i < posVertexHash.size(); i++)
-			{
-				if (result == positiveLess || result == tie)
-				{
-					hashValue.push_back(posVertexHash[i]->hash_extend(nextCh));
-				}
-
-				if (result == negativeLess || result == tie)
-				{
-					hashValue.push_back(negVertexHash[i]->hash_prepend(revNextCh));
-				}
-			}
-		}
-
-		static void PutInBloomFilterPrepend(const std::vector<HashFunctionPtr> & posVertexHash,
-			const std::vector<HashFunctionPtr> & negVertexHash,
-			char prevCh,
-			char revPrevCh,
-			std::vector<uint64_t> & hashValue)
-		{
-			StrandComparisonResult result = DetermineStrandPrepend(posVertexHash, negVertexHash, prevCh, revPrevCh);
-			for (size_t i = 0; i < posVertexHash.size(); i++)
-			{
-				if (result == positiveLess || result == tie)
-				{
-					hashValue.push_back(posVertexHash[i]->hash_prepend(prevCh));
-				}
-
-				if (result == negativeLess || result == tie)
-				{
-					hashValue.push_back(negVertexHash[i]->hash_extend(revPrevCh));
-				}
-			}
-		}
+		};		
 		
 		class FilterFillerWorker
 		{
 		public:
 			FilterFillerWorker(uint64_t low,
 				uint64_t high,
-				const std::vector<HashFunctionPtr> & hashFunction,
+				const VertexRollingHashSeed & hashFunction,
 				ConcurrentBitVector & filter,
 				size_t edgeLength,
 				TaskQueue & taskQueue) : low(low), high(high), hashFunction(hashFunction), filter(filter), edgeLength(edgeLength), taskQueue(taskQueue)
@@ -970,48 +813,39 @@ namespace TwoPaCo
 						uint64_t fistMinHash0;
 						uint64_t secondMinHash0;
 						size_t vertexLength = edgeLength - 1;
-						std::vector<HashFunctionPtr> posVertexHash(hashFunction.size());
-						std::vector<HashFunctionPtr> negVertexHash(hashFunction.size());
 						size_t definiteCount = std::count_if(task.str.begin(), task.str.begin() + vertexLength, DnaChar::IsDefinite);
-						InitializeHashFunctions(hashFunction, posVertexHash, negVertexHash, task.str, vertexLength);
+						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());
 						for (size_t pos = 0;; ++pos)
 						{
 							hashValue.clear();
 							char prevCh = task.str[pos];
 							char nextCh = task.str[pos + edgeLength - 1];
-							char revNextCh = DnaChar::ReverseChar(nextCh);
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
-								fistMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+								fistMinHash0 = hash.GetVertexHash();
 								if (DnaChar::IsDefinite(nextCh))
 								{
-									PutInBloomFilterExtend(posVertexHash, negVertexHash, nextCh, revNextCh, hashValue);
+									hash.GetOutgoingEdgeHash(nextCh, hashValue);
 								}
 								else
 								{
-									PutInBloomFilterExtend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
-									PutInBloomFilterExtend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
+									hash.GetOutgoingEdgeHash(DUMMY_CHAR, hashValue);
+									hash.GetOutgoingEdgeHash(DUMMY_REV_CHAR, hashValue);
 								}
 
 								if (pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1]))
 								{
-									PutInBloomFilterPrepend(posVertexHash, negVertexHash, DUMMY_CHAR, REV_DUMMY_CHAR, hashValue);
-									PutInBloomFilterPrepend(posVertexHash, negVertexHash, REV_DUMMY_CHAR, DUMMY_CHAR, hashValue);
+									hash.GetIngoingEdgeHash(DUMMY_CHAR, hashValue);
+									hash.GetOutgoingEdgeHash(DUMMY_CHAR, hashValue);
 								}
 							}
 
-							for (size_t i = 0; i < hashFunction.size(); i++)
-							{
-								posVertexHash[i]->update(prevCh, nextCh);
-								assert(posVertexHash[i]->hashvalue == posVertexHash[i]->hash(task.str.substr(pos + 1, vertexLength)));
-								negVertexHash[i]->reverse_update(revNextCh, DnaChar::ReverseChar(prevCh));
-								assert(negVertexHash[i]->hashvalue == negVertexHash[i]->hash(DnaChar::ReverseCompliment(task.str.substr(pos + 1, vertexLength))));
-							}
-
+							hash.Update(prevCh, nextCh);
+							assert(hash.Assert(task.str.begin() + pos));
 							if (definiteCount == vertexLength)
 							{
-								secondMinHash0 = min(posVertexHash[0]->hashvalue, negVertexHash[0]->hashvalue);
+								secondMinHash0 = hash.GetVertexHash();
 								if (Within(fistMinHash0, low, high) || Within(secondMinHash0, low, high))
 								{
 									for (uint64_t value : hashValue)
@@ -1047,7 +881,7 @@ namespace TwoPaCo
 		private:
 			uint64_t low;
 			uint64_t high;
-			const std::vector<HashFunctionPtr> & hashFunction;
+			const VertexRollingHashSeed & hashFunction;
 			ConcurrentBitVector & filter;
 			size_t edgeLength;
 			TaskQueue & taskQueue;
