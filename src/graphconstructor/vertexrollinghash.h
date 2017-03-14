@@ -100,31 +100,32 @@ namespace TwoPaCo
 			return min(posHash, negHash);
 		}
 
-		void GetIngoingEdgeHash(char nextPositiveCharacter, std::vector<uint64_t> & value) const
+		void GetIngoingEdgeHash(char previousPositiveCharacter, std::vector<uint64_t> & value) const
 		{
-			char nextNegativeCharacter = DnaChar::ReverseChar(nextPositiveCharacter);
-			StrandComparisonResult result = DetermineStrandPrepend(nextPositiveCharacter, nextNegativeCharacter);
+			char previousNegativeCharacter = DnaChar::ReverseChar(previousPositiveCharacter);
+			StrandComparisonResult result = DetermineStrandPrepend(previousPositiveCharacter, previousNegativeCharacter);
 			if (result == positiveLess || result == tie)
 			{
-				GetPrependValues(nextPositiveCharacter, posVertexHash_, value);
+				GetPrependValues(previousPositiveCharacter, posVertexHash_, value);
 			}
 			else
 			{
-				GetExtendValues(nextNegativeCharacter, negVertexHash_, value);
+				GetExtendValues(previousNegativeCharacter, negVertexHash_, value);
 			}
 		}
 
-		void GetOutgoingEdgeHash(char previousPositiveCharacter, std::vector<uint64_t> & value) const
+		void GetOutgoingEdgeHash(char nextPositiveCharacter, std::vector<uint64_t> & value) const
 		{
-			char previousNegativeCharacter = DnaChar::ReverseChar(previousPositiveCharacter);
-			StrandComparisonResult result = DetermineStrandExtend(previousPositiveCharacter, previousNegativeCharacter);
+			char nextNegativeCharacter = DnaChar::ReverseChar(nextPositiveCharacter);
+			
+			StrandComparisonResult result = DetermineStrandExtend(nextPositiveCharacter, nextNegativeCharacter);
 			if (result == positiveLess || result == tie)
 			{
-				GetExtendValues(previousPositiveCharacter, posVertexHash_, value);
+				GetExtendValues(nextPositiveCharacter, posVertexHash_, value);
 			}
 			else
 			{
-				GetPrependValues(previousNegativeCharacter, negVertexHash_, value);
+				GetPrependValues(nextNegativeCharacter, negVertexHash_, value);
 			}
 		}
 
@@ -144,7 +145,7 @@ namespace TwoPaCo
 		{
 			for (size_t i = 0; i < hashFunction.size(); i++)
 			{
-				value.push_back(hashFunction[i]->hash_extend(nextCh));
+				value.push_back(hashFunction[i]->hash_prepend(nextCh));
 			}
 		}
 
@@ -152,8 +153,8 @@ namespace TwoPaCo
 		{
 			for (size_t i = 0; i < hashFunction.size(); i++)
 			{
-				value.push_back(hashFunction[i]->hash_prepend(nextCh));
-			}
+				value.push_back(hashFunction[i]->hash_extend(nextCh));
+			}			
 		}
 
 		StrandComparisonResult DetermineStrandExtend(char nextCh, char revNextCh) const

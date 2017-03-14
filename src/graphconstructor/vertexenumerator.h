@@ -341,7 +341,7 @@ namespace TwoPaCo
 
 		static bool IsOutgoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
 		{
-			static std::vector<uint64_t> value;
+			std::vector<uint64_t> value;
 			value.clear();
 			hf.GetOutgoingEdgeHash(farg, value);
 			for (size_t i = 0; i < value.size(); i++)
@@ -358,7 +358,7 @@ namespace TwoPaCo
 
 		static bool IsIngoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
 		{
-			static std::vector<uint64_t> value;
+			std::vector<uint64_t> value;
 			value.clear();
 			hf.GetIngoingEdgeHash(farg, value);
 			for (size_t i = 0; i < value.size(); i++)
@@ -576,7 +576,6 @@ namespace TwoPaCo
 										posExtend,
 										posPrev,
 										isBifurcation);
-
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
