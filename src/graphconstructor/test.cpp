@@ -115,8 +115,9 @@ namespace TwoPaCo
 		std::vector<std::string> fileName;
 		
 		fileName.clear();
-		fileName.push_back("test0.fasta");
+		fileName.push_back("test.fasta");
  		VertexEnumeratorTest(fileName, 5, 16, 1, 2, ss);
+	/*
 		return true;
 		fileName.clear();
 		fileName.push_back("ntest.fasta");
@@ -124,10 +125,10 @@ namespace TwoPaCo
 		{
 			VertexEnumeratorTest(fileName, k, 20, 4, 2, ss);
 		}
-
+	
 		fileName.clear();
 		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, 24, 4, 2, ss);
+		VertexEnumeratorTest(fileName, 25, 24, 4, 2, ss);*/
 
 		return true;
 	}

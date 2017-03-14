@@ -37,7 +37,7 @@ namespace TwoPaCo
 	public:
 		VertexRollingHash(const VertexRollingHashSeed & seed, std::string::const_iterator begin, size_t hashFunctions)
 		{
-			size_t size = seed.hashFunction_[0]->wordsize;
+			size_t size = seed.hashFunction_[0]->n;
 			posVertexHash_.resize(hashFunctions);
 			negVertexHash_.resize(hashFunctions);
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
@@ -67,13 +67,13 @@ namespace TwoPaCo
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				posVertexHash_[i]->update(positivePreviousChar, positiveNextChar);
-				negVertexHash_[i]->reverse_update(negativeNextChar, positivePreviousChar);
+				negVertexHash_[i]->reverse_update(negativeNextChar, negativePreviousChar);
 			}
 		}
 
 		bool Assert(std::string::const_iterator begin) const
 		{
-			size_t size = posVertexHash_[0]->wordsize;
+			size_t size = posVertexHash_[0]->n;
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				assert(posVertexHash_[i]->hashvalue == posVertexHash_[i]->hash(std::string(begin, begin + size)));

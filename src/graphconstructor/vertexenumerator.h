@@ -475,7 +475,7 @@ namespace TwoPaCo
 									char posPrev = task.str[pos];
 									definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
 									hash.Update(posPrev, posExtend);
-									assert(hash.Assert(task.str.begin() + pos));
+									assert(hash.Assert(task.str.begin() + pos + 1));
 								}
 								else
 								{
@@ -596,7 +596,7 @@ namespace TwoPaCo
 								{
 									char posPrev = task.str[pos];
 									hash.Update(posPrev, posExtend);
-									assert(hash.Assert(task.str.begin() + pos));
+									assert(hash.Assert(task.str.begin() + pos + 1));
 								}
 								else
 								{
@@ -814,7 +814,7 @@ namespace TwoPaCo
 						uint64_t secondMinHash0;
 						size_t vertexLength = edgeLength - 1;
 						size_t definiteCount = std::count_if(task.str.begin(), task.str.begin() + vertexLength, DnaChar::IsDefinite);
-						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());
+						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());						
 						for (size_t pos = 0;; ++pos)
 						{
 							hashValue.clear();
@@ -842,7 +842,7 @@ namespace TwoPaCo
 							}
 
 							hash.Update(prevCh, nextCh);
-							assert(hash.Assert(task.str.begin() + pos));
+							assert(hash.Assert(task.str.begin() + pos + 1));
 							if (definiteCount == vertexLength)
 							{
 								secondMinHash0 = hash.GetVertexHash();
