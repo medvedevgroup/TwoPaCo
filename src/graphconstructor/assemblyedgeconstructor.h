@@ -31,6 +31,11 @@ namespace TwoPaCo
 					hash.Update(chr[i], chr[i + vertexLength]);
 					//Check that the hash values were updated correctly
 					assert(hash.Assert(chr.begin() + i + 1));
+					//Check the if the vertex is a junction
+					if (vertexEnumerator_.GetId(vertex) != INVALID_VERTEX)
+					{
+						//Found a junction
+					}
 				}
 			}
 		}
