@@ -2,6 +2,7 @@
 #define _VERTEX_ROLLING_HASH_H_
 
 #include "common.h"
+#include "concurrentbitvector.h"
 #include "ngramhashing/cyclichash.h"
 
 namespace TwoPaCo
@@ -12,6 +13,15 @@ namespace TwoPaCo
 	class VertexRollingHashSeed
 	{
 	public:
+		VertexRollingHashSeed(const VertexRollingHashSeed & s)
+		{
+			hashFunction_.resize(s.HashFunctionsNumber());
+			for (HashFunctionPtr & ptr : hashFunction_)
+			{
+				ptr = HashFunctionPtr(new HashFunction(s.VertexLength(), s.BitsNumber()));
+			}
+		}
+
 		VertexRollingHashSeed(size_t numberOfFunctions, size_t vertexLength, size_t bits)
 		{
 			hashFunction_.resize(numberOfFunctions);
@@ -21,13 +31,22 @@ namespace TwoPaCo
 			}
 		}
 
+		size_t VertexLength() const
+		{
+			return hashFunction_[0]->n;
+		}
+
+		size_t BitsNumber() const
+		{
+			return hashFunction_[0]->wordsize;
+		}
+
 		size_t HashFunctionsNumber() const
 		{
 			return hashFunction_.size();
 		}
 
-	private:
-		DISALLOW_COPY_AND_ASSIGN(VertexRollingHashSeed);
+	private:		
 		std::vector<HashFunctionPtr> hashFunction_;
 		friend class VertexRollingHash;
 	};
@@ -187,6 +206,41 @@ namespace TwoPaCo
 			return tie;
 		}
 	};
+
+	inline bool IsOutgoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
+	{
+		std::vector<uint64_t> value;
+		value.clear();
+		hf.GetOutgoingEdgeHash(farg, value);
+		for (size_t i = 0; i < value.size(); i++)
+		{
+			uint64_t hvalue = value[i];
+			if (!filter.GetBit(hvalue))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	inline bool IsIngoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
+	{
+		std::vector<uint64_t> value;
+		value.clear();
+		hf.GetIngoingEdgeHash(farg, value);
+		for (size_t i = 0; i < value.size(); i++)
+		{
+			uint64_t hvalue = value[i];
+			if (!filter.GetBit(hvalue))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 }
 
 

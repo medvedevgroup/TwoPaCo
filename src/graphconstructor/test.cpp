@@ -131,10 +131,10 @@ namespace TwoPaCo
 		VertexEnumeratorTest(fileName, 25, 24, 4, 2, ss);*/
 
 		fileName.clear();
-		fileName.push_back("test2.fasta");
+		fileName.push_back("tiny.fasta");
 		for (size_t k = 5; k <= 20; k += 2)
 		{
-			VertexEnumeratorTest(fileName, k, 20, 4, 2, ss);
+			VertexEnumeratorTest(fileName, k, 24, 4, 2, ss);
 		}
 
 		return true;

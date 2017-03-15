@@ -25,7 +25,6 @@
 #include "streamfastaparser.h"
 #include "bifurcationstorage.h"
 #include "candidateoccurence.h"
-#include "concurrentbitvector.h"
 
 namespace TwoPaCo
 {
@@ -337,41 +336,7 @@ namespace TwoPaCo
 	private:
 
 		static const size_t QUEUE_CAPACITY = 16;
-		static const uint64_t BINS_COUNT = 1 << 24;
-
-		static bool IsOutgoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
-		{
-			std::vector<uint64_t> value;
-			value.clear();
-			hf.GetOutgoingEdgeHash(farg, value);
-			for (size_t i = 0; i < value.size(); i++)
-			{
-				uint64_t hvalue = value[i];
-				if (!filter.GetBit(hvalue))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-		static bool IsIngoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
-		{
-			std::vector<uint64_t> value;
-			value.clear();
-			hf.GetIngoingEdgeHash(farg, value);
-			for (size_t i = 0; i < value.size(); i++)
-			{
-				uint64_t hvalue = value[i];
-				if (!filter.GetBit(hvalue))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
+		static const uint64_t BINS_COUNT = 1 << 24;		
 
 		static bool Within(uint64_t hvalue, uint64_t low, uint64_t high)
 		{
@@ -1004,7 +969,8 @@ namespace TwoPaCo
 		}
 
 		size_t vertexSize_;
-	};
+		DISALLOW_COPY_AND_ASSIGN(VertexEnumeratorImpl<CAPACITY>);
+	};	
 }
 
 #endif	

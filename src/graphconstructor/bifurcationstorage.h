@@ -7,7 +7,6 @@
 
 namespace TwoPaCo
 {
-
 	template<size_t CAPACITY>
 	class BifurcationStorage
 	{
@@ -152,6 +151,8 @@ namespace TwoPaCo
 #endif
 			return ret;
 		}
+
+		DISALLOW_COPY_AND_ASSIGN(BifurcationStorage<CAPACITY>);
 
 		size_t vertexLength_;
 		std::vector<bool> bifurcationFilter_;

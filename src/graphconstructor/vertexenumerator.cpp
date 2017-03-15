@@ -58,7 +58,7 @@ namespace TwoPaCo
 			const std::string & outFileName)
 		{
 			return 0;
-		}
+		}		
 	}
 
 	std::unique_ptr<VertexEnumerator> CreateEnumerator(const std::vector<std::string> & fileName,

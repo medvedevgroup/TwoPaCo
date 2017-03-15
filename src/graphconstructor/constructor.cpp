@@ -16,7 +16,7 @@
 #include <tclap/CmdLine.h>
 
 #include "test.h"
-#include "vertexenumerator.h"
+#include "assemblyedgeconstructor.h"
 
 size_t Atoi(const char * str)
 {
@@ -26,7 +26,7 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
-class OddConstraint : public TCLAP::Constraint < unsigned int >
+class OddConstraint : public TCLAP::Constraint <unsigned int>
 {
 public:
 	~OddConstraint()

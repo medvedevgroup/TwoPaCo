@@ -5,6 +5,8 @@
 #include <vector>
 #include <atomic>
 
+#include "common.h"
+
 namespace TwoPaCo
 {
 	class ConcurrentBitVector
@@ -20,6 +22,7 @@ namespace TwoPaCo
 		void WriteToFile(const std::string & fileName) const;
 		void ReadFromFile(const std::string & fileName, bool cleanUp);
 	private:
+		DISALLOW_COPY_AND_ASSIGN(ConcurrentBitVector);
 		static const size_t SUCCESS = -1;
 		typedef uint32_t BASIC_TYPE;
 		typedef std::atomic<BASIC_TYPE> UInt;
@@ -27,7 +30,7 @@ namespace TwoPaCo
 		size_t realSize_;
 		UInt * filter_;
 		void GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const;
-	};
+	};	
 
 }
 
