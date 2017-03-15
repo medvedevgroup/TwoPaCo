@@ -134,6 +134,51 @@ namespace TwoPaCo
 		std::ifstream in_;
 		std::string overlapBuffer_;
 	};
+
+	class ChrReader
+	{
+	public:
+		ChrReader(const std::vector<std::string> & fileName) : currentFile_(0), fileName_(fileName)
+		{
+			if (fileName.size() > 0)
+			{
+				parser_.reset(new TwoPaCo::StreamFastaParser(fileName[0]));
+			}
+		}
+
+		bool NextChr(std::string & buf)
+		{
+			buf.clear();
+			while (currentFile_ < fileName_.size())
+			{
+				if (parser_->ReadRecord())
+				{
+					char ch;
+					while (parser_->GetChar(ch))
+					{
+						buf.push_back(ch);
+					}
+
+					return true;
+				}
+				else
+				{
+					if (++currentFile_ < fileName_.size())
+					{
+						parser_.reset(new TwoPaCo::StreamFastaParser(fileName_[currentFile_]));
+					}
+				}
+			}
+
+			return false;
+		}
+
+	private:
+		size_t currentFile_;
+		std::vector<std::string> fileName_;
+		std::auto_ptr<TwoPaCo::StreamFastaParser> parser_;
+	};
+
 }
 
 #endif

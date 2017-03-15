@@ -33,6 +33,8 @@ namespace TwoPaCo
 	public:
 		virtual size_t GetVerticesCount() const = 0;
 		virtual int64_t GetId(const std::string & vertex) const = 0;
+		virtual const VertexRollingHashSeed & GetHashSeed() const = 0;
+		virtual std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const = 0;
 
 		virtual ~VertexEnumerator()
 		{
@@ -53,8 +55,10 @@ namespace TwoPaCo
 	class VertexEnumeratorImpl : public VertexEnumerator
 	{
 	private:
+		std::string filterDumpFile_;
+		VertexRollingHashSeed hashFunctionSeed_;
 		static const size_t BUF_SIZE = 1 << 24;
-		BifurcationStorage<CAPACITY> bifStorage_;
+		BifurcationStorage<CAPACITY> bifStorage_;		
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
 
@@ -91,6 +95,11 @@ namespace TwoPaCo
 
 	public:
 
+		~VertexEnumeratorImpl<CAPACITY>()
+		{
+			std::remove(filterDumpFile_.c_str());
+		}
+
 		int64_t GetId(const std::string & vertex) const
 		{
 			return bifStorage_.GetId(vertex.begin());
@@ -101,6 +110,18 @@ namespace TwoPaCo
 			return bifStorage_.GetDistinctVerticesCount();
 		}
 
+		const VertexRollingHashSeed & GetHashSeed() const
+		{
+			return hashFunctionSeed_;
+		}
+
+		std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const
+		{
+			uint64_t realSize = uint64_t(1) << hashFunctionSeed_.BitsNumber();
+			std::unique_ptr<ConcurrentBitVector> ret(new ConcurrentBitVector(realSize));
+			ret->ReadFromFile(filterDumpFile_, false);
+			return ret;
+		}
 
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
 			size_t vertexLength,
@@ -110,7 +131,9 @@ namespace TwoPaCo
 			size_t threads,
 			const std::string & tmpDirName,
 			const std::string & outFileNamePrefix) :
-			vertexSize_(vertexLength)
+			vertexSize_(vertexLength),
+			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
+			filterDumpFile_(tmpDirName + "/filter.bin")
 		{
 			uint64_t realSize = uint64_t(1) << filterSize;
 			std::cout << "Threads = " << threads << std::endl;
@@ -135,8 +158,7 @@ namespace TwoPaCo
 
 			tbb::mutex errorMutex;
 			std::unique_ptr<std::runtime_error> error;
-
-			VertexRollingHashSeed hashFunctionSeed(hashFunctions, vertexLength, filterSize);
+			
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
 			for (size_t i = 0; i < taskQueue.size(); i++)
@@ -175,7 +197,7 @@ namespace TwoPaCo
 						{
 							FilterFillerWorker worker(low,
 								high,
-								std::cref(hashFunctionSeed),
+								std::cref(hashFunctionSeed_),
 								std::ref(bitVector),
 								edgeLength,
 								std::ref(*taskQueue[i]));
@@ -189,6 +211,7 @@ namespace TwoPaCo
 						}
 					}
 
+					bitVector.WriteToFile(filterDumpFile_);
 					std::cout << time(0) - mark << "\t";
 					mark = time(0);
 					{
@@ -196,7 +219,7 @@ namespace TwoPaCo
 						for (size_t i = 0; i < workerThread.size(); i++)
 						{
 							CandidateCheckingWorker worker(std::make_pair(low, high),
-								hashFunctionSeed,
+								hashFunctionSeed_,
 								bitVector,
 								vertexLength,
 								*taskQueue[i],
@@ -232,7 +255,7 @@ namespace TwoPaCo
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
-						CandidateFinalFilteringWorker worker(hashFunctionSeed,
+						CandidateFinalFilteringWorker worker(hashFunctionSeed_,
 							vertexLength,
 							*taskQueue[i],
 							occurenceSet,

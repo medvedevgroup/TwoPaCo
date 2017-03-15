@@ -15,49 +15,6 @@
 #include <streamfastaparser.h>
 #include <junctionapi/junctionapi.h>
 
-class ChrReader
-{
-public:
-	ChrReader(const std::vector<std::string> & fileName) : currentFile_(0), fileName_(fileName)
-	{
-		if (fileName.size() > 0)
-		{
-			parser_.reset(new TwoPaCo::StreamFastaParser(fileName[0]));
-		}
-	}
-
-	bool NextChr(std::string & buf)
-	{
-		buf.clear();
-		while (currentFile_ < fileName_.size())
-		{
-			if (parser_->ReadRecord())
-			{
-				char ch;
-				while (parser_->GetChar(ch))
-				{
-					buf.push_back(ch);
-				}
-																																			
-				return true;
-			}
-			else
-			{
-				if (++currentFile_ < fileName_.size())
-				{
-					parser_.reset(new TwoPaCo::StreamFastaParser(fileName_[currentFile_]));
-				}
-			}
-		}
-
-		return false;
-	}
-
-private:
-	size_t currentFile_;
-	std::vector<std::string> fileName_;
-	std::auto_ptr<TwoPaCo::StreamFastaParser> parser_;
-};
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
 {
@@ -275,7 +232,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	int64_t prevSegmentId = NO_SEGMENT;
 	TwoPaCo::JunctionPosition end;
 	TwoPaCo::JunctionPosition begin;
-	ChrReader chrReader(genomes);
+	TwoPaCo::ChrReader chrReader(genomes);
 	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
 	std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
 	int64_t previousId = 0;
