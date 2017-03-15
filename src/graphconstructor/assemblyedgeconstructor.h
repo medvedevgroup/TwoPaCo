@@ -28,6 +28,11 @@ namespace TwoPaCo
 					std::string vertex = chr.substr(i, vertexLength);
 					//Check if the Bloom filter contains an edge
 					assert(IsOutgoingEdgeInBloomFilter(*bloomFilter, hash, chr[i + edgeLength - 1]));
+					if (i > 0)
+					{
+						assert(IsIngoingEdgeInBloomFilter(*bloomFilter, hash, chr[i - 1]));
+					}
+					
 					hash.Update(chr[i], chr[i + vertexLength]);
 					//Check that the hash values were updated correctly
 					assert(hash.Assert(chr.begin() + i + 1));
