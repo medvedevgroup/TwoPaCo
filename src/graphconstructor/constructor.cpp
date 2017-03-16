@@ -105,6 +105,14 @@ int main(int argc, char * argv[])
 			"directory name",
 			cmd);
 
+		TCLAP::ValueArg<bool> runTests("",
+			"test",
+			"Run tests",
+			false,
+			false,
+			"flag",
+			cmd);
+
 		TCLAP::UnlabeledMultiArg<std::string> fileName("filenames",
 			"FASTA file(s) with nucleotide sequences.",
 			true,
@@ -120,9 +128,12 @@ int main(int argc, char * argv[])
 			cmd);
 
 		cmd.parse(argc, argv);
-		using TwoPaCo::Range;		
-		//assert(TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 4), Range(1, 4), 0.05, 0.1, tmpDirName.getValue()));
-		TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 4), Range(1, 4), 0.05, 0.1, tmpDirName.getValue());
+		using TwoPaCo::Range;
+		if (runTests.getValue())
+		{
+			TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 4), Range(1, 4), 0.05, 0.1, tmpDirName.getValue());
+		}
+		
 		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = TwoPaCo::CreateEnumerator(fileName.getValue(),
 			kvalue.getValue(), filterSize.getValue(),
 			hashFunctions.getValue(),

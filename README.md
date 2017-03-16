@@ -110,6 +110,13 @@ The name of the output file. The default is "de_bruijn.bin". To change, use:
 
 	--o <file_name> or --outfile <file_name>
 
+Running tests
+-------------
+If the flag is set, TwoPaCo will run a set of internal tests instead of
+processing the input file:
+
+	--test
+
 The graphdump usage
 ===================
 This utility turns the binary file a text one. There are several output formats

@@ -10,7 +10,7 @@ namespace TwoPaCo
 	public:
 		AssemblyEdgeConstructor(const std::vector<std::string> & inputFileName, const std::string & marksFileName, const VertexEnumerator & vertexEnumerator) : 				
 				vertexEnumerator_(vertexEnumerator)
-		{
+		{/*
 			int64_t vertexLength = vertexEnumerator_.GetHashSeed().VertexLength();
 			int64_t edgeLength = vertexLength + 1;
 
@@ -42,7 +42,7 @@ namespace TwoPaCo
 						//Found a junction
 					}
 				}
-			}
+			}*/
 		}
 		
 	private:

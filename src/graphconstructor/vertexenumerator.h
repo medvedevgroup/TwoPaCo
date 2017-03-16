@@ -408,6 +408,7 @@ namespace TwoPaCo
 			{
 				uint64_t low = bound.first;
 				uint64_t high = bound.second;
+				std::vector<uint64_t> temp;
 				ConcurrentBitVector candidateMask(Task::TASK_SIZE);
 				while (true)
 				{
@@ -442,12 +443,12 @@ namespace TwoPaCo
 									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 									{
 										char nextCh = DnaChar::LITERAL[i];
-										if (nextCh == posPrev || IsIngoingEdgeInBloomFilter(bitVector, hash, nextCh))
+										if (nextCh == posPrev || IsIngoingEdgeInBloomFilter(bitVector, temp, hash, nextCh))
 										{
 											++inCount;
 										}
 
-										if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(bitVector, hash, nextCh))
+										if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(bitVector, temp, hash, nextCh))
 										{
 											++outCount;
 										}

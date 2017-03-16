@@ -207,15 +207,13 @@ namespace TwoPaCo
 		}
 	};
 
-	inline bool IsOutgoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
+	inline bool IsOutgoingEdgeInBloomFilter(const ConcurrentBitVector & filter, std::vector<uint64_t> & temp, const VertexRollingHash & hf, char farg)
 	{
-		std::vector<uint64_t> value;
-		value.clear();
-		hf.GetOutgoingEdgeHash(farg, value);
-		for (size_t i = 0; i < value.size(); i++)
+		temp.clear();
+		hf.GetOutgoingEdgeHash(farg, temp);
+		for (size_t i = 0; i < temp.size(); i++)
 		{
-			uint64_t hvalue = value[i];
-			if (!filter.GetBit(hvalue))
+			if (!filter.GetBit(temp[i]))
 			{
 				return false;
 			}
@@ -224,15 +222,13 @@ namespace TwoPaCo
 		return true;
 	}
 
-	inline bool IsIngoingEdgeInBloomFilter(const ConcurrentBitVector & filter, const VertexRollingHash & hf, char farg)
+	inline bool IsIngoingEdgeInBloomFilter(const ConcurrentBitVector & filter, std::vector<uint64_t> & temp, const VertexRollingHash & hf, char farg)
 	{
-		std::vector<uint64_t> value;
-		value.clear();
-		hf.GetIngoingEdgeHash(farg, value);
-		for (size_t i = 0; i < value.size(); i++)
+		temp.clear();
+		hf.GetIngoingEdgeHash(farg, temp);
+		for (size_t i = 0; i < temp.size(); i++)
 		{
-			uint64_t hvalue = value[i];
-			if (!filter.GetBit(hvalue))
+			if (!filter.GetBit(temp[i]))
 			{
 				return false;
 			}
