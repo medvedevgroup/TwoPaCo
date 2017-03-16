@@ -662,6 +662,7 @@ namespace TwoPaCo
 				{
 					DnaString bitBuf;
 					std::deque<EdgeResult> result;
+					ConcurrentBitVector temporaryMask(Task::TASK_SIZE);
 					ConcurrentBitVector candidateMask(Task::TASK_SIZE);
 					while (true)
 					{
@@ -682,8 +683,7 @@ namespace TwoPaCo
 							if (task.str.size() >= vertexLength + 2)
 							{																
 								try
-								{
-									ConcurrentBitVector temporaryMask(Task::TASK_SIZE);
+								{									
 									for (size_t i = 0; i < totalRounds; i++)
 									{
 										temporaryMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, i), true);
