@@ -443,12 +443,12 @@ namespace TwoPaCo
 									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
 									{
 										char nextCh = DnaChar::LITERAL[i];
-										if (nextCh == posPrev || IsIngoingEdgeInBloomFilter(bitVector, temp, hash, nextCh))
+										if (nextCh == posPrev || IsIngoingEdgeInBloomFilter(hash, bitVector, nextCh))
 										{
 											++inCount;
 										}
 
-										if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(bitVector, temp, hash, nextCh))
+										if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(hash, bitVector, nextCh))
 										{
 											++outCount;
 										}
@@ -816,18 +816,18 @@ namespace TwoPaCo
 								fistMinHash0 = hash.GetVertexHash();
 								if (DnaChar::IsDefinite(nextCh))
 								{
-									hash.GetOutgoingEdgeHash(nextCh, hashValue);
+									GetOutgoingEdgeHash(hash, nextCh, hashValue);
 								}
 								else
 								{
-									hash.GetOutgoingEdgeHash(DUMMY_CHAR, hashValue);
-									hash.GetOutgoingEdgeHash(REV_DUMMY_CHAR, hashValue);
+									GetOutgoingEdgeHash(hash, DUMMY_CHAR, hashValue);
+									GetOutgoingEdgeHash(hash, REV_DUMMY_CHAR, hashValue);
 								}
 
 								if (pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1]))
 								{
-									hash.GetIngoingEdgeHash(DUMMY_CHAR, hashValue);
-									hash.GetIngoingEdgeHash(REV_DUMMY_CHAR, hashValue);
+									GetIngoingEdgeHash(hash, DUMMY_CHAR, hashValue);
+									GetIngoingEdgeHash(hash, REV_DUMMY_CHAR, hashValue);
 								}
 							}
 

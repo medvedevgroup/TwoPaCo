@@ -54,6 +54,28 @@ namespace TwoPaCo
 	class VertexRollingHash
 	{
 	public:
+		enum StrandComparisonResult
+		{
+			positiveLess,
+			negativeLess,
+			tie,
+		};
+
+		size_t VertexLength() const
+		{
+			return posVertexHash_[0]->n;
+		}
+
+		size_t BitsNumber() const
+		{
+			return posVertexHash_[0]->wordsize;
+		}
+
+		size_t HashFunctionsNumber() const
+		{
+			return posVertexHash_.size();
+		}
+
 		VertexRollingHash(const VertexRollingHashSeed & seed, std::string::const_iterator begin, size_t hashFunctions)
 		{
 			size_t size = seed.hashFunction_[0]->n;
@@ -119,65 +141,35 @@ namespace TwoPaCo
 			return min(posHash, negHash);
 		}
 
-		void GetIngoingEdgeHash(char previousPositiveCharacter, std::vector<uint64_t> & value) const
+		uint64_t GetIngoingEdgeHash(char previousPositiveCharacter, StrandComparisonResult result, size_t idx) const
 		{
 			char previousNegativeCharacter = DnaChar::ReverseChar(previousPositiveCharacter);
-			StrandComparisonResult result = DetermineStrandPrepend(previousPositiveCharacter, previousNegativeCharacter);
 			if (result == positiveLess || result == tie)
 			{
-				GetPrependValues(previousPositiveCharacter, posVertexHash_, value);
+				return posVertexHash_[idx]->hash_prepend(previousPositiveCharacter);				
 			}
 			else
 			{
-				GetExtendValues(previousNegativeCharacter, negVertexHash_, value);
+				return negVertexHash_[idx]->hash_extend(previousNegativeCharacter);
 			}
 		}
-
-		void GetOutgoingEdgeHash(char nextPositiveCharacter, std::vector<uint64_t> & value) const
+		
+		uint64_t GetOutgoingEdgeHash(char nextPositiveCharacter, StrandComparisonResult result, size_t idx) const
 		{
 			char nextNegativeCharacter = DnaChar::ReverseChar(nextPositiveCharacter);
-			
-			StrandComparisonResult result = DetermineStrandExtend(nextPositiveCharacter, nextNegativeCharacter);
 			if (result == positiveLess || result == tie)
 			{
-				GetExtendValues(nextPositiveCharacter, posVertexHash_, value);
+				return posVertexHash_[idx]->hash_extend(nextPositiveCharacter);
 			}
 			else
 			{
-				GetPrependValues(nextNegativeCharacter, negVertexHash_, value);
+				return negVertexHash_[idx]->hash_prepend(nextNegativeCharacter);
 			}
 		}
 
-	private:
-		DISALLOW_COPY_AND_ASSIGN(VertexRollingHash);		
-		std::vector<HashFunctionPtr> posVertexHash_;
-		std::vector<HashFunctionPtr> negVertexHash_;
-
-		enum StrandComparisonResult
+		StrandComparisonResult DetermineStrandExtend(char nextCh) const
 		{
-			positiveLess,
-			negativeLess,
-			tie
-		};
-
-		void GetPrependValues(char nextCh, const std::vector<HashFunctionPtr> & hashFunction, std::vector<uint64_t> & value) const
-		{
-			for (size_t i = 0; i < hashFunction.size(); i++)
-			{
-				value.push_back(hashFunction[i]->hash_prepend(nextCh));
-			}
-		}
-
-		void GetExtendValues(char nextCh, const std::vector<HashFunctionPtr> & hashFunction, std::vector<uint64_t> & value) const
-		{
-			for (size_t i = 0; i < hashFunction.size(); i++)
-			{
-				value.push_back(hashFunction[i]->hash_extend(nextCh));
-			}			
-		}
-
-		StrandComparisonResult DetermineStrandExtend(char nextCh, char revNextCh) const
-		{
+			char revNextCh = DnaChar::ReverseChar(nextCh);
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				uint64_t posHash = posVertexHash_[i]->hash_extend(nextCh);
@@ -191,8 +183,9 @@ namespace TwoPaCo
 			return tie;
 		}
 
-		StrandComparisonResult DetermineStrandPrepend(char prevCh, char revPrevCh) const
+		StrandComparisonResult DetermineStrandPrepend(char prevCh) const
 		{
+			char revPrevCh = DnaChar::ReverseChar(prevCh);
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				uint64_t posHash = posVertexHash_[i]->hash_prepend(prevCh);
@@ -205,15 +198,19 @@ namespace TwoPaCo
 
 			return tie;
 		}
+
+	private:
+		DISALLOW_COPY_AND_ASSIGN(VertexRollingHash);		
+		std::vector<HashFunctionPtr> posVertexHash_;
+		std::vector<HashFunctionPtr> negVertexHash_;			
 	};
 
-	inline bool IsOutgoingEdgeInBloomFilter(const ConcurrentBitVector & filter, std::vector<uint64_t> & temp, const VertexRollingHash & hf, char farg)
+	inline bool IsOutgoingEdgeInBloomFilter(const VertexRollingHash & hash, const ConcurrentBitVector & filter, char nextCh)
 	{
-		temp.clear();
-		hf.GetOutgoingEdgeHash(farg, temp);
-		for (size_t i = 0; i < temp.size(); i++)
+		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandExtend(nextCh);	
+		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
 		{
-			if (!filter.GetBit(temp[i]))
+			if (!filter.GetBit(hash.GetOutgoingEdgeHash(nextCh, result, i)))
 			{
 				return false;
 			}
@@ -222,13 +219,12 @@ namespace TwoPaCo
 		return true;
 	}
 
-	inline bool IsIngoingEdgeInBloomFilter(const ConcurrentBitVector & filter, std::vector<uint64_t> & temp, const VertexRollingHash & hf, char farg)
+	inline bool IsIngoingEdgeInBloomFilter(const VertexRollingHash & hash, const ConcurrentBitVector & filter, char prevCh)
 	{
-		temp.clear();
-		hf.GetIngoingEdgeHash(farg, temp);
-		for (size_t i = 0; i < temp.size(); i++)
+		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandPrepend(prevCh);
+		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
 		{
-			if (!filter.GetBit(temp[i]))
+			if (!filter.GetBit(hash.GetIngoingEdgeHash(prevCh, result, i)))
 			{
 				return false;
 			}
@@ -237,6 +233,23 @@ namespace TwoPaCo
 		return true;
 	}
 
+	inline void GetOutgoingEdgeHash(const VertexRollingHash & hash, char nextCh, std::vector<uint64_t> & value)
+	{
+		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandExtend(nextCh);
+		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
+		{
+			value.push_back(hash.GetOutgoingEdgeHash(nextCh, result, i));
+		}
+	}
+
+	inline void GetIngoingEdgeHash(const VertexRollingHash & hash, char prevCh, std::vector<uint64_t> & value)
+	{
+		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandPrepend(prevCh);
+		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
+		{
+			value.push_back(hash.GetIngoingEdgeHash(prevCh, result, i));
+		}
+	}
 }
 
 
