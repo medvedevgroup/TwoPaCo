@@ -683,7 +683,8 @@ namespace TwoPaCo
 							if (task.str.size() >= vertexLength + 2)
 							{																
 								try
-								{									
+								{	
+									candidateMask.Reset();
 									for (size_t i = 0; i < totalRounds; i++)
 									{
 										temporaryMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, i), true);
