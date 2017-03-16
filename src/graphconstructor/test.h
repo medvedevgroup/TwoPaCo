@@ -7,9 +7,8 @@
 
 namespace TwoPaCo
 {
-	bool Runtests();
-	void DnaStringTest(size_t n, std::ostream & log);
-	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, std::ostream & log);
+	typedef std::pair<size_t, size_t> Range;	
+	bool RunTests(size_t tests, size_t filterBits, size_t length, size_t chrNumber, Range vertexSize, Range hashFunctions, Range rounds, Range threads, double changeRate, double indelRate, const std::string & temporaryDir);
 }
 
 #endif

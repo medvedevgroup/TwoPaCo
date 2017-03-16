@@ -53,7 +53,6 @@ public:
 int main(int argc, char * argv[])
 {
 	OddConstraint constraint;
-	//assert(TwoPaCo::Runtests());
 	try
 	{
 		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.0.1");
@@ -121,6 +120,8 @@ int main(int argc, char * argv[])
 			cmd);
 
 		cmd.parse(argc, argv);
+		using TwoPaCo::Range;		
+		assert(TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 4), Range(1, 4), 0.05, 0.1, tmpDirName.getValue()));
 		
 		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = TwoPaCo::CreateEnumerator(fileName.getValue(),
 			kvalue.getValue(), filterSize.getValue(),
@@ -128,7 +129,8 @@ int main(int argc, char * argv[])
 			rounds.getValue(),
 			threads.getValue(),
 			tmpDirName.getValue(),
-			outFileName.getValue());
+			outFileName.getValue(),
+			std::cout);
 			
 		std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
 		std::cout << std::endl;

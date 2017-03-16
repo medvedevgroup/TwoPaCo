@@ -1,5 +1,6 @@
 #include <set>
 #include <map>
+#include <random>
 #include <cassert>
 #include <sstream>
 #include <iterator>
@@ -15,24 +16,69 @@ namespace TwoPaCo
 		return ch == 'A' || ch == 'C' || ch == 'G' || ch == 'T';
 	}
 
-	void VertexEnumeratorTest(const std::vector<std::string> & fileName, size_t vertexLength, size_t filterSize, size_t threads, size_t rounds, std::ostream & log)
+	void GenerateSequence(std::random_device & rd, size_t length, std::string & out)
 	{
-		size_t edgeLength = vertexLength + 1;
-		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, vertexLength, filterSize, 1, rounds, threads, "tmp", "de_bruijn.bin");
-		
-		int unknownCount = CHAR_MAX; 
-		typedef std::vector<int> DnaString;
-		std::set<DnaString> edges;
-		std::vector<DnaString> genome;
-		for (const std::string & nowFileName : fileName)
+		out.resize(length);
+		std::mt19937 e2(rd());
+		std::string alphabet("ACGT");
+		std::uniform_int_distribution<> gen(0, alphabet.size() - 1);
+		for (size_t i = 0; i < out.size(); i++)
 		{
-			bool start = true;			
-			for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); start = true)
+			if (rand() % 500 == 0)
+			{
+				out[i] = 'N';
+			}
+			else
+			{
+				out[i] = alphabet[gen(e2)];
+			}			
+		}
+	}
+
+	void MutateSequence(std::random_device & rd, const std::string & chr, double changeRate, double mutationRate, std::string & out)
+	{
+		out.clear();
+		std::mt19937 e2(rd());
+		std::string alphabet("ACGT");
+		std::uniform_real_distribution<> gen(0, 1);
+		for (auto ch : chr)
+		{
+			if (gen(e2) <= changeRate)
+			{
+				if (gen(e2) <= mutationRate)
+				{
+					out.push_back(alphabet[rand() % alphabet.size()]);
+				}
+				else
+				{
+					if (gen(e2) <= 0.5)
+					{
+						out.push_back(ch);
+						out.push_back(alphabet[rand() % alphabet.size()]);
+					}
+				}
+			}
+			else
+			{
+				out.push_back(ch);
+			}
+		}
+	}
+
+	namespace
+	{
+		void FindJunctionsNaively(const std::vector<std::string> & chr, size_t vertexLength, std::set<std::string> & junction)
+		{
+			int unknownCount = CHAR_MAX;
+			typedef std::vector<int> DnaString;
+			std::set<DnaString> edges;
+			std::vector<DnaString> genome;
+			for (const std::string & nowChr : chr)
 			{
 				char ch;
 				DnaString nowGenome;
 				nowGenome.push_back(unknownCount++);
-				while(parser.GetChar(ch))
+				for (auto ch : nowChr)
 				{
 					if (IsDefinite(ch))
 					{
@@ -61,82 +107,108 @@ namespace TwoPaCo
 
 				genome.push_back(nowGenomeReverse);
 			}
-		}
 
-		std::map<DnaString, std::set<int> > inEdge;
-		std::map<DnaString, std::set<int> > outEdge;
-		for (const DnaString & g : genome)
-		{
-			if (g.size() >= vertexLength)
+			std::map<DnaString, std::set<int> > inEdge;
+			std::map<DnaString, std::set<int> > outEdge;
+			for (const DnaString & g : genome)
 			{
-				for (size_t i = 0; i <= g.size() - vertexLength; i++)
+				if (g.size() >= vertexLength)
 				{
-					DnaString vertex(g.begin() + i, g.begin() + i + vertexLength);
-					if (std::count_if(vertex.begin(), vertex.end(), IsDefinite) == vertexLength)
+					for (size_t i = 0; i <= g.size() - vertexLength; i++)
 					{
-						if (i + vertexLength < g.size())
+						DnaString vertex(g.begin() + i, g.begin() + i + vertexLength);
+						if (std::count_if(vertex.begin(), vertex.end(), IsDefinite) == vertexLength)
 						{
-							outEdge[vertex].insert(g[i + vertexLength]);
-						}
+							if (i + vertexLength < g.size())
+							{
+								outEdge[vertex].insert(g[i + vertexLength]);
+							}
 
-						if (i > 0)
-						{
-							inEdge[vertex].insert(g[i - 1]);
+							if (i > 0)
+							{
+								inEdge[vertex].insert(g[i - 1]);
+							}
 						}
 					}
 				}
 			}
-		}
 
-		std::set<std::string> bif;
-		std::map<DnaString, std::set<int> > * edge[] = { &inEdge, &outEdge };
-		for (std::map<DnaString, std::set<int> > * e : edge)
-		{
-			for (auto it = e->begin(); it != e->end(); ++it)
+			std::map<DnaString, std::set<int> > * edge[] = { &inEdge, &outEdge };
+			for (std::map<DnaString, std::set<int> > * e : edge)
 			{
-				if (it->second.size() > 1)
-				{					
-					std::string cand(it->first.begin(), it->first.end());
-					bif.insert(cand);
-					bif.insert(DnaChar::ReverseCompliment(cand));
-					auto res = vid->GetId(cand);
-					assert(res != INVALID_VERTEX);
+				for (auto it = e->begin(); it != e->end(); ++it)
+				{
+					if (it->second.size() > 1)
+					{
+						std::string cand(it->first.begin(), it->first.end());
+						junction.insert(cand);
+						junction.insert(DnaChar::ReverseCompliment(cand));					
+					}
 				}
 			}
 		}
-		
-		std::cout << "TP = " << bif.size() << std::endl;
 	}
 
-	bool Runtests()
+	bool RunTests(size_t tests, size_t filterBits, size_t length, size_t chrNumber, Range vertexSize, Range hashFunctions, Range rounds, Range threads, double changeRate, double indelRate, const std::string & temporaryDir)
 	{
-	//	DnaStringTest(100000, std::cerr);
-		std::stringstream ss;
+		const std::string temporaryFasta = temporaryDir + "/test.fa";
+		const std::string temporaryEdge = temporaryDir + "/out.bin";
 		std::vector<std::string> fileName;
-		
-		fileName.clear();
-		fileName.push_back("test.fasta");
- 		VertexEnumeratorTest(fileName, 5, 16, 1, 2, ss);
-	/*
-		return true;
-		fileName.clear();
-		fileName.push_back("ntest.fasta");
-		for (size_t k = 5; k <= 20; k+=2)
+		fileName.push_back(temporaryFasta);
+		std::random_device rd;		
+		for (size_t t = 0; t < tests; t++)
 		{
-			VertexEnumeratorTest(fileName, k, 20, 4, 2, ss);
-		}
-	
-		fileName.clear();
-		fileName.push_back("tiny.fasta");
-		VertexEnumeratorTest(fileName, 25, 24, 4, 2, ss);*/
+			std::vector<std::string> chr(chrNumber);
+			GenerateSequence(rd, length, chr[0]);
+			for (size_t i = 1; i < chrNumber; i++)
+			{
+				MutateSequence(rd, chr[0], changeRate, indelRate, chr[i]);
+			}
 
-		fileName.clear();
-		fileName.push_back("tiny.fasta");
-		for (size_t k = 5; k <= 20; k += 2)
-		{
-			VertexEnumeratorTest(fileName, k, 24, 4, 2, ss);
+			std::ofstream test(temporaryFasta.c_str());
+			if (!test)
+			{
+				throw std::exception("Can't create a temporary file for testing");
+			}
+
+			for (size_t j = 0; j < chrNumber; ++j)
+			{
+				test << ">" << j << std::endl;
+				test << chr[j] << std::endl;
+			}
+			
+			for (size_t k = vertexSize.first; k < vertexSize.second; k += 2)
+			{
+				std::set<std::string> junctions;
+				FindJunctionsNaively(chr, k, junctions);
+				for (size_t hf = hashFunctions.first; hf < hashFunctions.second; ++hf)
+				{
+					for (size_t r = rounds.first; r < rounds.second; ++r)
+					{
+						for (size_t thr = threads.first; thr < threads.second; ++thr)
+						{
+							std::stringstream null;
+							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, "tmp", "de_bruijn.bin", null);
+							for (auto & vertex : junctions)
+							{
+								auto res = vid->GetId(vertex);
+								if (res == INVALID_VERTEX)
+								{
+									std::cerr << "Test # " << t << " FAILED" << std::endl;
+									return false;
+								}
+							}
+						}												
+					}
+				}
+			}
+
+			std::remove(temporaryFasta.c_str());
+			std::remove(temporaryEdge.c_str());
+			std::cerr << "Test # " << t << " PASSED" << std::endl;
 		}
 
 		return true;
 	}
+
 }

@@ -22,7 +22,8 @@ namespace TwoPaCo
 			size_t rounds,
 			size_t threads,
 			const std::string & tmpFileName,
-			const std::string & outFileName)
+			const std::string & outFileName,
+			std::ostream & logStream)
 		{
 			size_t neededCapacity = CalculateNeededCapacity(vertexLength);
 			if (CAPACITY == neededCapacity)
@@ -34,7 +35,8 @@ namespace TwoPaCo
 					rounds,
 					threads,
 					tmpFileName,
-					outFileName));
+					outFileName,
+					logStream));
 			}
 			
 			return CreateEnumeratorImpl<CAPACITY + 1>(fileName,
@@ -44,7 +46,8 @@ namespace TwoPaCo
 				rounds,
 				threads,
 				tmpFileName,
-				outFileName);
+				outFileName,
+				logStream);
 		}
 
 		template<>
@@ -55,7 +58,8 @@ namespace TwoPaCo
 			size_t rounds,
 			size_t threads,
 			const std::string & tmpFileName,
-			const std::string & outFileName)
+			const std::string & outFileName,
+			std::ostream & logStream)
 		{
 			return 0;
 		}		
@@ -68,7 +72,8 @@ namespace TwoPaCo
 		size_t rounds,
 		size_t threads,
 		const std::string & tmpFileName,
-		const std::string & outFileName)
+		const std::string & outFileName,
+		std::ostream & logStream)
 	{
 		return CreateEnumeratorImpl<1>(fileName,
 			vertexLength,
@@ -77,6 +82,7 @@ namespace TwoPaCo
 			rounds,
 			threads,
 			tmpFileName,
-			outFileName);
+			outFileName,
+			logStream);
 	}
 }

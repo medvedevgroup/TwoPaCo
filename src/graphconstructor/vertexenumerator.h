@@ -49,7 +49,8 @@ namespace TwoPaCo
 		size_t rounds,
 		size_t threads,
 		const std::string & tmpFileName,
-		const std::string & outFileName);
+		const std::string & outFileName,
+		std::ostream & logStream);
 
 	template<size_t CAPACITY>
 	class VertexEnumeratorImpl : public VertexEnumerator
@@ -130,21 +131,22 @@ namespace TwoPaCo
 			size_t rounds,
 			size_t threads,
 			const std::string & tmpDirName,
-			const std::string & outFileNamePrefix) :
+			const std::string & outFileNamePrefix,
+			std::ostream & logStream) :
 			vertexSize_(vertexLength),
 			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
 			filterDumpFile_(tmpDirName + "/filter.bin")
 		{
 			uint64_t realSize = uint64_t(1) << filterSize;
-			std::cout << "Threads = " << threads << std::endl;
-			std::cout << "Vertex length = " << vertexLength << std::endl;
-			std::cout << "Hash functions = " << hashFunctions << std::endl;
-			std::cout << "Filter size = " << realSize << std::endl;
-			std::cout << "Capacity = " << CAPACITY << std::endl;
-			std::cout << "Files: " << std::endl;
+			logStream << "Threads = " << threads << std::endl;
+			logStream << "Vertex length = " << vertexLength << std::endl;
+			logStream << "Hash functions = " << hashFunctions << std::endl;
+			logStream << "Filter size = " << realSize << std::endl;
+			logStream << "Capacity = " << CAPACITY << std::endl;
+			logStream << "Files: " << std::endl;
 			for (const std::string & fn : fileName)
 			{
-				std::cout << fn << std::endl;
+				logStream << fn << std::endl;
 			}
 #ifdef LOGGING
 			std::ofstream logFile((tmpDirName + "/log.txt").c_str());
@@ -167,7 +169,7 @@ namespace TwoPaCo
 				taskQueue[i]->set_capacity(QUEUE_CAPACITY);
 			}
 
-			std::cout << std::string(80, '-') << std::endl;
+			logStream << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
 			uint64_t high = realSize;
 			size_t lowBoundary = 0;
@@ -189,8 +191,8 @@ namespace TwoPaCo
 
 				{
 					ConcurrentBitVector bitVector(realSize);
-					std::cout << "Round " << round << ", " << low << ":" << high << std::endl;
-					std::cout << "Pass\tFilling\tFiltering" << std::endl << "1\t";
+					logStream << "Round " << round << ", " << low << ":" << high << std::endl;
+					logStream << "Pass\tFilling\tFiltering" << std::endl << "1\t";
 					{
 						std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 						for (size_t i = 0; i < workerThread.size(); i++)
@@ -212,7 +214,7 @@ namespace TwoPaCo
 					}
 
 					bitVector.WriteToFile(filterDumpFile_);
-					std::cout << time(0) - mark << "\t";
+					logStream << time(0) - mark << "\t";
 					mark = time(0);
 					{
 						std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -244,12 +246,12 @@ namespace TwoPaCo
 						}
 					}
 
-					std::cout << time(0) - mark << "\t" << std::endl;
+					logStream << time(0) - mark << "\t" << std::endl;
 				}
 
 				mark = time(0);
 				tbb::spin_rw_mutex mutex;
-				std::cout << "2\t";
+				logStream << "2\t";
 				OccurenceSet occurenceSet(1 << 20);
 				{
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -279,18 +281,18 @@ namespace TwoPaCo
 						throw std::runtime_error(*error);
 					}
 
-					std::cout << time(0) - mark << "\t";
+					logStream << time(0) - mark << "\t";
 				}
 
 				mark = time(0);
 				size_t falsePositives = 0;
 				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
-				std::cout << time(0) - mark << std::endl;
-				std::cout << "True junctions count = " << truePositives << std::endl;
-				std::cout << "False junctions count = " << falsePositives << std::endl;
-				std::cout << "Hash table size = " << occurenceSet.size() << std::endl;
-				std::cout << "Candidate marks count = " << marks << std::endl;
-				std::cout << std::string(80, '-') << std::endl;
+				logStream << time(0) - mark << std::endl;
+				logStream << "True junctions count = " << truePositives << std::endl;
+				logStream << "False junctions count = " << falsePositives << std::endl;
+				logStream << "Hash table size = " << occurenceSet.size() << std::endl;
+				logStream << "Candidate marks count = " << marks << std::endl;
+				logStream << std::string(80, '-') << std::endl;
 				totalFpCount += falsePositives;
 				verticesCount += truePositives;
 				low = high + 1;
@@ -310,7 +312,7 @@ namespace TwoPaCo
 			}
 
 			std::remove(bifurcationTempReadName.c_str());
-			std::cout << "Reallocating bifurcations time: " << time(0) - mark << std::endl;
+			logStream << "Reallocating bifurcations time: " << time(0) - mark << std::endl;
 
 			mark = time(0);			
 			std::atomic<uint64_t> occurence;
@@ -351,9 +353,9 @@ namespace TwoPaCo
 				throw std::runtime_error(*error);
 			}
 
-			std::cout << "True marks count: " << occurence << std::endl;
-			std::cout << "Edges construction time: " << time(0) - mark << std::endl;
-			std::cout << std::string(80, '-') << std::endl;
+			logStream << "True marks count: " << occurence << std::endl;
+			logStream << "Edges construction time: " << time(0) - mark << std::endl;
+			logStream << std::string(80, '-') << std::endl;
 		}
 
 	private:
