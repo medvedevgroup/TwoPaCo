@@ -49,6 +49,15 @@ namespace TwoPaCo
 			}
 		}
 
+		void RestoreVectors(std::vector<std::vector<bool> > & mark)
+		{
+			JunctionPosition pos;
+			while (NextJunctionPosition(pos))
+			{
+				mark[pos.GetChr()][pos.GetPos()] = true;
+			}
+		}
+
 		bool NextJunctionPosition(JunctionPosition & pos)
 		{
 			for (;; nowChr_++)

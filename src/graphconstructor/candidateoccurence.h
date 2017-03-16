@@ -101,6 +101,7 @@ namespace TwoPaCo
 		CompressedString<CAPACITY> body_;
 	};
 
+
 	inline size_t CalculateNeededCapacity(size_t vertexLength)
 	{
 		size_t bufSize = vertexLength + CandidateOccurence<1>::ADDITIONAL_CHAR;

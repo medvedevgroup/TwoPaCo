@@ -67,7 +67,7 @@ namespace TwoPaCo
 
 	namespace
 	{
-		void FindJunctionsNaively(const std::vector<std::string> & chr, size_t vertexLength, std::set<std::string> & junction)
+		void FindJunctionsNaively(const std::vector<std::string> & chr, size_t vertexLength, std::set<std::string> & junction, std::vector<std::vector<bool> > & marks)
 		{
 			int unknownCount = CHAR_MAX;
 			typedef std::vector<int> DnaString;
@@ -75,7 +75,6 @@ namespace TwoPaCo
 			std::vector<DnaString> genome;
 			for (const std::string & nowChr : chr)
 			{
-				char ch;
 				DnaString nowGenome;
 				nowGenome.push_back(unknownCount++);
 				for (auto ch : nowChr)
@@ -146,6 +145,17 @@ namespace TwoPaCo
 					}
 				}
 			}
+
+			for (size_t i = 0; i < chr.size(); i++)
+			{
+				for (size_t pos = 0; pos < chr[i].size(); pos++)
+				{
+					if (pos == 0 || pos == chr[i].size() - vertexLength || junction.count(chr[i].substr(pos, vertexLength)) > 0)
+					{
+						marks[i][pos] = true;
+					}
+				}
+			}
 		}
 	}
 
@@ -179,8 +189,15 @@ namespace TwoPaCo
 			
 			for (size_t k = vertexSize.first; k < vertexSize.second; k += 2)
 			{
-				std::set<std::string> junctions;
-				FindJunctionsNaively(chr, k, junctions);
+				std::set<std::string> junctions;				
+				std::vector<std::vector<bool > > naiveMarks(chrNumber);				
+				for (size_t i = 0; i < chrNumber; i++)
+				{
+					naiveMarks[i].assign(chr[i].size(), false);
+				}
+
+				std::vector<std::vector<bool > > fastMarks(chrNumber);
+				FindJunctionsNaively(chr, k, junctions, naiveMarks);
 				for (size_t hf = hashFunctions.first; hf < hashFunctions.second; ++hf)
 				{
 					for (size_t r = rounds.first; r < rounds.second; ++r)
@@ -188,7 +205,31 @@ namespace TwoPaCo
 						for (size_t thr = threads.first; thr < threads.second; ++thr)
 						{
 							std::stringstream null;
-							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, "tmp", "de_bruijn.bin", null);
+							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, "tmp", temporaryEdge, null);
+							for (size_t i = 0; i < chrNumber; i++)
+							{
+								fastMarks[i].assign(chr[i].size(), false);
+							}
+
+							JunctionPositionReader reader(temporaryEdge);
+							reader.RestoreVectors(fastMarks);
+							if (naiveMarks != fastMarks)
+							{
+								for (size_t i = 0; i < chrNumber; i++)
+								{
+									for (size_t pos = 0; pos < chr[i].size(); pos++)
+									{
+										if (fastMarks[i][pos] != naiveMarks[i][pos])
+										{
+											std::cerr << "ERROR at chr " << i << " pos " << pos << ", " << fastMarks[i][pos]<<  " != " << naiveMarks[i][pos] << std::endl;
+										}
+									}
+								}
+
+								std::cerr << "Test # " << t << " FAILED" << std::endl;
+								return false;
+							}
+
 							for (auto & vertex : junctions)
 							{
 								auto res = vid->GetId(vertex);
