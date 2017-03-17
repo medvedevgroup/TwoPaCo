@@ -169,6 +169,41 @@ namespace TwoPaCo
 				taskQueue[i]->set_capacity(QUEUE_CAPACITY);
 			}
 
+			const uint64_t BIN_SIZE = max(uint64_t(1), realSize / BINS_COUNT);
+			std::atomic<uint32_t> * binCounter = 0;
+
+			if (rounds > 1)
+			{
+				logStream << "Splitting the input kmers set..." << std::endl;
+				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
+				binCounter = new std::atomic<uint32_t>[BINS_COUNT];
+				std::fill(binCounter, binCounter + BINS_COUNT, 0);
+				ConcurrentBitVector bitVector(realSize);
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					InitialFilterFillerWorker worker(BIN_SIZE,
+						hashFunctionSeed_,
+						bitVector,
+						vertexLength,
+						*taskQueue[i],
+						binCounter);
+					workerThread[i].reset(new tbb::tbb_thread(worker));
+				}
+
+				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
+				for (size_t i = 0; i < workerThread.size(); i++)
+				{
+					workerThread[i]->join();
+				}
+			}
+
+			double roundSize = 0;
+			if (rounds > 1)
+			{
+				roundSize = double(std::accumulate(binCounter, binCounter + BINS_COUNT, size_t(0))) / rounds;
+			}
+
+
 			logStream << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
 			uint64_t high = realSize;
@@ -181,7 +216,6 @@ namespace TwoPaCo
 				throw StreamFastaParser::Exception("Can't create a temp file");
 			}
 
-			rounds = 1;
 			time_t mark;			
 			for (size_t round = 0; round < rounds; round++)
 			{
@@ -298,6 +332,11 @@ namespace TwoPaCo
 				low = high + 1;
 			}
 
+			if (rounds > 1)
+			{
+				delete[] binCounter;
+			}
+
 			mark = time(0);			
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
 			bifurcationTempWrite.close();
@@ -385,6 +424,89 @@ namespace TwoPaCo
 
 			errorMutex.unlock();
 		}
+
+		class InitialFilterFillerWorker
+		{
+		public:
+			InitialFilterFillerWorker(uint64_t binSize,
+				const VertexRollingHashSeed & hashFunction,
+				ConcurrentBitVector & filter,
+				size_t vertexLength,
+				TaskQueue & taskQueue,
+				std::atomic<uint32_t> * binCounter) : binSize(binSize), hashFunction(hashFunction), filter(filter),
+				vertexLength(vertexLength), taskQueue(taskQueue), binCounter(binCounter)
+			{
+
+			}
+
+			void operator()()
+			{
+				size_t edgeLength = vertexLength + 1;
+				while (true)
+				{
+					Task task;
+					if (taskQueue.try_pop(task))
+					{
+						if (task.start == Task::GAME_OVER)
+						{
+							break;
+						}
+
+						if (task.str.size() < edgeLength)
+						{
+							continue;
+						}
+
+						std::vector<uint64_t> hashValue;
+						size_t vertexLength = edgeLength - 1;						
+						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());
+						for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
+						{							
+							hashValue.clear();
+							bool wasSet = true;
+							char prevCh = task.str[pos];
+							char nextCh = task.str[pos + edgeLength - 1];
+							uint64_t startVertexHash = hash.GetVertexHash();							
+							GetOutgoingEdgeHash(hash, nextCh, hashValue);
+							for (auto hvalue : hashValue)
+							{
+								if (!filter.GetBit(hvalue))
+								{
+									wasSet = false;
+									filter.SetBitConcurrently(hvalue);
+								}
+							}
+
+							hash.Update(prevCh, nextCh);
+							assert(hash.Assert(task.str.begin() + pos + 1));
+
+							uint64_t endVertexHash = hash.GetVertexHash();
+							if (!wasSet)
+							{
+								uint64_t value[] = { startVertexHash, endVertexHash };
+								for (uint64_t v : value)
+								{
+									uint64_t bin = v / binSize;
+									if (binCounter[bin] < MAX_COUNTER)
+									{
+										binCounter[bin].fetch_add(1);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+		private:
+			uint64_t binSize;
+			const VertexRollingHashSeed & hashFunction;
+			ConcurrentBitVector & filter;
+			size_t vertexLength;
+			TaskQueue & taskQueue;
+			std::atomic<uint32_t> * binCounter;
+		};
+
 
 		class CandidateCheckingWorker
 		{

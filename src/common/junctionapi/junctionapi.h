@@ -49,7 +49,26 @@ namespace TwoPaCo
 			}
 		}
 
-		void RestoreVectors(std::vector<std::vector<bool> > & mark)
+		void RestoreVector(std::vector<bool> & mark, size_t chr)
+		{
+			JunctionPosition pos;
+			mark.assign(mark.size(), false);
+			while (NextJunctionPosition(pos))
+			{
+				if (pos.GetChr() == chr)
+				{
+					mark[pos.GetPos()] = true;
+				}
+				else
+				{
+					size_t cur = in_.tellg();
+					in_.seekg(cur - sizeof(pos.pos_) - sizeof(pos.bifId_), in_.beg);
+					break;					
+				}
+			}
+		}
+
+		void RestoreAllVectors(std::vector<std::vector<bool> > & mark)
 		{
 			JunctionPosition pos;
 			while (NextJunctionPosition(pos))

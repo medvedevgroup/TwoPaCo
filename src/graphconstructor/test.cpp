@@ -212,7 +212,7 @@ namespace TwoPaCo
 							}
 
 							JunctionPositionReader reader(temporaryEdge);
-							reader.RestoreVectors(fastMarks);
+							reader.RestoreAllVectors(fastMarks);
 							if (naiveMarks != fastMarks)
 							{
 								for (size_t i = 0; i < chrNumber; i++)

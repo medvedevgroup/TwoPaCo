@@ -10,39 +10,44 @@ namespace TwoPaCo
 	public:
 		AssemblyEdgeConstructor(const std::vector<std::string> & inputFileName, const std::string & marksFileName, const VertexEnumerator & vertexEnumerator) : 				
 				vertexEnumerator_(vertexEnumerator)
-		{/*
+		{
 			int64_t vertexLength = vertexEnumerator_.GetHashSeed().VertexLength();
 			int64_t edgeLength = vertexLength + 1;
 
 			std::vector<std::vector<bool> > junctionMark;
 			size_t chrNumber = 0;
 			ChrReader chrReader(inputFileName);
+			JunctionPositionReader junctionReader(marksFileName);
 			std::unique_ptr<ConcurrentBitVector> bloomFilter = vertexEnumerator_.ReloadBloomFilter();
 			for (std::string chr; chrReader.NextChr(chr); chrNumber++)
-			{				
-				//Init hash function
+			{								
+				//Read the current vector of junction marks. Notice: should be done in order!
 				junctionMark.push_back(std::vector<bool>(chr.size(), false));
+				junctionReader.RestoreVector(junctionMark.back(), chrNumber);
+				//Init hash function				
 				VertexRollingHash hash(vertexEnumerator.GetHashSeed(), chr.begin(), vertexEnumerator.GetHashSeed().HashFunctionsNumber());
 				for (int64_t i = 0; i <= int64_t(chr.size()) - edgeLength; i++)
 				{
 					std::string vertex = chr.substr(i, vertexLength);
 					//Check if the Bloom filter contains an edge
-					assert(IsOutgoingEdgeInBloomFilter(*bloomFilter, hash, chr[i + edgeLength - 1]));
+					assert(IsOutgoingEdgeInBloomFilter(hash, *bloomFilter, chr[i + edgeLength - 1]));
 					if (i > 0)
 					{
-						assert(IsIngoingEdgeInBloomFilter(*bloomFilter, hash, chr[i - 1]));
+						assert(IsIngoingEdgeInBloomFilter(hash, *bloomFilter, chr[i - 1]));
 					}
 					
-					hash.Update(chr[i], chr[i + vertexLength]);
-					//Check that the hash values were updated correctly
-					assert(hash.Assert(chr.begin() + i + 1));
 					//Check the if the vertex is a junction
 					if (vertexEnumerator_.GetId(vertex) != INVALID_VERTEX)
 					{
-						//Found a junction
+						//Found a junction, check that the mark in the vector is set
+						assert(junctionMark[chrNumber][i] == true);
 					}
+
+					hash.Update(chr[i], chr[i + vertexLength]);
+					//Check that the hash values were updated correctly
+					assert(hash.Assert(chr.begin() + i + 1));
 				}
-			}*/
+			}
 		}
 		
 	private:
