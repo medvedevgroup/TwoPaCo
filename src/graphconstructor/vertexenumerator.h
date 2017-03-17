@@ -223,6 +223,29 @@ namespace TwoPaCo
 				marks = 0;
 				mark = time(0);
 
+				if (rounds > 1)
+				{
+					uint64_t accumulated = binCounter[lowBoundary];
+					for (++lowBoundary; lowBoundary < BINS_COUNT; ++lowBoundary)
+					{
+						if (accumulated <= roundSize || round + 1 == rounds)
+						{
+							accumulated += binCounter[lowBoundary];
+						}
+						else
+						{
+							break;
+						}
+					}
+
+					high = lowBoundary * BIN_SIZE;
+				}
+				else
+				{
+					high = realSize;
+				}
+
+
 				{
 					ConcurrentBitVector bitVector(realSize);
 					logStream << "Round " << round << ", " << low << ":" << high << std::endl;

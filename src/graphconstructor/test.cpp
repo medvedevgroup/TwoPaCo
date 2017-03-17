@@ -4,6 +4,7 @@
 #include <cassert>
 #include <sstream>
 #include <iterator>
+#include <stdexcept>
 #include <algorithm>
 
 #include "test.h"
@@ -178,7 +179,7 @@ namespace TwoPaCo
 			std::ofstream test(temporaryFasta.c_str());
 			if (!test)
 			{
-				throw std::exception("Can't create a temporary file for testing");
+				throw std::runtime_error("Can't create a temporary file for testing");
 			}
 
 			for (size_t j = 0; j < chrNumber; ++j)
