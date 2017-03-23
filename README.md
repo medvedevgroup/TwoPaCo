@@ -1,4 +1,4 @@
-TwoPaCo 0.0.1
+TwoPaCo 0.9.0
 
 Release date: TBD
 =================
@@ -122,8 +122,8 @@ The graphdump usage
 This utility turns the binary file a text one. There are several output formats
 available.
 
-GFA
----
+GFA 1
+-----
 GFA is the most handy option. It **explicitly** represents the graph as a list of
 edges (non-branching paths in the non-compacted de Bruijn graph) graph and adjacencies
 between them. The file also contains all occurrences of the strings spelled by the paths
@@ -144,14 +144,15 @@ the graph and the input. Each input chromosome is also a "segment" described in
 the very beginning of the GFA file. Then each occurrence of an edge in the input
 corresponds to a single "containment" record which describes the coordinates of
 the occurrence in the input "segments" (chromosomes). Each segment representing
-an input chromosome has a name:
+0an input chromosome has a name of the corresponding header of the sequence in
+input FASTA file. In case if there are duplicate headers, one ca add a prefix
+to segment names:
 
 	"s<number>_" + header of the sequence in input FASTA file
 
-If you you would like to not include a prefix, run with option "noprefix", but
-headers of sequence in the FASTA files should be unique:
+To do so, use the switch:
 
-	--noprefix
+	--prefix
 
 For an example of GFA output, see GFA_EXAMPLE.md.
 

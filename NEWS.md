@@ -1,10 +1,12 @@
-TwoPaCo 1.0.0
+TwoPaCo 0.9.0
 =============
-* Fixed a bug when using several construction rounds
-* Added support of GFA2
-* Massive refactoring of the code: it is much more readable now
 * Improved documentation
 * Improved internal tester
+* Added support of GFA2
+* Changed the inteface of graphdump
+* Fixed a bug when using several construction rounds
+* Massive refactoring of the code: it is much more readable now
+
 
 TwoPaCo 0.0.1
 =============

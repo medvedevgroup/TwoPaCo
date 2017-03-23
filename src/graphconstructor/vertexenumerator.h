@@ -207,7 +207,7 @@ namespace TwoPaCo
 			logStream << std::string(80, '-') << std::endl;
 			uint64_t low = 0;
 			uint64_t high = realSize;
-			size_t lowBoundary = 0;
+			uint64_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
 			uint64_t verticesCount = 0;
 			std::ofstream bifurcationTempWrite((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
