@@ -257,26 +257,26 @@ public:
 			<< k << 'M' << std::endl;
 	}
 
-	void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k, std::ostream & out) const
+	void FlushPath(std::vector<int64_t> & currentPath, const std::string & seqId, size_t k, std::ostream & out) const
 	{
 		if (currentPath.size() > 0)
 		{
-			std::cout << "P\t" << seqId + 1 << '\t';
-			std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(std::cout, ","));
-			std::cout << currentPath.back();
-			std::cout << '\t';
+			out << "P\t" << seqId << '\t';
+			std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(out, ","));
+			out << currentPath.back();
+			out << '\t';
 
 			if (currentPath.size() > 1)
 			{
 				for (size_t i = 0; i < currentPath.size() - 2; i++)
 				{
-					std::cout << k << "M,";
+					out << k << "M,";
 				}
 
-				std::cout << k << "M";
+				out << k << "M";
 			}
 
-			std::cout << std::endl;
+			out << std::endl;
 			currentPath.clear();
 		}
 	}
@@ -301,6 +301,7 @@ std::string Gfa2Segment(int64_t segment)
 {
 	std::stringstream ss;
 	ss << Abs(segment) << Sign(segment);
+	return ss.str();
 }
 
 class Gfa2Generator
@@ -347,26 +348,13 @@ public:
 			<< k << 'M' << std::endl;
 	}
 
-	void FlushPath(std::vector<int64_t> & currentPath, int64_t seqId, size_t k, std::ostream & out) const
+	void FlushPath(std::vector<int64_t> & currentPath, const std::string & seqId, size_t k, std::ostream & out) const
 	{
 		if (currentPath.size() > 0)
 		{
-			std::cout << "P\t" << seqId + 1 << '\t';
-			std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(std::cout, ","));
-			std::cout << currentPath.back();
-			std::cout << '\t';
-
-			if (currentPath.size() > 1)
-			{
-				for (size_t i = 0; i < currentPath.size() - 2; i++)
-				{
-					std::cout << k << "M,";
-				}
-
-				std::cout << k << "M";
-			}
-
-			std::cout << std::endl;
+			out << "O\t" << seqId << "p" << '\t';
+			std::copy(currentPath.begin(), currentPath.end(), std::ostream_iterator<int64_t>(out, " "));
+			out << std::endl;
 			currentPath.clear();
 		}
 	}
@@ -415,7 +403,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 				if (!seen[Abs(segmentId)])
 				{
 					//std::cout << "S\t" << Abs(segmentId) << "\t";
-					std::stringstringstream ss;					
+					std::stringstream ss;					
 					if (segmentId > 0)
 					{
 						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
@@ -459,7 +447,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 			}
 			else
 			{
-				g.FlushPath(currentPath, seqId, k, std::cout);
+				g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
 				chrReader.NextChr(chr);
 				prevSegmentId = 0;
 				begin = end;
@@ -472,7 +460,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 		}
 	}
 
-	g.FlushPath(currentPath, seqId, k, std::cout);
+	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
 }
 
 /*
