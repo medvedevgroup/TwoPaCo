@@ -1,1 +1,0 @@
-\<Here will be an example of the input and GFA output explained\>

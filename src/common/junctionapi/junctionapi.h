@@ -10,7 +10,7 @@ namespace TwoPaCo
 	struct JunctionPosition
 	{
 	public:
-		JunctionPosition() {}
+		JunctionPosition() : chr_(UINT32_MAX), pos_(UINT32_MAX), bifId_(INT64_MAX) {}
 		JunctionPosition(uint32_t chr, uint32_t pos, int64_t bifId) :
 			chr_(chr), pos_(pos), bifId_(bifId) {}
 		uint32_t GetPos() const

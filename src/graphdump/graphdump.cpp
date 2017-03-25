@@ -172,8 +172,6 @@ char Sign(int64_t arg)
 	return arg >= 0 ? '+' : '-';
 }
 
-
-
 void ReadInputSequences(const std::vector<std::string> & genomes, std::vector<std::string> & chrSegmentId, std::vector<uint64_t> & chrSegmentLength, std::map<std::string, std::string> & fileName, bool noPrefix)
 {
 	size_t chrCount = 0;
@@ -484,6 +482,28 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
 }
 
+void GenerateDotOutput(const std::string & inputFileName)
+	{
+		TwoPaCo::JunctionPosition pos;
+		TwoPaCo::JunctionPosition prevPos;
+		TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
+		std::cout << "digraph G\n{\n\trankdir = LR" << std::endl;
+	
+		while (reader.NextJunctionPosition(pos))
+		{
+			if (pos.GetChr() == prevPos.GetChr())
+			{
+				std::cout << '\t' << prevPos.GetId() << " -> " << pos.GetId() <<
+					"[color=\"blue\", label=\"chr=" << prevPos.GetChr() << " pos=" << prevPos.GetPos() << "\"]" << std::endl;	
+				std::cout << '\t' << -pos.GetId() << " -> " << -prevPos.GetId() <<
+					"[color=\"red\", label=\"chr=" << prevPos.GetChr() << " pos=" << prevPos.GetPos() << "\"]" << std::endl;
+		}
+
+		prevPos = pos;
+	}
+
+	std::cout << "}" << std::endl;
+}
 
 int main(int argc, char * argv[])
 {
@@ -542,7 +562,7 @@ int main(int argc, char * argv[])
 		}
 		else if (outputFileFormat.getValue() == format[2])
 		{
-
+			GenerateDotOutput(inputFileName.getValue());
 		}
 		else if (outputFileFormat.getValue() == format[3])
 		{

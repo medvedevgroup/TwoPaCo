@@ -120,33 +120,34 @@ processing the input file:
 The graphdump usage
 ===================
 This utility turns the binary file a text one. There are several output formats
-available.
+available. The folder "example" contains an example described in details.
 
-GFA 1
------
+GFA
+---
 GFA is the most handy option. It **explicitly** represents the graph as a list of
 edges (non-branching paths in the non-compacted de Bruijn graph) graph and adjacencies
 between them. The file also contains all occurrences of the strings spelled by the paths
 in the input genomes.
 
 In other words, it describes a colored de Bruijn graph where each path is mapped
-to several locations in the input ("colored"). TwoPaCo uses GFA v1.0 described here:
+to several locations in the input ("colored"). TwoPaCo supports both GFA1 and
+GFA2. They are described here:
 
 	https://github.com/GFA-spec/GFA-spec
 
 To get GFA output, run:
 
-	graphdummp <twopaco_output_file> --gfa -k <value_of_k> -s <input_genomes>
+	graphdummp <twopaco_output_file> -f gfa[version] -k <value_of_k> -s <input_genomes>
 
 In the resulting file compacted non-branching paths are "segments" with "links"
-between them. "Containment" records dsrcibe the mapping between the paths in
-the graph and the input. Each input chromosome is also a "segment" described in
-the very beginning of the GFA file. Then each occurrence of an edge in the input
-corresponds to a single "containment" record which describes the coordinates of
-the occurrence in the input "segments" (chromosomes). Each segment representing
-0an input chromosome has a name of the corresponding header of the sequence in
-input FASTA file. In case if there are duplicate headers, one ca add a prefix
-to segment names:
+(GFA1) or "edges" (GFA2) containing them. "Containment" (GFA1) or "Fragment"
+(GFA2) records desrcibe the mapping between the non-branching paths in the
+graph and the input genomes. For GFA1, each input chromosome is also a "segment"
+described in the very beginning of the GFA file. 
+
+GFA1 only: each segment representing an input chromosome has the name of the
+corresponding header of the sequence in input FASTA file. In case if there are
+duplicate headers, one can add a prefix to segment names:
 
 	"s<number>_" + header of the sequence in input FASTA file
 
@@ -154,7 +155,8 @@ To do so, use the switch:
 
 	--prefix
 
-For an example of GFA output, see GFA_EXAMPLE.md.
+For an example of GFA output and more detailed explanation, see the "example"
+folder.
 
 Junctions List Format
 ---------------------
@@ -163,7 +165,7 @@ genomes. As described in the paper, you can trivially restore information about
 edges from this junctions list. Note that junctions are mapped to genomes, i.e.
 one can reconstruct a **colored graph** from it. To get the junctions list, run:
 
-	graphdump <twopaco_output_file>
+	graphdump -f seq
 
 This command will output a text file to the standard output. Each line will contain a 
 triple indicating an occurence of junction:
@@ -191,7 +193,7 @@ in the backwards order and negate signs, e.g. for the example above the sequence
 will be -a_3 -> -a_2 -> -a_1. One can also output junctions grouped by ids, it is
 useful for comparison between different graphs:
 
-	graphdump -g <twopaco_output_file>
+	graphdump -f group
 
 In this format the i-th line line corresponds to the i-th junction and is of format:
 
