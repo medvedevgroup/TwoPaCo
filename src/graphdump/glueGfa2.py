@@ -27,24 +27,39 @@ def spell_path(path, k):
 		if ps[-k:] != s[:k]:
 			print path[i], path[i - 1], path
 			print spell, s
-			raise "Improper segment overlap!"
+			sys.exit("Improper segment overlap!")
 		spell.append(s)
 		chr_body.append(s[k:])
 	print ''.join(chr_body)	
-		
 
+def refine_int(pos):
+	return int(''.join(ch for ch in pos if str.isdigit(ch)))
+		
+def get_segment_substr(segment_id, begin, end):
+	begin, end = refine_int(begin), refine_int(end)
+	segment_uid = refine_int(segment_id)
+	if segment_id[-1] == '+':
+		return segment[segment_uid][begin:end]
+	return Seq(segment[segment_uid][begin:end]).reverse_complement()
+	
 handle = open(sys.argv[1])
 for line in handle:
 	line = line.split()
 	if len(line) > 0:
 		if line[0] == 'S':
-			sid, body = line[1], line[2]
+			sid, body = line[1], line[3]
 			if sid not in segment:
-				segment[int(sid)] = body
+				if body != '*':
+					segment[int(sid)] = body
 			else:
-				raise "Segment duplicate!"
-		if line[0] == 'P':
-			k = int(line[3].split(',')[0][:-1])
-			path = [int(x) for x in line[2].split(',')]
+				sys.exit("Segment duplicate!")
+		if line[0] == 'E':
+			k = int(line[-1][:-1])	
+			substr1 = get_segment_substr(line[1], line[3], line[4])
+			substr2 = get_segment_substr(line[2], line[5], line[6])
+			if substr1 != substr2:
+				sys.exit("Invalid edge overlap")
+		if line[0] == 'O':
+			path = [int(x) for x in line[2:]]		
 			spell_path(path, k)
 handle.close()

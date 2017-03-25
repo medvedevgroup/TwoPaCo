@@ -196,13 +196,7 @@ void ReadInputSequences(const std::vector<std::string> & genomes, std::vector<st
 
 			chrSegmentId.push_back(ssId.str());
 			fileName[ssId.str()] = chrFileName;
-			/*
-			if (!silent)
-			{
-				std::cout << "S\t" << ssId.str() << "\t*\tUR:Z:" << chrFileName << std::endl;
-			}			
-
-			*/
+		
 
 			uint64_t size = 0;
 			for (char ch; parser.GetChar(ch); ++size);
@@ -216,7 +210,7 @@ class Gfa1Generator
 public:
 	void Header(std::ostream & out) const
 	{
-		out << "H\tVN:Z:1.0";
+		out << "H\tVN:Z:1.0" << std::endl;
 	}
 
 	void ListInputSequences(const std::vector<std::string> & seq, std::map<std::string, std::string> & fileName, std::ostream & out) const
@@ -329,22 +323,49 @@ public:
 	{
 		std::cout << "F\t"
 			<< Abs(segmentId) << '\t'
-			<< chrSegmentId << Sign(segmentId)
+			<< chrSegmentId << Sign(segmentId) << '\t'
 			<< "0\t"
 			<< segmentSize << "$" << "\t"
-			<< Gfa2Position(begin, chrSegmentSize)
-			<< Gfa2Position(end, chrSegmentSize) << std::endl;
+			<< Gfa2Position(begin, chrSegmentSize) << "\t"
+			<< Gfa2Position(end + k, chrSegmentSize) << "\t"
+			<< k << "M" << std::endl;
 	}
 
 	void Edge(int64_t prevSegmentId, uint64_t prevSegmentSize, int64_t segmentId, uint64_t segmentSize, uint64_t k, std::ostream & out) const
 	{
-		out << "E\t" 
+		uint64_t prevSegmentStart;
+		uint64_t prevSegmentEnd;
+		uint64_t segmentStart;
+		uint64_t segmentEnd;
+		if (prevSegmentId > 0)
+		{
+			prevSegmentStart = prevSegmentSize - k;
+			prevSegmentEnd = prevSegmentSize;
+		}
+		else
+		{
+			prevSegmentStart = 0;
+			prevSegmentEnd = k;
+		}
+
+		if (segmentId > 0)
+		{
+			segmentStart = 0;
+			segmentEnd = k;
+		}
+		else
+		{
+			segmentStart = segmentSize - k;
+			segmentEnd = segmentSize;			
+		}
+
+		out << "E\t"
 			<< Gfa2Segment(prevSegmentId)
-			<< '\t' << Gfa2Segment(segmentId) << '\t' 
-			<< Gfa2Position(prevSegmentSize - k, prevSegmentSize) << '\t'
-			<< Gfa2Position(prevSegmentSize, prevSegmentSize) << '\t' 
-			<< Gfa2Position(segmentSize - k, segmentSize) << '\t'
-			<< Gfa2Position(segmentSize, segmentSize) << '\t'
+			<< '\t' << Gfa2Segment(segmentId) << '\t'
+			<< Gfa2Position(prevSegmentStart, prevSegmentSize) << '\t'
+			<< Gfa2Position(prevSegmentEnd, prevSegmentSize) << '\t'
+			<< Gfa2Position(segmentStart, segmentSize) << '\t'
+			<< Gfa2Position(segmentEnd, segmentSize) << '\t'
 			<< k << 'M' << std::endl;
 	}
 
@@ -415,7 +436,7 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
 					}
 
-					g.Segment(segmentId, chrSegmentLength[seqId], ss.str(), std::cout);
+					g.Segment(segmentId, segmentSize, ss.str(), std::cout);
 					seen[Abs(segmentId)] = true;
 				}
 
@@ -463,131 +484,6 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
 }
 
-/*
-
-
-void FlushPathGfa2(std::vector<int64_t> & currentPath, int64_t seqId, size_t k)
-{
-	if (currentPath.size() > 0)
-	{
-		std::cout << "P\t" << seqId + 1 << '\t';
-		std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(std::cout, ","));
-		std::cout << currentPath.back();
-		std::cout << '\t';
-
-		if (currentPath.size() > 1)
-		{
-			for (size_t i = 0; i < currentPath.size() - 2; i++)
-			{
-				std::cout << k << "M,";
-			}
-
-			std::cout << k << "M";
-		}
-
-		std::cout << std::endl;
-		currentPath.clear();
-	}
-}
-
-
-void GenerateGfa2Output(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k)
-{	
-	std::vector<std::string> chrSegmentId;
-	std::vector<uint64_t> chrSegmentLength;
-	std::cout << "H\tVN:Z:2.0" << std::endl;
-	ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, true, true);
-	std::vector<int64_t> currentPath;
-	const int64_t NO_SEGMENT = 0;
-	std::string chr;
-	int64_t seqId = NO_SEGMENT;
-	int64_t prevSegmentId = NO_SEGMENT;
-	TwoPaCo::JunctionPosition end;
-	TwoPaCo::JunctionPosition begin;
-	TwoPaCo::ChrReader chrReader(genomes);
-	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
-	std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
-	int64_t previousId = 0;
-
-#ifdef _DEBUG
-	std::map<int64_t, std::string> segmentBody;
-#endif
-	if (reader.NextJunctionPosition(begin))
-	{
-		chrReader.NextChr(chr);
-		while (reader.NextJunctionPosition(end))
-		{
-			if (begin.GetChr() == end.GetChr())
-			{
-				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
-				int64_t segmentId = nowSegment.GetSegmentId();
-				currentPath.push_back(segmentId);
-				uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
-				if (!seen[Abs(segmentId)])
-				{
-					std::cout << "S\t" << Abs(segmentId) << "\t" << segmentSize << "\t";
-					if (segmentId > 0)
-					{
-						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(std::cout));
-
-					}
-					else
-					{
-						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
-						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(std::cout));
-					}
-
-					std::cout << std::endl;
-					seen[Abs(segmentId)] = true;
-				}
-
-#ifdef _DEBUG
-				int64_t absSegmentId = Abs(segmentId);
-				std::string buf = segmentId > 0 ? std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k) :
-					TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
-				if (segmentBody.count(absSegmentId) == 0)
-				{
-					segmentBody[absSegmentId] = buf;
-				}
-				else
-				{
-					assert(segmentBody[absSegmentId] == buf);
-				}
-#endif
-
-				std::cout << "F\t" 
-					<< absSegmentId << '\t'
-					<< chrSegmentId[seqId] << Sign(segmentId)
-					<< "0\t" 
-					<< segmentSize << "$" << "\t" 
-					<< Gfa2Position(begin.GetPos(), chrSegmentLength[seqId]) << std::endl;
-
-				if (prevSegmentId != NO_SEGMENT)
-				{
-					std::cout << "E\t" << Abs(prevSegmentId) << '\t' << Sign(prevSegmentId) << '\t' << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << k << 'M' << std::endl;
-				}
-
-				prevSegmentId = segmentId;
-				begin = end;
-			}
-			else
-			{
-				FlushPathGfa2(currentPath, seqId, k);
-				chrReader.NextChr(chr);
-				prevSegmentId = 0;
-				begin = end;
-
-				if (begin.GetChr() != ++seqId)
-				{
-					throw std::runtime_error("The input is corrupted");
-				}
-			}
-		}
-	}
-
-	FlushPathGfa2(currentPath, seqId, k);
-}
-*/
 
 int main(int argc, char * argv[])
 {
@@ -664,7 +560,7 @@ int main(int argc, char * argv[])
 				throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
 			}
 
-			//GenerateGfaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(), prefix.getValue(), Gfa2Generator());
+			GenerateGfaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(), prefix.getValue(), Gfa2Generator());
 		}
 	}
 	catch (TCLAP::ArgException &e)
