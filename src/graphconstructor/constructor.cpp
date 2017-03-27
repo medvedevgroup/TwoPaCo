@@ -143,8 +143,6 @@ int main(int argc, char * argv[])
 			
 		std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
 		std::cout << std::endl;
-
-		//TwoPaCo::AssemblyEdgeConstructor constructor(fileName.getValue(), outFileName.getValue(), *vid);
 	}
 	catch (TCLAP::ArgException & e)
 	{
