@@ -141,8 +141,12 @@ int main(int argc, char * argv[])
 			outFileName.getValue(),
 			std::cout);
 		
-		std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
-		std::cout << std::endl;
+		if (vid)
+		{
+			std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
+			std::cout << std::endl;
+		}
+		
 	}
 	catch (TCLAP::ArgException & e)
 	{
