@@ -1,3 +1,8 @@
+TwoPaCo 0.9.1
+=============
+* Added documentation on how to work with large values of K
+
+
 TwoPaCo 0.9.0
 =============
 * Improved documentation

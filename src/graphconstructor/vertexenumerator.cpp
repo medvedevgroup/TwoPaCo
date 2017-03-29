@@ -61,6 +61,7 @@ namespace TwoPaCo
 			const std::string & outFileName,
 			std::ostream & logStream)
 		{
+			throw std::runtime_error("The value of K is too big. Please refer to documentaion how to increase the max supported value of K.");
 			return 0;
 		}		
 	}

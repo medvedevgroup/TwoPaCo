@@ -140,7 +140,7 @@ int main(int argc, char * argv[])
 			tmpDirName.getValue(),
 			outFileName.getValue(),
 			std::cout);
-			
+		
 		std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
 		std::cout << std::endl;
 	}

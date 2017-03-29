@@ -1,7 +1,7 @@
-TwoPaCo 0.9.0
+TwoPaCo 0.9.1
 
-Release date: 27th March 2017
-=================
+Release date: 29th March 2017
+=============================
 
 Authors
 =======
@@ -67,6 +67,12 @@ Note that:
 1) TwoPaCo uses **k** as the size of the vertex and **(k + 1)** as the size of 
 the edge 
 2) **k** must be odd
+
+The maximum value of K supported by TwoPaCo is determined at the compile time.
+To increase the max value of K, increase the value "MAX_CAPACITY" defined in the
+header "vertexenumerator.h" and recompile. The value of "MAX_CAPACITY" should be
+at least (K + 4) / 32 + 1. Note that increasing the parameter will slow down 
+the compilation.
 
 Number of hash functions
 ------------------------
@@ -197,7 +203,7 @@ appears on the positive strand strand. A positive number indicates "direct" vers
 of the junction, while a negative one shows the reverse complimentary version of the
 same junction. For example +1 and -1 are different versions of the same junction.
 This way, one can obtain all multi-edges of the graph with a linear scan, as described
-in the paper. For example, a sequence of pairs of junctions ids:
+in the paper. For example, a sequence of of junctions ids:
 
 	a_1
 	a_2
