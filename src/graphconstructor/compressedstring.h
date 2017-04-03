@@ -191,16 +191,46 @@ namespace TwoPaCo
 			uint64_t charIdx = str_[element] >> (2 * idx);
 			uint64_t mask = uint64_t(0x3) << (idx * 2);
 			str_[element] &= ~mask;
+			if (makeUpChar)
 			str_[element] |= DnaChar::MakeUpChar(ch) << (2 * idx++);
 		}
 
-		void SetCharConcurrently(uint64_t idx, char ch) const
+		void DebugPrint() const
 		{
-			uint64_t element = TranslateIdx(idx);
-			uint64_t charIdx = str_[element] >> (2 * idx);
-			uint64_t mask = uint64_t(0x3) << (idx * 2);
-			const_cast<std::atomic<uint64_t>&>(str_[element]).fetch_and(~mask);
-			const_cast<std::atomic<uint64_t>&>(str_[element]).fetch_or(DnaChar::MakeUpChar(ch) << (2 * idx++));
+			for (size_t i = 0; i < 64; i++)
+			{
+				std::cout << i % 10;
+			}
+
+			std::cout << std::endl;
+
+			for (uint64_t i = 0; i < 64; i++)
+			{
+				if (str_[0] & (uint64_t(1) << i))
+				{
+					std::cout << 1;
+				}
+				else
+				{
+					std::cout << 0;
+				}
+			}
+
+			std::cout << std::endl;
+		}
+
+		void SetBit(uint64_t idx)
+		{
+			uint64_t element = idx / (sizeof(str_[0]) * 8);
+			uint64_t bit = idx % (sizeof(str_[0]) * 8);
+			str_[element] |= uint64_t(1) << bit;
+		}
+
+		bool GetBit(uint64_t idx) const
+		{
+			uint64_t element = idx / (sizeof(str_[0]) * 8);
+			uint64_t bit = idx % (sizeof(str_[0]) * 8);
+			return str_[element] & (uint64_t(1) << bit);
 		}
 
 		char GetChar(uint64_t idx) const
@@ -234,6 +264,11 @@ namespace TwoPaCo
 			{
 				buf[i] = GetChar(i);
 			}
+		}
+
+		void OrInto(const CompressedString & src)
+		{
+			str_[CAPACITY - 1] |= src.str_[CAPACITY - 1];
 		}
 
 		void CopyFromString(std::string::const_iterator it, size_t size)

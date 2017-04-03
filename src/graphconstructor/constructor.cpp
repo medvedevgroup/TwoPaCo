@@ -80,7 +80,7 @@ int main(int argc, char * argv[])
 			5,
 			"integer",
 			cmd);
-
+		/*
 		TCLAP::ValueArg<unsigned int> rounds("r",
 			"rounds",
 			"Number of computation rounds",
@@ -88,7 +88,7 @@ int main(int argc, char * argv[])
 			1,
 			"integer",
 			cmd);
-
+		*/
 		TCLAP::ValueArg<unsigned int> threads("t",
 			"threads",
 			"Number of worker threads",
@@ -128,23 +128,27 @@ int main(int argc, char * argv[])
 		using TwoPaCo::Range;
 		if (runTests.getValue())
 		{
-			TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 5), Range(4, 5), 0.05, 0.1, tmpDirName.getValue());
+			TwoPaCo::RunTests(10, 20, 900, 5, Range(3, 11), Range(1, 2), Range(1, 2), Range(1, 2), 0.05, 0.1, tmpDirName.getValue());
 			return 0;
 		}
 		
 		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = TwoPaCo::CreateEnumerator(fileName.getValue(),
 			kvalue.getValue(), filterSize.getValue(),
 			hashFunctions.getValue(),
-			rounds.getValue(),
+			1,
 			threads.getValue(),
 			tmpDirName.getValue(),
 			outFileName.getValue(),
 			std::cout);
 			
-		std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
 		std::cout << std::endl;
-
-		TwoPaCo::AssemblyEdgeConstructor constructor(fileName.getValue(), outFileName.getValue(), *vid);
+		std::string candInEdges;
+		std::string candOutEdges;
+		std::string vertex = "CCCCC";
+		TwoPaCo::VertexRollingHash hash(vid->GetHashSeed(), vertex.begin(), 1);
+		bool result = vid->GetEdges(vertex.begin(), hash, candInEdges, candOutEdges);
+		
+		//TwoPaCo::AssemblyEdgeConstructor constructor(fileName.getValue(), outFileName.getValue(), *vid);
 	}
 	catch (TCLAP::ArgException & e)
 	{

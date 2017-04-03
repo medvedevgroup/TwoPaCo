@@ -14,16 +14,11 @@ namespace TwoPaCo
 			int64_t vertexLength = vertexEnumerator_.GetHashSeed().VertexLength();
 			int64_t edgeLength = vertexLength + 1;
 
-			std::vector<std::vector<bool> > junctionMark;
 			size_t chrNumber = 0;
 			ChrReader chrReader(inputFileName);
-			JunctionPositionReader junctionReader(marksFileName);
 			std::unique_ptr<ConcurrentBitVector> bloomFilter = vertexEnumerator_.ReloadBloomFilter();
 			for (std::string chr; chrReader.NextChr(chr); chrNumber++)
-			{								
-				//Read the current vector of junction marks. Notice: should be done in order!
-				junctionMark.push_back(std::vector<bool>(chr.size(), false));
-				junctionReader.RestoreVector(junctionMark.back(), chrNumber);
+			{												
 				//Init hash function				
 				VertexRollingHash hash(vertexEnumerator.GetHashSeed(), chr.begin(), vertexEnumerator.GetHashSeed().HashFunctionsNumber());
 				for (int64_t i = 0; i <= int64_t(chr.size()) - edgeLength; i++)
@@ -35,7 +30,7 @@ namespace TwoPaCo
 					{
 						assert(IsIngoingEdgeInBloomFilter(hash, *bloomFilter, chr[i - 1]));
 					}
-					
+					/*
 					//Check the if the vertex is a junction
 					if (vertexEnumerator_.GetId(vertex) != INVALID_VERTEX)
 					{
@@ -46,6 +41,7 @@ namespace TwoPaCo
 					hash.Update(chr[i], chr[i + vertexLength]);
 					//Check that the hash values were updated correctly
 					assert(hash.Assert(chr.begin() + i + 1));
+					*/
 				}
 			}
 		}

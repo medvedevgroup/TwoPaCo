@@ -7,8 +7,8 @@ namespace TwoPaCo
 	bool DnaChar::isDefinite_[CHAR_SIZE];
 	char DnaChar::reverseTable_[CHAR_SIZE];
 	const std::string DnaChar::LITERAL = "ACGT";
-	const std::string DnaChar::EXT_LITERAL = "ACGTN";
-	const std::string DnaChar::VALID_CHARS = "ACGTURYKMSWBDHWNXV";
+	const std::string DnaChar::EXT_LITERAL = "ACGT";
+	const std::string DnaChar::VALID_CHARS = "ACGT";
 	
 	namespace
 	{

@@ -3,7 +3,7 @@
 
 #include "common.h"
 #include "compressedstring.h"
-
+/*
 
 namespace TwoPaCo
 {
@@ -160,5 +160,5 @@ namespace TwoPaCo
 		std::vector<HashFunctionPtr> hashFunction_;
 	};
 }
-
+*/
 #endif

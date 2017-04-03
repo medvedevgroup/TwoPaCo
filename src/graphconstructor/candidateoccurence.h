@@ -1,6 +1,7 @@
 #ifndef _CANDIDATE_OCCURENCE_
 #define _CANDIDATE_OCCURENCE_
 
+#include "vertexrollinghash.h"
 #include "compressedstring.h"
 
 namespace TwoPaCo
@@ -9,65 +10,54 @@ namespace TwoPaCo
 	class CandidateOccurence
 	{
 	public:
-		static const size_t IS_PREV_N = 1;
-		static const size_t IS_NEXT_N = 2;
-		static const char TRUE_BIF = 'A';
-		static const char FAKE_BIF = 'C';
 		static const size_t ADDITIONAL_CHAR = 4;
 		static const size_t MAX_SIZE = CAPACITY * 32;
-		static const size_t NEXT_POS = MAX_SIZE - ADDITIONAL_CHAR;
-		static const size_t PREV_POS = NEXT_POS + 1;
-		static const size_t NMASK_POS = NEXT_POS + 2;
-		static const size_t IS_BIF_POS = NEXT_POS + 3;
+		static const size_t MASK_POS = MAX_SIZE - ADDITIONAL_CHAR;
 		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;		
 
 		CandidateOccurence(){}
-		void Set(uint64_t posHash0,
-			uint64_t negHash0,			
+
+		//EPIC GOVNOCODE STARTS
+		bool Init(const VertexRollingHash & hash,
 			std::string::const_iterator pos,
 			size_t vertexLength,
-			char posExtend,
-			char posPrev,
-			bool isBifurcation)
+			char prev,
+			char next)
 		{	
+			bool ret = true;
+			char setPrev = prev;
+			char setNext = next;
+			uint64_t posHash0 = hash.RawPositiveHash(0);
+			uint64_t negHash0 = hash.RawNegativeHash(0);
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, vertexLength)))
 			{
 				body_.CopyFromString(pos, vertexLength);
-				body_.SetChar(NEXT_POS, posExtend);
-				body_.SetChar(PREV_POS, posPrev);
-				body_.SetChar(NMASK_POS, EncodeNmask(posExtend, posPrev));
 			}
 			else
 			{
+				ret = false;
 				body_.CopyFromReverseString(pos, vertexLength);
-				body_.SetChar(NEXT_POS, DnaChar::ReverseChar(posPrev));
-				body_.SetChar(PREV_POS, DnaChar::ReverseChar(posExtend));
-				body_.SetChar(NMASK_POS, EncodeNmask(posPrev, posExtend));
+				setPrev = DnaChar::ReverseChar(next);
+				setNext = DnaChar::ReverseChar(prev);
 			}
 
-			body_.SetChar(IS_BIF_POS, isBifurcation ? TRUE_BIF : FAKE_BIF);
-		}
+			if (setPrev != 'N')
+			{
+				SetIngoingEdge(setPrev);
+			}
 
-		char Prev() const
-		{
-			char nmask = body_.RawChar(NMASK_POS);
-			return nmask & IS_PREV_N ? 'N' : body_.GetChar(PREV_POS);
-		}
+			if (setNext != 'N')
+			{
+				SetOutgoingEdge(setNext);
+			}
 
-		char Next() const
-		{
-			char nmask = body_.RawChar(NMASK_POS);
-			return nmask & IS_NEXT_N ? 'N' : body_.GetChar(NEXT_POS);
+			return ret;
 		}
+		//EPIC GOVNOCODE ENDS		
 
-		bool IsBifurcation() const
+		void Merge(const CandidateOccurence & other)
 		{
-			return body_.GetChar(IS_BIF_POS) == TRUE_BIF;
-		}
-
-		void MakeBifurcation() const
-		{
-			body_.SetCharConcurrently(IS_BIF_POS, TRUE_BIF);
+			body_.OrInto(other.body_);
 		}
 
 		bool EqualBase(const CandidateOccurence & occurence) const
@@ -91,12 +81,37 @@ namespace TwoPaCo
 		{
 			return CompressedString<CAPACITY>::LessPrefix(body_, other.body_, VERTEX_SIZE);
 		}
+
+		bool GetIngoingEdge(char ch) const
+		{
+			uint64_t charIdx = DnaChar::MakeUpChar(ch);
+			uint64_t pos = MASK_POS * 2 + charIdx;
+			return body_.GetBit(pos);
+		}
+
+		bool GetOutgoingEdge(char ch) const
+		{
+			uint64_t charIdx = DnaChar::MakeUpChar(ch);
+			uint64_t pos = (MASK_POS + 2) * 2 + charIdx;
+			return body_.GetBit(pos);
+		}
 		
 	private:
-		char EncodeNmask(char next, char prev)
+		void SetIngoingEdge(char ch)
 		{
-			return DnaChar::LITERAL[(next == 'N' ? IS_NEXT_N : 0) | (prev == 'N' ? IS_PREV_N : 0)];
+			uint64_t charIdx = DnaChar::MakeUpChar(ch);
+			uint64_t pos = MASK_POS * 2 + charIdx;
+			body_.SetBit(pos);
+			assert(GetIngoingEdge(ch));
 		}
+
+		void SetOutgoingEdge(char ch)
+		{
+			uint64_t charIdx = DnaChar::MakeUpChar(ch);
+			uint64_t pos = (MASK_POS + 2) * 2 + charIdx;
+			body_.SetBit(pos);
+			assert(GetOutgoingEdge(ch));			
+		}		
 
 		CompressedString<CAPACITY> body_;
 	};

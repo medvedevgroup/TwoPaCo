@@ -25,14 +25,7 @@ namespace TwoPaCo
 		std::uniform_int_distribution<> gen(0, alphabet.size() - 1);
 		for (size_t i = 0; i < out.size(); i++)
 		{
-			if (rand() % 500 == 0)
-			{
-				out[i] = 'N';
-			}
-			else
-			{
-				out[i] = alphabet[gen(e2)];
-			}			
+			out[i] = alphabet[gen(e2)];
 		}
 	}
 
@@ -68,48 +61,36 @@ namespace TwoPaCo
 
 	namespace
 	{
-		void FindJunctionsNaively(const std::vector<std::string> & chr, size_t vertexLength, std::set<std::string> & junction, std::vector<std::vector<bool> > & marks)
+		void FindJunctionsNaively(const std::vector<std::string> & chr,
+			size_t vertexLength,
+			std::set<std::string> & junction,
+			std::vector<std::vector<bool> > & marks,
+			std::map<std::string, std::set<char> > & inEdge,
+			std::map<std::string, std::set<char> > & outEdge)
 		{
-			int unknownCount = CHAR_MAX;
-			typedef std::vector<int> DnaString;
+			inEdge.clear();
+			outEdge.clear();
+			typedef std::string DnaString;
 			std::set<DnaString> edges;
 			std::vector<DnaString> genome;
 			for (const std::string & nowChr : chr)
 			{
 				DnaString nowGenome;
-				nowGenome.push_back(unknownCount++);
 				for (auto ch : nowChr)
 				{
-					if (IsDefinite(ch))
-					{
-						nowGenome.push_back(ch);
-					}
-					else
-					{
-						nowGenome.push_back(unknownCount++);
-					}
+					nowGenome.push_back(ch);
 				}
 
-				nowGenome.push_back(unknownCount++);
 				genome.push_back(nowGenome);
 				DnaString nowGenomeReverse;
 				for (DnaString::const_reverse_iterator it = nowGenome.rbegin(); it != nowGenome.rend(); ++it)
 				{
-					if (IsDefinite(*it))
-					{
-						nowGenomeReverse.push_back(DnaChar::ReverseChar(*it));
-					}
-					else
-					{
-						nowGenomeReverse.push_back(unknownCount++);
-					}
+					nowGenomeReverse.push_back(DnaChar::ReverseChar(*it));
 				}
 
 				genome.push_back(nowGenomeReverse);
 			}
-
-			std::map<DnaString, std::set<int> > inEdge;
-			std::map<DnaString, std::set<int> > outEdge;
+			
 			for (const DnaString & g : genome)
 			{
 				if (g.size() >= vertexLength)
@@ -133,8 +114,8 @@ namespace TwoPaCo
 				}
 			}
 
-			std::map<DnaString, std::set<int> > * edge[] = { &inEdge, &outEdge };
-			for (std::map<DnaString, std::set<int> > * e : edge)
+			std::map<DnaString, std::set<char> > * edge[] = { &inEdge, &outEdge };
+			for (std::map<DnaString, std::set<char> > * e : edge)
 			{
 				for (auto it = e->begin(); it != e->end(); ++it)
 				{
@@ -188,6 +169,8 @@ namespace TwoPaCo
 				test << chr[j] << std::endl;
 			}
 			
+			std::map<std::string, std::set<char> > inEdge;
+			std::map<std::string, std::set<char> > outEdge;
 			for (size_t k = vertexSize.first; k < vertexSize.second; k += 2)
 			{
 				std::set<std::string> junctions;				
@@ -198,7 +181,7 @@ namespace TwoPaCo
 				}
 
 				std::vector<std::vector<bool > > fastMarks(chrNumber);
-				FindJunctionsNaively(chr, k, junctions, naiveMarks);
+				FindJunctionsNaively(chr, k, junctions, naiveMarks, inEdge, outEdge);
 				for (size_t hf = hashFunctions.first; hf < hashFunctions.second; ++hf)
 				{
 					for (size_t r = rounds.first; r < rounds.second; ++r)
@@ -207,37 +190,37 @@ namespace TwoPaCo
 						{
 							std::stringstream null;
 							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, "tmp", temporaryEdge, null);
-							for (size_t i = 0; i < chrNumber; i++)
-							{
-								fastMarks[i].assign(chr[i].size(), false);
-							}
-
-							JunctionPositionReader reader(temporaryEdge);
-							reader.RestoreAllVectors(fastMarks);
-							if (naiveMarks != fastMarks)
-							{
-								for (size_t i = 0; i < chrNumber; i++)
-								{
-									for (size_t pos = 0; pos < chr[i].size(); pos++)
-									{
-										if (fastMarks[i][pos] != naiveMarks[i][pos])
-										{
-											std::cerr << "ERROR at chr " << i << " pos " << pos << ", " << fastMarks[i][pos]<<  " != " << naiveMarks[i][pos] << std::endl;
-										}
-									}
-								}
-
-								std::cerr << "Test # " << t << " FAILED" << std::endl;
-								return false;
-							}
-
+							std::string candInEdges;
+							std::string candOutEdges;
 							for (auto & vertex : junctions)
 							{
-								auto res = vid->GetId(vertex);
-								if (res == INVALID_VERTEX)
+								TwoPaCo::VertexRollingHash hash(vid->GetHashSeed(), vertex.begin(), 1);
+								bool result = vid->GetEdges(vertex.begin(), hash, candInEdges, candOutEdges);
+								if (!result)
 								{
 									std::cerr << "Test # " << t << " FAILED" << std::endl;
 									return false;
+								}
+								else
+								{
+									for (auto ch : inEdge[vertex])
+									{
+										if (candInEdges.find(ch) == candInEdges.npos)
+										{
+											bool result = vid->GetEdges(vertex.begin(), hash, candInEdges, candOutEdges);
+											std::cerr << "Test # " << t << " FAILED" << std::endl;
+											return false;
+										}
+									}
+
+									for (auto ch : outEdge[vertex])
+									{
+										if (candOutEdges.find(ch) == candOutEdges.npos)
+										{
+											std::cerr << "Test # " << t << " FAILED" << std::endl;
+											return false;
+										}
+									}
 								}
 							}
 						}												
