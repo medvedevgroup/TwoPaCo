@@ -32,6 +32,7 @@ namespace TwoPaCo
 	public:		
 		virtual const VertexRollingHashSeed & GetHashSeed() const = 0;
 		virtual std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const = 0;
+		virtual void ReloadJunctionCandidateMask(std::vector<std::vector<bool> > & ret) const = 0;
 		virtual bool GetEdges(std::string::const_iterator it, const VertexRollingHash & hash, std::string & inEdges, std::string & outEdges) const = 0;
 		virtual ~VertexEnumerator()
 		{
@@ -89,14 +90,47 @@ namespace TwoPaCo
 			}
 		};
 		
-		typedef tbb::concurrent_unordered_set<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
+		typedef tbb::concurrent_unordered_set<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;		
 		OccurenceSet occurenceSet_;
+		std::string temporaryDirectory_;
+		std::vector<std::vector<size_t> >  taskFragmentSize_;
 
 	public:
 
 		~VertexEnumeratorImpl<CAPACITY>()
 		{
 			std::remove(filterDumpFile_.c_str());
+			for (size_t i = 0; i < taskFragmentSize_.size(); i++)
+			{
+				size_t pos = 0;
+				for (size_t fragmentSize : taskFragmentSize_[i])
+				{
+					std::string fileName = CandidateMaskFileName(temporaryDirectory_, i, pos, 0);
+					std::remove(fileName.c_str());
+					pos += fragmentSize;
+				}
+			}
+		}
+
+		void ReloadJunctionCandidateMask(std::vector<std::vector<bool> > & ret) const
+		{			
+			for (size_t i = 0; i < taskFragmentSize_.size(); i++)
+			{
+				size_t pos = 0;
+				ret.push_back(std::vector<bool>());
+				for (size_t fragmentSize : taskFragmentSize_[i])
+				{
+					ConcurrentBitVector v(fragmentSize);
+					std::string fileName = CandidateMaskFileName(temporaryDirectory_, i, pos, 0);
+					v.ReadFromFile(fileName, false);
+					for (size_t k = 0; k < fragmentSize; k++)
+					{
+						ret.back().push_back(v.GetBit(k));
+					}
+
+					pos += fragmentSize;
+				}
+			}
 		}
 
 		bool GetEdges(std::string::const_iterator pos, const VertexRollingHash & hash, std::string & inEdges, std::string & outEdges) const
@@ -168,6 +202,7 @@ namespace TwoPaCo
 			filterDumpFile_(tmpDirName + "/filter.bin"),
 			occurenceSet_(1 << 24)
 		{
+			temporaryDirectory_ = tmpDirName;
 			uint64_t realSize = uint64_t(1) << filterSize;
 			logStream << "Threads = " << threads << std::endl;
 			logStream << "Vertex length = " << vertexLength << std::endl;
@@ -322,7 +357,7 @@ namespace TwoPaCo
 							workerThread[i].reset(new tbb::tbb_thread(worker));
 						}
 
-						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, taskFragmentSize_, true);
 						for (size_t i = 0; i < taskQueue.size(); i++)
 						{
 							workerThread[i]->join();
@@ -399,7 +434,7 @@ namespace TwoPaCo
 		static std::string CandidateMaskFileName(const std::string & directory, size_t sequence, size_t pos, size_t round)
 		{
 			std::stringstream ss;
-			ss << directory << "/" << sequence << "_" << pos << "_" << round << ".tmp";
+			ss << directory << "/" << sequence << "_" << pos << ".tmp";
 			return ss.str();
 		}
 
@@ -547,8 +582,6 @@ namespace TwoPaCo
 								assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 								if (Within(hash.GetVertexHash(), low, high) && definiteCount == vertexLength)
 								{
-									//size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
-									//size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
 									size_t inCount = 0;
 									size_t outCount = 0;
 									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
@@ -572,7 +605,7 @@ namespace TwoPaCo
 									}
 								}
 
-								if (pos + vertexLength + 1 <= task.str.size())
+								if (pos + vertexLength < task.str.size())
 								{
 									char posPrev = task.str[pos];
 									definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
@@ -668,7 +701,6 @@ namespace TwoPaCo
 								if (candidateMask.GetBit(pos))
 								{
 									Occurence now;									
-									//bool x = task.str.substr(pos, vertexLength) == "CCCCC" || task.str.substr(pos, vertexLength) == "GGGGG";
 									bool direct = now.Init(hash,
 										task.str.begin() + pos,
 										vertexLength,
@@ -678,20 +710,7 @@ namespace TwoPaCo
 									typename OccurenceSet::iterator it = ret.first;
 									if (!ret.second)
 									{										
-										it->Merge(now);		/*
-										if (pos > 0)
-										{
-											if (direct)
-											{
-												assert(it->GetIngoingEdge(task.str[pos - 1]));
-												assert(it->GetOutgoingEdge(posExtend));
-											}
-											else
-											{
-												assert(it->GetIngoingEdge(DnaChar::ReverseChar(posExtend)));
-												assert(it->GetOutgoingEdge(DnaChar::ReverseChar(task.str[pos - 1])));
-											}
-										}*/
+										it->Merge(now);
 									}
 								}
 
@@ -840,7 +859,9 @@ namespace TwoPaCo
 			std::vector<TaskQueuePtr> & taskQueue,
 			std::unique_ptr<std::runtime_error> & error,
 			tbb::mutex & errorMutex,
-			std::ostream & logFile)
+			std::ostream & logFile,
+			std::vector<std::vector<size_t> > & taskFragmentSize = std::vector<std::vector<size_t> >(),
+			bool writeTaskFragmentSize = false)
 		{
 			size_t record = 0;
 			size_t nowQueue = 0;
@@ -896,6 +917,16 @@ namespace TwoPaCo
 									{
 										overlap.assign(buf.end() - overlapSize, buf.end());
 									}									
+
+									if (writeTaskFragmentSize)
+									{
+										while(record >= taskFragmentSize.size())
+										{
+											taskFragmentSize.push_back(std::vector<size_t>());
+										}
+
+										taskFragmentSize[record].push_back(buf.size());
+									}
 
 									q->push(Task(record, prev, pieceCount++, over, std::move(buf)));
 #ifdef LOGGING

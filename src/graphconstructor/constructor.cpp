@@ -128,7 +128,7 @@ int main(int argc, char * argv[])
 		using TwoPaCo::Range;
 		if (runTests.getValue())
 		{
-			TwoPaCo::RunTests(10, 20, 900, 5, Range(3, 11), Range(1, 2), Range(1, 2), Range(1, 2), 0.05, 0.1, tmpDirName.getValue());
+			TwoPaCo::RunTests(10, 20, 9000, 5, Range(3, 31), Range(1, 2), Range(1, 2), Range(4, 5), 0.05, 0.1, tmpDirName.getValue());
 			return 0;
 		}
 		
@@ -142,11 +142,6 @@ int main(int argc, char * argv[])
 			std::cout);
 			
 		std::cout << std::endl;
-		std::string candInEdges;
-		std::string candOutEdges;
-		std::string vertex = "CCCCC";
-		TwoPaCo::VertexRollingHash hash(vid->GetHashSeed(), vertex.begin(), 1);
-		bool result = vid->GetEdges(vertex.begin(), hash, candInEdges, candOutEdges);
 		
 		//TwoPaCo::AssemblyEdgeConstructor constructor(fileName.getValue(), outFileName.getValue(), *vid);
 	}
