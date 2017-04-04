@@ -1,6 +1,6 @@
 TwoPaCo 0.9.0
 
-Release date: TBD
+Release date: 27th March 2017
 =================
 
 Authors
@@ -20,10 +20,6 @@ This distribution contains two programs:
 * twopaco -- a tool for direct construction of the compressed graph from 
 multiple complete genomes
 * graphdump -- a utility that turns output of twopaco into a text format
-
-Disclaimer: this is still a research prototype and the code has not been
-"officially" released yet. Things like compilation, installation, output
-file format, and commandline parameters are subject to change.
 
 Test data
 =========
@@ -122,6 +118,26 @@ The graphdump usage
 This utility turns the binary file a text one. There are several output formats
 available. The folder "example" contains an example described in details.
 
+GFF
+---
+In the next release I will add an option to output coordinates of all occurrences
+of the junctions in GFF format.
+
+DOT
+---
+This format is used for visualization. The resulting DOT file can be converted
+into an image using Graphviz package:
+
+	http://www.graphviz.org/
+
+To get the DOT file, use:
+
+	graphdump <twopaco_output_file> -f dot -k <value_of_k>
+
+Note that the graph is a union of graphs built from both strands, with blue edges
+coming from the main strand and red ones from reverse one. The labels of the edges
+will indicate its position on a chromosome.
+
 GFA
 ---
 GFA is the most handy option. It **explicitly** represents the graph as a list of
@@ -165,7 +181,7 @@ genomes. As described in the paper, you can trivially restore information about
 edges from this junctions list. Note that junctions are mapped to genomes, i.e.
 one can reconstruct a **colored graph** from it. To get the junctions list, run:
 
-	graphdump -f seq
+	graphdump -f seq -k <value_of_k>
 
 This command will output a text file to the standard output. Each line will contain a 
 triple indicating an occurence of junction:
@@ -193,7 +209,7 @@ in the backwards order and negate signs, e.g. for the example above the sequence
 will be -a_3 -> -a_2 -> -a_1. One can also output junctions grouped by ids, it is
 useful for comparison between different graphs:
 
-	graphdump -f group
+	graphdump -f group -k <value_of_k>
 
 In this format the i-th line line corresponds to the i-th junction and is of format:
 
@@ -207,7 +223,8 @@ Read The Binary File Directly
 -----------------------------
 This is the most parsimonious option in terms of involved resources.
 One can read junctions and/or edges from the output file using a very simple
-C++ API. 
+C++ API. I will add the description in the future release. For now, one can
+use the sources of graphdump as a reference, it is relatively straightforward.
 
 License
 =======
