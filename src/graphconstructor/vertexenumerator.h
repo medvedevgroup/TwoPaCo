@@ -403,7 +403,7 @@ namespace TwoPaCo
 						throw std::runtime_error(*error);
 					}
 
-					logStream << time(0) - mark << "\t";
+					logStream << time(0) - mark << "\t" << std::endl;
 				}
 
 				logStream << "Hash table size = " << occurenceSet_.size() << std::endl;
@@ -416,9 +416,6 @@ namespace TwoPaCo
 			{
 				delete[] binCounter;
 			}
-
-			mark = time(0);						
-			logStream << std::string(80, '-') << std::endl;
 		}
 
 	private:
