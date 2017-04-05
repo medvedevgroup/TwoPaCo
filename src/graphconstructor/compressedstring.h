@@ -190,9 +190,7 @@ namespace TwoPaCo
 			uint64_t element = TranslateIdx(idx);
 			uint64_t charIdx = str_[element] >> (2 * idx);
 			uint64_t mask = uint64_t(0x3) << (idx * 2);
-			str_[element] &= ~mask;
-			if (makeUpChar)
-			str_[element] |= DnaChar::MakeUpChar(ch) << (2 * idx++);
+			str_[element] &= ~mask;			
 		}
 
 		void DebugPrint() const
