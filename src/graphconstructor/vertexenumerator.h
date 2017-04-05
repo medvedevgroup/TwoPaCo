@@ -30,9 +30,9 @@ namespace TwoPaCo
 	class VertexEnumerator
 	{
 	public:		
+		virtual bool GetBit(size_t read, size_t pos) const = 0;
 		virtual const VertexRollingHashSeed & GetHashSeed() const = 0;
-		virtual std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const = 0;
-		virtual void ReloadJunctionCandidateMask(std::vector<std::vector<bool> > & ret) const = 0;
+		virtual std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const = 0;		
 		virtual bool GetEdges(std::string::const_iterator it, const VertexRollingHash & hash, std::string & inEdges, std::string & outEdges) const = 0;
 		virtual ~VertexEnumerator()
 		{
@@ -92,45 +92,20 @@ namespace TwoPaCo
 		
 		typedef tbb::concurrent_unordered_set<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;		
 		OccurenceSet occurenceSet_;
+		size_t readSize_;
 		std::string temporaryDirectory_;
-		std::vector<std::vector<size_t> >  taskFragmentSize_;
+		std::vector<bool> candidateBit_;
 
 	public:
 
 		~VertexEnumeratorImpl<CAPACITY>()
 		{
-			std::remove(filterDumpFile_.c_str());
-			for (size_t i = 0; i < taskFragmentSize_.size(); i++)
-			{
-				size_t pos = 0;
-				for (size_t fragmentSize : taskFragmentSize_[i])
-				{
-					std::string fileName = CandidateMaskFileName(temporaryDirectory_, i, pos, 0);
-					std::remove(fileName.c_str());
-					pos += fragmentSize;
-				}
-			}
+			std::remove(filterDumpFile_.c_str());			
 		}
 
-		void ReloadJunctionCandidateMask(std::vector<std::vector<bool> > & ret) const
-		{			
-			for (size_t i = 0; i < taskFragmentSize_.size(); i++)
-			{
-				size_t pos = 0;
-				ret.push_back(std::vector<bool>());
-				for (size_t fragmentSize : taskFragmentSize_[i])
-				{
-					ConcurrentBitVector v(fragmentSize);
-					std::string fileName = CandidateMaskFileName(temporaryDirectory_, i, pos, 0);
-					v.ReadFromFile(fileName, false);
-					for (size_t k = 0; k < fragmentSize; k++)
-					{
-						ret.back().push_back(v.GetBit(k));
-					}
-
-					pos += fragmentSize;
-				}
-			}
+		bool GetBit(size_t read, size_t pos) const
+		{
+			return candidateBit_[read * readSize_ + pos];
 		}
 
 		bool GetEdges(std::string::const_iterator pos, const VertexRollingHash & hash, std::string & inEdges, std::string & outEdges) const
@@ -200,7 +175,8 @@ namespace TwoPaCo
 			vertexSize_(vertexLength),
 			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
 			filterDumpFile_(tmpDirName + "/filter.bin"),
-			occurenceSet_(1 << 24)
+			occurenceSet_(1 << 24),
+			readSize_(0)
 		{
 			temporaryDirectory_ = tmpDirName;
 			uint64_t realSize = uint64_t(1) << filterSize;
@@ -256,7 +232,7 @@ namespace TwoPaCo
 					workerThread[i].reset(new tbb::tbb_thread(worker));
 				}
 
-				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile, taskFragmentSize_);
+				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i]->join();
@@ -329,7 +305,7 @@ namespace TwoPaCo
 							workerThread[i].reset(new tbb::tbb_thread(worker));
 						}
 
-						DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile, taskFragmentSize_);
+						DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile, true);
 						for (size_t i = 0; i < workerThread.size(); i++)
 						{
 							workerThread[i]->join();
@@ -343,6 +319,7 @@ namespace TwoPaCo
 						std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 						for (size_t i = 0; i < workerThread.size(); i++)
 						{
+							tbb::spin_mutex mutex;
 							CandidateCheckingWorker worker(std::make_pair(low, high),
 								hashFunctionSeed_,
 								bitVector,
@@ -351,13 +328,16 @@ namespace TwoPaCo
 								tmpDirName,
 								marks,
 								round,
+								candidateBit_,
+								readSize_,
+								mutex,
 								error,
 								errorMutex);
 
 							workerThread[i].reset(new tbb::tbb_thread(worker));
 						}
 
-						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, taskFragmentSize_, true);
+						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 						for (size_t i = 0; i < taskQueue.size(); i++)
 						{
 							workerThread[i]->join();
@@ -386,13 +366,15 @@ namespace TwoPaCo
 							mutex,
 							tmpDirName,
 							round,
+							candidateBit_,
+							readSize_,					
 							error,
 							errorMutex);
 
 						workerThread[i].reset(new tbb::tbb_thread(worker));
 					}
 
-					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, taskFragmentSize_);
+					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
 					for (size_t i = 0; i < taskQueue.size(); i++)
 					{
 						workerThread[i]->join();
@@ -540,9 +522,13 @@ namespace TwoPaCo
 				const std::string & tmpDirectory,
 				std::atomic<uint64_t> & marksCount,
 				size_t round,
+				std::vector<bool> & candidateBit,
+				size_t readSize,
+				tbb::spin_mutex & mutex,
 				std::unique_ptr<std::runtime_error> & error,				
 				tbb::mutex & errorMutex) : bound(bound), hashFunction(hashFunction), bitVector(bitVector), vertexLength(vertexLength), taskQueue(taskQueue),
-				tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex), round(round)
+				tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex), round(round), candidateBit(candidateBit), readSize(readSize),
+				mutex(mutex)
 			{
 
 			}
@@ -552,7 +538,7 @@ namespace TwoPaCo
 				uint64_t low = bound.first;
 				uint64_t high = bound.second;
 				std::vector<uint64_t> temp;
-				ConcurrentBitVector candidateMask(Task::TASK_SIZE);
+				std::vector<bool> candidateMask(readSize);
 				while (true)
 				{
 					Task task;
@@ -571,7 +557,7 @@ namespace TwoPaCo
 						size_t edgeLength = vertexLength + 1;
 						if (task.str.size() >= vertexLength + 2)
 						{
-							candidateMask.Reset();
+							candidateMask.assign(readSize, false);
 							VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());
 							size_t definiteCount = std::count_if(task.str.begin(), task.str.begin() + vertexLength, DnaChar::IsDefinite);
 							for (size_t pos = 0;; ++pos)
@@ -598,7 +584,7 @@ namespace TwoPaCo
 									if (inCount > 1 || outCount > 1 || inCount == 0 || outCount == 0)
 									{
 										++marksCount;
-										candidateMask.SetBitConcurrently(pos);
+										candidateMask[pos] = true;
 									}
 								}
 
@@ -615,14 +601,9 @@ namespace TwoPaCo
 								}
 							}
 
-							try
-							{
-								candidateMask.WriteToFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round));
-							}
-							catch (std::runtime_error & err)
-							{
-								ReportError(errorMutex, error, err.what());
-							}
+							mutex.lock();
+							std::copy(candidateMask.begin(), candidateMask.end(), candidateBit.begin() + readSize * task.seqId);
+							mutex.unlock();
 						}
 					}
 				}
@@ -637,6 +618,9 @@ namespace TwoPaCo
 			const std::string & tmpDirectory;
 			std::atomic<uint64_t> & marksCount;
 			size_t round;
+			std::vector<bool> & candidateBit;
+			size_t readSize;
+			tbb::spin_mutex & mutex;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};
@@ -653,9 +637,11 @@ namespace TwoPaCo
 				tbb::spin_rw_mutex & mutex,
 				const std::string & tmpDirectory,
 				size_t round,
+				std::vector<bool> & candidateBit,
+				size_t readSize,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
-				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex)
+				mutex(mutex), tmpDirectory(tmpDirectory), candidateBit(candidateBit), readSize(readSize), round(round), error(error), errorMutex(errorMutex)
 			{
 
 			}
@@ -682,20 +668,9 @@ namespace TwoPaCo
 						if (task.str.size() >= vertexLength + 2)
 						{
 							VertexRollingHash hash(hashFunction, task.str.begin(), 1);
-							{
-								try
-								{
-									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round), false);
-								}
-								catch (std::runtime_error & err)
-								{
-									ReportError(errorMutex, error, err.what());
-								}
-							}
-
 							for (size_t pos = 0;; ++pos)
 							{																
-								if (candidateMask.GetBit(pos))
+								if (candidateBit[readSize * task.seqId + pos])
 								{
 									Occurence now;									
 									bool direct = now.Init(hash,
@@ -734,7 +709,9 @@ namespace TwoPaCo
 			OccurenceSet & occurenceSet;
 			tbb::spin_rw_mutex & mutex;
 			const std::string & tmpDirectory;
-			size_t round;
+			size_t round;			
+			std::vector<bool> & candidateBit;
+			size_t readSize;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};
@@ -851,14 +828,13 @@ namespace TwoPaCo
 		};
 
 
-		static void DistributeTasks(const std::vector<std::string> & fileName,
+		void DistributeTasks(const std::vector<std::string> & fileName,
 			size_t overlapSize,
 			std::vector<TaskQueuePtr> & taskQueue,
 			std::unique_ptr<std::runtime_error> & error,
 			tbb::mutex & errorMutex,
-			std::ostream & logFile,
-			std::vector<std::vector<size_t> > & taskFragmentSize,
-			bool writeTaskFragmentSize = false)
+			std::ostream & logFile,			
+			bool fillBits = false)
 		{
 			size_t record = 0;
 			size_t nowQueue = 0;
@@ -914,18 +890,21 @@ namespace TwoPaCo
 									{
 										overlap.assign(buf.end() - overlapSize, buf.end());
 									}									
-
-									if (writeTaskFragmentSize)
+		
+									if (readSize_ == 0)
 									{
-										while(record >= taskFragmentSize.size())
-										{
-											taskFragmentSize.push_back(std::vector<size_t>());
-										}
-
-										taskFragmentSize[record].push_back(buf.size());
+										readSize_ = buf.size();
 									}
-
+									else if (readSize_ != buf.size())
+									{
+										throw std::runtime_error("Inconsistent read size");
+									}
+									
 									q->push(Task(record, prev, pieceCount++, over, std::move(buf)));
+									if (fillBits)
+									{
+										candidateBit_.insert(candidateBit_.end(), readSize_, 0);
+									}
 #ifdef LOGGING
 									logFile << "Passed chunk " << prev << " to worker " << nowQueue << std::endl;
 #endif

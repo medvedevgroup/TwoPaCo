@@ -29,7 +29,7 @@ namespace TwoPaCo
 		}
 	}
 
-	void MutateSequence(std::random_device & rd, const std::string & chr, double changeRate, double mutationRate, std::string & out)
+	void MutateSequence(std::random_device & rd, const std::string & chr,  double mutationRate, std::string & out)
 	{
 		out.clear();
 		std::mt19937 e2(rd());
@@ -37,20 +37,9 @@ namespace TwoPaCo
 		std::uniform_real_distribution<> gen(0, 1);
 		for (auto ch : chr)
 		{
-			if (gen(e2) <= changeRate)
+			if (gen(e2) <= mutationRate)
 			{
-				if (gen(e2) <= mutationRate)
-				{
-					out.push_back(alphabet[rand() % alphabet.size()]);
-				}
-				else
-				{
-					if (gen(e2) <= 0.5)
-					{
-						out.push_back(ch);
-						out.push_back(alphabet[rand() % alphabet.size()]);
-					}
-				}
+				out.push_back(alphabet[rand() % alphabet.size()]);
 			}
 			else
 			{
@@ -154,7 +143,7 @@ namespace TwoPaCo
 			GenerateSequence(rd, length, chr[0]);
 			for (size_t i = 1; i < chrNumber; i++)
 			{
-				MutateSequence(rd, chr[0], changeRate, indelRate, chr[i]);
+				MutateSequence(rd, chr[0], changeRate,  chr[i]);
 			}
 
 			std::ofstream test(temporaryFasta.c_str());

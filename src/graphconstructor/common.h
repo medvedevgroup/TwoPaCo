@@ -33,11 +33,7 @@ namespace TwoPaCo
 		uint64_t start;
 		uint64_t seqId;
 		std::string str;
-#ifdef _DEBUG
-		static const size_t TASK_SIZE = 32;
-#else
-		static const size_t TASK_SIZE = 1 << 19;
-#endif					
+		static const size_t TASK_SIZE = 1 << 30;
 		static const size_t GAME_OVER = SIZE_MAX;
 		Task() {}
 		Task(uint64_t seqId, uint64_t start, uint32_t piece, bool isFinal, std::string && str) :

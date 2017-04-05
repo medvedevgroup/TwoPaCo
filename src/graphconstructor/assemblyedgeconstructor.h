@@ -16,8 +16,6 @@ namespace TwoPaCo
 
 			size_t chrNumber = 0;
 			ChrReader chrReader(inputFileName);
-			std::vector<std::vector<bool> > candidateMarks;
-			vertexEnumerator_.ReloadJunctionCandidateMask(candidateMarks);
 			std::unique_ptr<ConcurrentBitVector> bloomFilter = vertexEnumerator_.ReloadBloomFilter();
 			for (std::string chr; chrReader.NextChr(chr); chrNumber++)
 			{												
@@ -39,7 +37,7 @@ namespace TwoPaCo
 					if (vertexEnumerator_.GetEdges(vertex.begin(), hash, inEdges, outEdges))
 					{
 						//Found a junction candidate, check that the mark in the vector is set
-						assert(candidateMarks[chrNumber][i] == true);
+						assert(vertexEnumerator_.GetBit(chrNumber, i) == true);
 					}
 
 					hash.Update(chr[i], chr[i + vertexLength]);
