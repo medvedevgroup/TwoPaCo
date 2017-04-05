@@ -256,7 +256,7 @@ namespace TwoPaCo
 					workerThread[i].reset(new tbb::tbb_thread(worker));
 				}
 
-				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
+				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile, taskFragmentSize_);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i]->join();
@@ -329,7 +329,7 @@ namespace TwoPaCo
 							workerThread[i].reset(new tbb::tbb_thread(worker));
 						}
 
-						DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
+						DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile, taskFragmentSize_);
 						for (size_t i = 0; i < workerThread.size(); i++)
 						{
 							workerThread[i]->join();
@@ -392,7 +392,7 @@ namespace TwoPaCo
 						workerThread[i].reset(new tbb::tbb_thread(worker));
 					}
 
-					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, taskFragmentSize_);
 					for (size_t i = 0; i < taskQueue.size(); i++)
 					{
 						workerThread[i]->join();
@@ -857,7 +857,7 @@ namespace TwoPaCo
 			std::unique_ptr<std::runtime_error> & error,
 			tbb::mutex & errorMutex,
 			std::ostream & logFile,
-			std::vector<std::vector<size_t> > & taskFragmentSize = std::vector<std::vector<size_t> >(),
+			std::vector<std::vector<size_t> > & taskFragmentSize,
 			bool writeTaskFragmentSize = false)
 		{
 			size_t record = 0;
