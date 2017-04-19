@@ -1,7 +1,7 @@
 #ifndef _VERTEX_ENUMERATOR_H_
 #define _VERTEX_ENUMERATOR_H_
 
-#define MAX_CAPACITY 20
+#define MAX_CAPACITY 8
 
 #include <deque>
 #include <cstdio>

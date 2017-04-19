@@ -24,7 +24,7 @@ namespace TwoPaCo
 	private:
 		DISALLOW_COPY_AND_ASSIGN(ConcurrentBitVector);
 		static const size_t SUCCESS = -1;
-		typedef uint32_t BASIC_TYPE;
+		typedef uint8_t BASIC_TYPE;
 		typedef std::atomic<BASIC_TYPE> UInt;
 		size_t size_;
 		size_t realSize_;
