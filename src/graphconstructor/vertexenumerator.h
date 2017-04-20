@@ -42,13 +42,13 @@ namespace TwoPaCo
 					if (mask[j])
 					{
 						decodeIn[i].push_back(DnaChar::LITERAL[j]);
-						decodeInReverse[i].push_back(DnaChar::ReverseChar(DnaChar::LITERAL[j]));
+						decodeOutReverse[i].push_back(DnaChar::ReverseChar(DnaChar::LITERAL[j]));
 					}
 
 					if (mask[j + DnaChar::LITERAL.size()])
 					{
 						decodeOut[i].push_back(DnaChar::LITERAL[j]);
-						decodeOutReverse[i].push_back(DnaChar::ReverseChar(DnaChar::LITERAL[j]));
+						decodeInReverse[i].push_back(DnaChar::ReverseChar(DnaChar::LITERAL[j]));
 					}
 				}
 			}
@@ -90,13 +90,18 @@ namespace TwoPaCo
 
 		EdgeMask(const VertexRollingHash & hash, std::string::const_iterator pos, char prevChar, char nextChar)
 		{
+#ifdef _DEBUG
+			originalIn_ = prevChar;
+			originalOut_ = nextChar;
+#endif
+
 			std::bitset<8> body(0);
 			uint64_t posHash0 = hash.RawPositiveHash(hash.HashFunctionsNumber() - 1);
 			uint64_t negHash0 = hash.RawNegativeHash(hash.HashFunctionsNumber() - 1);
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, hash.VertexLength())))
 			{
 				reverse_ = false;
-				pos_ = posHash0 & uint64_t(8);
+				pos_ = posHash0 >> 3;
 				if (prevChar != 'N')
 				{
 					body.set(DnaChar::MakeUpChar(prevChar));
@@ -111,7 +116,7 @@ namespace TwoPaCo
 			else
 			{
 				reverse_ = true;
-				pos_ = negHash0 & uint64_t(8);
+				pos_ = negHash0 >> 3;
 				if (prevChar != 'N')
 				{
 					body.set(DnaChar::LITERAL.size() + DnaChar::MakeUpChar(DnaChar::ReverseChar(prevChar)));
@@ -143,7 +148,12 @@ namespace TwoPaCo
 
 		void QueryFilterMerge(const ConcurrentBitVector & v)
 		{
-			mask_ |= v.GetValue(pos_);
+			uint8_t ret = v.GetValue(pos_);
+			mask_ |= ret;
+#ifdef _DEBUG
+			assert(InEdges().find(originalIn_) != InEdges().npos);
+			assert(OutEdges().find(originalOut_) != InEdges().npos);
+#endif
 		}
 
 	private:
@@ -154,6 +164,10 @@ namespace TwoPaCo
 		bool reverse_;
 		uint8_t mask_;
 		uint64_t pos_;
+#ifdef _DEBUG
+		char originalIn_;
+		char originalOut_;
+#endif
 	};
 
 	class VertexEnumerator

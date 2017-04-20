@@ -128,7 +128,7 @@ int main(int argc, char * argv[])
 		using TwoPaCo::Range;
 		if (runTests.getValue())
 		{
-			TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 5), Range(4, 5), 0.05, 0.1, tmpDirName.getValue());
+			TwoPaCo::RunTests(10, 26, 500, 2, Range(11, 17), Range(1, 2), Range(1, 5), Range(4, 5), 0.05, 0.1, tmpDirName.getValue());
 			return 0;
 		}
 		
