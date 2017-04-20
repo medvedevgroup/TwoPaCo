@@ -175,6 +175,9 @@ namespace TwoPaCo
 			{
 				MutateSequence(rd, chr[0], changeRate, indelRate, chr[i]);
 			}
+		
+	//		std::vector<std::string> chr;
+	//		chr.push_back("AGCNGTTAAAACCAACTCACCACAATCAAACGATTCTCTGGCTATCATTACACCATTCCTGAA");
 
 			std::ofstream test(temporaryFasta.c_str());
 			if (!test)
@@ -214,6 +217,7 @@ namespace TwoPaCo
 
 							JunctionPositionReader reader(temporaryEdge);
 							reader.RestoreAllVectors(fastMarks);
+							
 							if (naiveMarks != fastMarks)
 							{
 								for (size_t i = 0; i < chrNumber; i++)

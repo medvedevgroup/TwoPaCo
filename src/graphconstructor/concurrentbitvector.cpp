@@ -43,6 +43,16 @@ namespace TwoPaCo
 		return (filter_[element] & (BASIC_TYPE(1) << BASIC_TYPE(bit))) != 0;
 	}
 
+	uint8_t ConcurrentBitVector::GetValue(size_t idx) const
+	{
+		return filter_[idx];
+	}
+
+	void ConcurrentBitVector::SetMask(size_t idx, uint8_t mask) const
+	{
+		filter_[idx] |= mask;
+	}
+
 	void ConcurrentBitVector::GetCoord(uint64_t idx, uint64_t & element, uint64_t & bit) const
 	{
 		bit = idx & ((BASIC_TYPE(1) << BASIC_TYPE(3)) - 1);

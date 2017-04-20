@@ -5,6 +5,7 @@
 
 #include <deque>
 #include <cstdio>
+#include <bitset>
 #include <numeric>
 #include <sstream>
 #include <unordered_map>
@@ -28,6 +29,133 @@
 
 namespace TwoPaCo
 {
+	class EdgeMask
+	{
+	public:
+		static void Init()
+		{
+			for (size_t i = 0; i < (1 << 8); i++)
+			{
+				std::bitset<8> mask(i);
+				for (size_t j = 0; j < DnaChar::LITERAL.size(); j++)
+				{
+					if (mask[j])
+					{
+						decodeIn[i].push_back(DnaChar::LITERAL[j]);
+						decodeInReverse[i].push_back(DnaChar::ReverseChar(DnaChar::LITERAL[j]));
+					}
+
+					if (mask[j + DnaChar::LITERAL.size()])
+					{
+						decodeOut[i].push_back(DnaChar::LITERAL[j]);
+						decodeOutReverse[i].push_back(DnaChar::ReverseChar(DnaChar::LITERAL[j]));
+					}
+				}
+			}
+		}
+
+		EdgeMask()
+		{
+		}
+
+		void SetIngoingEdge(char ch)
+		{
+			std::bitset<8> body(mask_);
+			if (!reverse_)
+			{
+				body.set(DnaChar::MakeUpChar(ch));
+			}
+			else
+			{
+				body.set(DnaChar::LITERAL.size() + DnaChar::MakeUpChar(DnaChar::ReverseChar(ch)));
+			}
+
+			mask_ = body.to_ulong();
+		}
+
+		void SetOutgoingEdge(char ch)
+		{
+			std::bitset<8> body(mask_);
+			if (!reverse_)
+			{
+				body.set(DnaChar::LITERAL.size() + DnaChar::MakeUpChar(ch));
+			}
+			else
+			{
+				body.set(DnaChar::MakeUpChar(DnaChar::ReverseChar(ch)));
+			}
+
+			mask_ = body.to_ulong();
+		}
+
+		EdgeMask(const VertexRollingHash & hash, std::string::const_iterator pos, char prevChar, char nextChar)
+		{
+			std::bitset<8> body(0);
+			uint64_t posHash0 = hash.RawPositiveHash(hash.HashFunctionsNumber() - 1);
+			uint64_t negHash0 = hash.RawNegativeHash(hash.HashFunctionsNumber() - 1);
+			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, hash.VertexLength())))
+			{
+				reverse_ = false;
+				pos_ = posHash0 & uint64_t(8);
+				if (prevChar != 'N')
+				{
+					body.set(DnaChar::MakeUpChar(prevChar));
+				}
+				
+				if (nextChar != 'N')
+				{
+					body.set(DnaChar::LITERAL.size() + DnaChar::MakeUpChar(nextChar));
+				}
+				
+			}
+			else
+			{
+				reverse_ = true;
+				pos_ = negHash0 & uint64_t(8);
+				if (prevChar != 'N')
+				{
+					body.set(DnaChar::LITERAL.size() + DnaChar::MakeUpChar(DnaChar::ReverseChar(prevChar)));
+				}
+
+				if (nextChar != 'N')
+				{
+					body.set(DnaChar::MakeUpChar(DnaChar::ReverseChar(nextChar)));
+				}
+			}
+
+			mask_ = body.to_ulong();
+		}
+
+		const std::string& InEdges() const
+		{
+			return reverse_ ? decodeInReverse[mask_] : decodeIn[mask_];
+		}
+
+		const std::string& OutEdges() const
+		{
+			return reverse_ ? decodeOutReverse[mask_] : decodeOut[mask_];
+		}
+
+		void SetFilter(ConcurrentBitVector & v) const
+		{
+			v.SetMask(pos_, mask_);
+		}
+
+		void QueryFilterMerge(const ConcurrentBitVector & v)
+		{
+			mask_ |= v.GetValue(pos_);
+		}
+
+	private:
+		static std::string decodeIn[1 << 8];
+		static std::string decodeInReverse[1 << 8];
+		static std::string decodeOut[1 << 8];
+		static std::string decodeOutReverse[1 << 8];
+		bool reverse_;
+		uint8_t mask_;
+		uint64_t pos_;
+	};
+
 	class VertexEnumerator
 	{
 	public:
@@ -39,7 +167,7 @@ namespace TwoPaCo
 		virtual ~VertexEnumerator()
 		{
 
-		}
+		}		
 	};
 
 	std::unique_ptr<VertexEnumerator> CreateEnumerator(const std::vector<std::string> & fileName,
@@ -134,9 +262,9 @@ namespace TwoPaCo
 			const std::string & outFileNamePrefix,
 			std::ostream & logStream) :
 			vertexSize_(vertexLength),
-			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
+			hashFunctionSeed_(hashFunctions + 1, vertexLength, filterSize),
 			filterDumpFile_(tmpDirName + "/filter.bin")
-		{
+		{			
 			uint64_t realSize = uint64_t(1) << filterSize;
 			logStream << "Threads = " << threads << std::endl;
 			logStream << "Vertex length = " << vertexLength << std::endl;
@@ -214,9 +342,10 @@ namespace TwoPaCo
 			if (!bifurcationTempWrite)
 			{
 				throw StreamFastaParser::Exception("Can't create a temp file");
-			}
+			}			
 
-			time_t mark;			
+			time_t mark;
+			EdgeMask::Init();
 			for (size_t round = 0; round < rounds; round++)
 			{
 				std::atomic<uint64_t> marks;
@@ -490,7 +619,7 @@ namespace TwoPaCo
 							char prevCh = task.str[pos];
 							char nextCh = task.str[pos + edgeLength - 1];
 							uint64_t startVertexHash = hash.GetVertexHash();							
-							GetOutgoingEdgeHash(hash, nextCh, hashValue);
+							GetOutgoingEdgeHash(hash, nextCh, hashValue, hash.HashFunctionsNumber() - 1);
 							for (auto hvalue : hashValue)
 							{
 								if (!filter.GetBit(hvalue))
@@ -585,20 +714,41 @@ namespace TwoPaCo
 								{
 									size_t inCount = DnaChar::IsDefinite(posPrev) ? 0 : 2;
 									size_t outCount = DnaChar::IsDefinite(posExtend) ? 0 : 2;
-									for (int i = 0; i < DnaChar::LITERAL.size() && inCount < 2 && outCount < 2; i++)
+									if (inCount == 0 && outCount == 0)
 									{
-										char nextCh = DnaChar::LITERAL[i];
-										if (nextCh == posPrev || IsIngoingEdgeInBloomFilter(hash, bitVector, nextCh))
+										EdgeMask mask(hash, task.str.begin() + pos, posPrev, posExtend);
+										mask.QueryFilterMerge(bitVector);
+										if (mask.InEdges().size() > 1)
 										{
-											++inCount;
+											for (char nextCh : mask.InEdges())
+											{
+												if (nextCh == posPrev || IsIngoingEdgeInBloomFilter(hash, bitVector, nextCh, hash.HashFunctionsNumber() - 1))
+												{
+													++inCount;
+													if (inCount > 1)
+													{
+														break;
+													}
+												}
+											}
 										}
 
-										if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(hash, bitVector, nextCh))
+										if (mask.OutEdges().size() > 1)
 										{
-											++outCount;
+											for (char nextCh : mask.OutEdges())
+											{
+												if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(hash, bitVector, nextCh, hash.HashFunctionsNumber() - 1))
+												{
+													++outCount;
+													if (outCount > 1)
+													{
+														break;
+													}
+												}
+											}
 										}
 									}
-
+								
 									if (inCount > 1 || outCount > 1)
 									{
 										++marksCount;
@@ -928,8 +1078,10 @@ namespace TwoPaCo
 			void operator()()
 			{
 				std::vector<uint64_t> setup;
+				std::vector<EdgeMask> maskSetup;
 				std::vector<uint64_t> hashValue;
 				const char DUMMY_CHAR = DnaChar::LITERAL[0];
+				size_t functions = hashFunction.HashFunctionsNumber() - 1;
 				const char REV_DUMMY_CHAR = DnaChar::ReverseChar(DUMMY_CHAR);
 				while (true)
 				{
@@ -953,27 +1105,39 @@ namespace TwoPaCo
 						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());						
 						for (size_t pos = 0;; ++pos)
 						{
-							hashValue.clear();
+							EdgeMask mask;
+							hashValue.clear();							
 							char prevCh = task.str[pos];
 							char nextCh = task.str[pos + edgeLength - 1];
 							assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 							if (definiteCount == vertexLength)
 							{
 								fistMinHash0 = hash.GetVertexHash();
-								if (DnaChar::IsDefinite(nextCh))
+								if ((pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1])) || !DnaChar::IsDefinite(nextCh))
 								{
-									GetOutgoingEdgeHash(hash, nextCh, hashValue);
+									mask = EdgeMask(hash, task.str.begin() + pos, pos > 0 ? task.str[pos - 1] : 'N', nextCh);
+									mask.SetIngoingEdge(DUMMY_CHAR);
+									mask.SetIngoingEdge(REV_DUMMY_CHAR);
 								}
 								else
 								{
-									GetOutgoingEdgeHash(hash, DUMMY_CHAR, hashValue);
-									GetOutgoingEdgeHash(hash, REV_DUMMY_CHAR, hashValue);
+									mask = EdgeMask(hash, task.str.begin() + pos, pos > 0 ? task.str[pos - 1] : 'N', nextCh);
+								}
+
+								if (DnaChar::IsDefinite(nextCh))
+								{
+									GetOutgoingEdgeHash(hash, nextCh, hashValue, functions);
+								}
+								else
+								{
+									GetOutgoingEdgeHash(hash, DUMMY_CHAR, hashValue, functions);
+									GetOutgoingEdgeHash(hash, REV_DUMMY_CHAR, hashValue, functions);
 								}
 
 								if (pos > 0 && !DnaChar::IsDefinite(task.str[pos - 1]))
 								{
-									GetIngoingEdgeHash(hash, DUMMY_CHAR, hashValue);
-									GetIngoingEdgeHash(hash, REV_DUMMY_CHAR, hashValue);
+									GetIngoingEdgeHash(hash, DUMMY_CHAR, hashValue, functions);
+									GetIngoingEdgeHash(hash, REV_DUMMY_CHAR, hashValue, functions);
 								}
 							}
 
@@ -986,8 +1150,10 @@ namespace TwoPaCo
 								{
 									for (uint64_t value : hashValue)
 									{
-										setup.push_back(value);
+										setup.push_back(value);										
 									}
+
+									maskSetup.push_back(mask);
 								}
 							}
 
@@ -1010,6 +1176,12 @@ namespace TwoPaCo
 						}
 					}
 
+					for (auto & mask : maskSetup)
+					{
+						mask.SetFilter(filter);
+					}
+
+					maskSetup.clear();
 					setup.clear();
 				}
 			}

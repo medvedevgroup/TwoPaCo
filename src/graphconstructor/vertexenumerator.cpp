@@ -11,7 +11,12 @@
 #include "vertexenumerator.h"
 
 namespace TwoPaCo
-{
+{	
+	std::string EdgeMask::decodeIn[1 << 8];
+	std::string EdgeMask::decodeOut[1 << 8];
+	std::string EdgeMask::decodeInReverse[1 << 8];
+	std::string EdgeMask::decodeOutReverse[1 << 8];
+
 	namespace
 	{
 		template<size_t CAPACITY>

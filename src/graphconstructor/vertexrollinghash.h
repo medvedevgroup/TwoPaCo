@@ -204,11 +204,11 @@ namespace TwoPaCo
 		std::vector<HashFunctionPtr> posVertexHash_;
 		std::vector<HashFunctionPtr> negVertexHash_;			
 	};
-
-	inline bool IsOutgoingEdgeInBloomFilter(const VertexRollingHash & hash, const ConcurrentBitVector & filter, char nextCh)
+	
+	inline bool IsOutgoingEdgeInBloomFilter(const VertexRollingHash & hash, const ConcurrentBitVector & filter, char nextCh, size_t functions)
 	{
 		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandExtend(nextCh);	
-		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
+		for (size_t i = 0; i < functions; i++)
 		{
 			if (!filter.GetBit(hash.GetOutgoingEdgeHash(nextCh, result, i)))
 			{
@@ -219,10 +219,10 @@ namespace TwoPaCo
 		return true;
 	}
 
-	inline bool IsIngoingEdgeInBloomFilter(const VertexRollingHash & hash, const ConcurrentBitVector & filter, char prevCh)
+	inline bool IsIngoingEdgeInBloomFilter(const VertexRollingHash & hash, const ConcurrentBitVector & filter, char prevCh, size_t functions)
 	{
 		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandPrepend(prevCh);
-		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
+		for (size_t i = 0; i < functions; i++)
 		{
 			if (!filter.GetBit(hash.GetIngoingEdgeHash(prevCh, result, i)))
 			{
@@ -233,19 +233,19 @@ namespace TwoPaCo
 		return true;
 	}
 
-	inline void GetOutgoingEdgeHash(const VertexRollingHash & hash, char nextCh, std::vector<uint64_t> & value)
+	inline void GetOutgoingEdgeHash(const VertexRollingHash & hash, char nextCh, std::vector<uint64_t> & value, size_t functions)
 	{
 		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandExtend(nextCh);
-		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
+		for (size_t i = 0; i < functions; i++)
 		{
 			value.push_back(hash.GetOutgoingEdgeHash(nextCh, result, i));
 		}
 	}
 
-	inline void GetIngoingEdgeHash(const VertexRollingHash & hash, char prevCh, std::vector<uint64_t> & value)
+	inline void GetIngoingEdgeHash(const VertexRollingHash & hash, char prevCh, std::vector<uint64_t> & value, size_t functions)
 	{
 		VertexRollingHash::StrandComparisonResult result = hash.DetermineStrandPrepend(prevCh);
-		for (size_t i = 0; i < hash.HashFunctionsNumber(); i++)
+		for (size_t i = 0; i < functions; i++)
 		{
 			value.push_back(hash.GetIngoingEdgeHash(prevCh, result, i));
 		}

@@ -18,6 +18,8 @@ namespace TwoPaCo
 		size_t Size() const;
 		void SetBitConcurrently(size_t idx);
 		bool GetBit(size_t idx) const;
+		uint8_t GetValue(size_t idx) const;
+		void SetMask(size_t idx, uint8_t mask) const;
 		void MergeOr(const ConcurrentBitVector & mask);
 		void WriteToFile(const std::string & fileName) const;
 		void ReadFromFile(const std::string & fileName, bool cleanUp);

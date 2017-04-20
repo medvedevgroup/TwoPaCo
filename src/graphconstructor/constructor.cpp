@@ -16,7 +16,7 @@
 #include <tclap/CmdLine.h>
 
 #include "test.h"
-#include "assemblyedgeconstructor.h"
+#include "vertexenumerator.h"
 
 size_t Atoi(const char * str)
 {
