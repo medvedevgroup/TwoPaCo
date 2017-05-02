@@ -143,7 +143,7 @@ int main(int argc, char * argv[])
 			
 		std::cout << std::endl;
 		
-		//TwoPaCo::AssemblyEdgeConstructor constructor(fileName.getValue(), outFileName.getValue(), *vid);
+		std::unique_ptr<TwoPaCo::AssemblyEdgeConstructor> constructor = CreateAssemblyEdgeConstructor(fileName.getValue(), outFileName.getValue(), *vid);
 	}
 	catch (TCLAP::ArgException & e)
 	{
