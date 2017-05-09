@@ -34,17 +34,22 @@ namespace TwoPaCo
 			size_t chrNumber = 0;
 			ChrReader chrReader(inputFileName);
 			std::unique_ptr<ConcurrentBitVector> bloomFilter = vertexEnumerator_.ReloadBloomFilter();
+
+			std::ofstream fout("edges.fasta");
+
 			for (std::string chr; chrReader.NextChr(chr); chrNumber++)
-			{												
+			{			
+				std::string vertex;	
+				std::string currentOutVertex; //Current junction vertex								
 				//Init hash function				
 				VertexRollingHash hash(vertexEnumerator.GetHashSeed(), chr.begin(), vertexEnumerator.GetHashSeed().HashFunctionsNumber());
-				for (int64_t i = 0; i <= int64_t(chr.size()) - edgeLength; i++)
+				for (int64_t i = 0; i <= int64_t(chr.size()) - edgeLength + 1; i++)
 				{
-					//Copy data from string to the integer buffer
 					buffer.Clear();
 					buffer.CopyFromString(chr.begin() + i, vertexLength);
-					std::cout << buffer.ToString(vertexLength) << std::endl;
-					std::string vertex = chr.substr(i, vertexLength);
+					//std::cout << buffer.ToString(vertexLength) << std::endl;
+					vertex = chr.substr(i, vertexLength);
+
 					//Check if the Bloom filter contains an edge
 					assert(IsOutgoingEdgeInBloomFilter(hash, *bloomFilter, chr[i + edgeLength - 1]));
 					if (i > 0)
@@ -60,11 +65,60 @@ namespace TwoPaCo
 						//Found a junction candidate, check that the mark in the vector is set
 						assert(vertexEnumerator_.GetBit(chrNumber, i) == true);
 					}
+					
+					
+					if (inEdges.length() + outEdges.length() != 0) // Real junction 
+					{
+						if (currentOutVertex.length() == 0)
+						{
+							// If start of read
+							currentOutVertex = vertex; 
+							fout << "<edge" << std::endl << vertex;
+						}
+						else
+						{
+							fout << vertex[vertexLength - 1] << std::endl;
+							if (i !=  int64_t(chr.size()) - edgeLength + 1)
+								fout << "<edge" << std::endl<<vertex;
+							currentOutVertex = vertex;
 
-					hash.Update(chr[i], chr[i + vertexLength]);
-					//Check that the hash values were updated correctly
-					assert(hash.Assert(chr.begin() + i + 1));					
+						}
+
+					}
+					else
+						fout << chr[i + vertexLength - 1];
+					
+					if (i !=  int64_t(chr.size()) - edgeLength + 1)
+						//Update hash				
+						hash.Update(chr[i], chr[i + vertexLength]); 
 				}
+				if (currentOutVertex != vertex) // If end of read is not junction
+				{
+					bool isCurrentVertexNotJunction = true; 
+					while (isCurrentVertexNotJunction)
+					{
+						for (char ch : DnaChar::LITERAL)
+							if (IsOutgoingEdgeInBloomFilter(hash, *bloomFilter, ch))
+							{
+								hash.Update(vertex[0], ch);
+								vertex = vertex.substr(1, vertexLength);
+								vertex += ch;
+								fout << ch;
+								break;
+							}
+
+						std::string inEdges;
+						std::string outEdges;
+						vertexEnumerator_.GetEdges(vertex.begin(), hash, inEdges, outEdges);
+						if (inEdges.length() + outEdges.length() != 0)
+						{
+							isCurrentVertexNotJunction = false;
+						
+						}
+					}
+				}
+				fout<<std::endl;
+				currentOutVertex = "";
 			}
 		}
 		
