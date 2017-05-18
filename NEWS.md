@@ -8,6 +8,7 @@ TwoPaCo 0.9.2
 =============
 * Fixed path output for both GFA1 and GFA2
 * Added FASTA output format for dump
+* Fixed a bug of not using the proper temporary directory when running tests
 
 TwoPaCo 0.9.1
 =============
