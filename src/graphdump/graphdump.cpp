@@ -254,21 +254,12 @@ public:
 		if (currentPath.size() > 0)
 		{
 			out << "P\t" << seqId << '\t';
-			std::copy(currentPath.begin(), currentPath.end() - 1, std::ostream_iterator<int64_t>(out, ","));
-			out << currentPath.back();
-			out << '\t';
-
-			if (currentPath.size() > 1)
+			for (auto it = currentPath.begin(); it != currentPath.end() - 1; ++it)
 			{
-				for (size_t i = 0; i < currentPath.size() - 2; i++)
-				{
-					out << k << "M,";
-				}
-
-				out << k << "M";
+				out << Abs(*it) << Sign(*it) << ",";
 			}
-
-			out << std::endl;
+			
+			out << Abs(currentPath.back()) << Sign(currentPath.back()) << "\t*" << std::endl;
 			currentPath.clear();
 		}
 	}
@@ -372,8 +363,12 @@ public:
 		if (currentPath.size() > 0)
 		{
 			out << "O\t" << seqId << "p" << '\t';
-			std::copy(currentPath.begin(), currentPath.end(), std::ostream_iterator<int64_t>(out, " "));
-			out << std::endl;
+			for (auto it = currentPath.begin(); it != currentPath.end() - 1; ++it)
+			{
+				out << Abs(*it) << Sign(*it) << " ";
+			}
+
+			out << Abs(currentPath.back()) << Sign(currentPath.back()) << std::endl;
 			currentPath.clear();
 		}
 	}
@@ -482,21 +477,122 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
 }
 
-void GenerateDotOutput(const std::string & inputFileName)
+void GenerateFastaOutput(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k)
+{/*
+	std::vector<uint64_t> chrSegmentLength;
+	std::vector<std::string> chrSegmentId;
+	std::map<std::string, std::string> chrFileName;
+
+
+	ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+	g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
+
+	std::vector<int64_t> currentPath;
+	const int64_t NO_SEGMENT = 0;
+	std::string chr;
+	int64_t seqId = NO_SEGMENT;
+	int64_t prevSegmentId = NO_SEGMENT;
+	int64_t prevSegmentSize = -1;
+	TwoPaCo::JunctionPosition end;
+	TwoPaCo::JunctionPosition begin;
+	TwoPaCo::ChrReader chrReader(genomes);
+	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
+	std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
+	int64_t previousId = 0;
+
+#ifdef _DEBUG
+	std::map<int64_t, std::string> segmentBody;
+#endif
+	if (reader.NextJunctionPosition(begin))
 	{
-		TwoPaCo::JunctionPosition pos;
-		TwoPaCo::JunctionPosition prevPos;
-		TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
-		std::cout << "digraph G\n{\n\trankdir = LR" << std::endl;
-	
-		while (reader.NextJunctionPosition(pos))
+		chrReader.NextChr(chr);
+		while (reader.NextJunctionPosition(end))
 		{
-			if (pos.GetChr() == prevPos.GetChr())
+			if (begin.GetChr() == end.GetChr())
 			{
-				std::cout << '\t' << prevPos.GetId() << " -> " << pos.GetId() <<
-					"[color=\"blue\", label=\"chr=" << prevPos.GetChr() << " pos=" << prevPos.GetPos() << "\"]" << std::endl;	
-				std::cout << '\t' << -pos.GetId() << " -> " << -prevPos.GetId() <<
-					"[color=\"red\", label=\"chr=" << prevPos.GetChr() << " pos=" << prevPos.GetPos() << "\"]" << std::endl;
+				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
+				int64_t segmentId = nowSegment.GetSegmentId();
+				currentPath.push_back(segmentId);
+				uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
+				if (!seen[Abs(segmentId)])
+				{
+					//std::cout << "S\t" << Abs(segmentId) << "\t";
+					std::stringstream ss;
+					if (segmentId > 0)
+					{
+						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
+
+					}
+					else
+					{
+						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+					}
+
+					g.Segment(segmentId, segmentSize, ss.str(), std::cout);
+					seen[Abs(segmentId)] = true;
+				}
+
+#ifdef _DEBUG
+				int64_t absSegmentId = Abs(segmentId);
+				std::string buf = segmentId > 0 ? std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k) :
+					TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+				if (segmentBody.count(absSegmentId) == 0)
+				{
+					segmentBody[absSegmentId] = buf;
+				}
+				else
+				{
+					assert(segmentBody[absSegmentId] == buf);
+				}
+#endif
+				g.Occurrence(segmentId, segmentSize, chrSegmentId[seqId], chrSegmentLength[seqId], begin.GetPos(), end.GetPos(), k, std::cout);
+				//std::cout << "C\t" << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << chrSegmentId[seqId] << "\t+\t" << begin.GetPos() << std::endl;
+
+				if (prevSegmentId != NO_SEGMENT)
+				{
+					//std::cout << "L\t" << Abs(prevSegmentId) << '\t' << Sign(prevSegmentId) << '\t' << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << k << 'M' << std::endl;
+					g.Edge(prevSegmentId, prevSegmentSize, segmentId, segmentSize, k, std::cout);
+				}
+
+				prevSegmentId = segmentId;
+				prevSegmentSize = segmentSize;
+				begin = end;
+			}
+			else
+			{
+				g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
+				chrReader.NextChr(chr);
+				prevSegmentId = 0;
+				begin = end;
+
+				if (begin.GetChr() != ++seqId)
+				{
+					throw std::runtime_error("The input is corrupted");
+				}
+			}
+		}
+	}
+
+	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);*/
+}
+
+
+void GenerateDotOutput(const std::string & inputFileName)
+{
+	TwoPaCo::JunctionPosition pos;
+	TwoPaCo::JunctionPosition prevPos;
+	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
+	std::cout << "digraph G\n{\n\trankdir = LR" << std::endl;
+	
+	while (reader.NextJunctionPosition(pos))
+	{
+		if (pos.GetChr() == prevPos.GetChr())
+		{
+			std::cout << '\t' << prevPos.GetId() << " -> " << pos.GetId() <<
+				"[color=\"blue\", label=\"chr=" << prevPos.GetChr() << " pos=" << prevPos.GetPos() << "\"]" << std::endl;	
+			std::cout << '\t' << -pos.GetId() << " -> " << -prevPos.GetId() <<
+				"[color=\"red\", label=\"chr=" << prevPos.GetChr() << " pos=" << prevPos.GetPos() << "\"]" << std::endl;
 		}
 
 		prevPos = pos;
@@ -513,6 +609,7 @@ int main(int argc, char * argv[])
 	format.push_back("dot");
 	format.push_back("gfa1");
 	format.push_back("gfa2");
+	format.push_back("fasta");
 	std::stringstream formatString;
 	std::copy(format.begin(), format.begin(), std::ostream_iterator<std::string>(formatString, "|"));
 	try
@@ -581,6 +678,15 @@ int main(int argc, char * argv[])
 			}
 
 			GenerateGfaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(), prefix.getValue(), Gfa2Generator());
+		}
+		else if (outputFileFormat.getValue() == format[5])
+		{
+			if (!seqFileName.isSet())
+			{
+				throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
+			}
+
+			GenerateFastaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue());
 		}
 	}
 	catch (TCLAP::ArgException &e)

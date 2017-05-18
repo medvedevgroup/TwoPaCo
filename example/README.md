@@ -28,3 +28,6 @@ or GFA2:
 	graphdump -f gfa2 -k 11 example.dbg -s example.fa > example_gfa2.gfa
 
 The resulting GFA1 file can be visualized by Bandage for example, see "example_bandage.png".
+One can simply get sequences of all compressed paths in FASTA format:
+
+	graphdump -f fasta -k 11 example.dbg -s example.fa > example_paths.fa
