@@ -7,7 +7,7 @@ Plans for TwoPaCo 1.0.0:
 TwoPaCo 0.9.2
 =============
 * Fixed path output for both GFA1 and GFA2
-* Added FASTA output
+* Added FASTA output format for dump
 
 TwoPaCo 0.9.1
 =============

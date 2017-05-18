@@ -477,15 +477,33 @@ void GenerateGfaOutput(const std::string & inputFileName, const std::vector<std:
 	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
 }
 
+template<class It>
+void OutFastaBody(It begin, It end)
+{
+	int64_t count = 0;
+	for (; begin != end; ++begin)
+	{
+		std::cout << *begin;
+		if (++count % 80 == 0)
+		{
+			std::cout << std::endl;
+		}
+	}
+	
+	if (count % 80 != 0)
+	{
+		std::cout << std::endl;
+	}
+}
+
 void GenerateFastaOutput(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k)
-{/*
+{
 	std::vector<uint64_t> chrSegmentLength;
 	std::vector<std::string> chrSegmentId;
 	std::map<std::string, std::string> chrFileName;
 
 
-	ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
-	g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
+	ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, false);	
 
 	std::vector<int64_t> currentPath;
 	const int64_t NO_SEGMENT = 0;
@@ -516,20 +534,18 @@ void GenerateFastaOutput(const std::string & inputFileName, const std::vector<st
 				uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
 				if (!seen[Abs(segmentId)])
 				{
-					//std::cout << "S\t" << Abs(segmentId) << "\t";
-					std::stringstream ss;
+					std::cout << ">" << Abs(segmentId) << std::endl;
 					if (segmentId > 0)
 					{
-						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-
+						OutFastaBody(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k);
 					}
 					else
 					{
 						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
-						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+						OutFastaBody(buf.begin(), buf.end());
 					}
-
-					g.Segment(segmentId, segmentSize, ss.str(), std::cout);
+					
+					
 					seen[Abs(segmentId)] = true;
 				}
 
@@ -546,22 +562,12 @@ void GenerateFastaOutput(const std::string & inputFileName, const std::vector<st
 					assert(segmentBody[absSegmentId] == buf);
 				}
 #endif
-				g.Occurrence(segmentId, segmentSize, chrSegmentId[seqId], chrSegmentLength[seqId], begin.GetPos(), end.GetPos(), k, std::cout);
-				//std::cout << "C\t" << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << chrSegmentId[seqId] << "\t+\t" << begin.GetPos() << std::endl;
-
-				if (prevSegmentId != NO_SEGMENT)
-				{
-					//std::cout << "L\t" << Abs(prevSegmentId) << '\t' << Sign(prevSegmentId) << '\t' << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << k << 'M' << std::endl;
-					g.Edge(prevSegmentId, prevSegmentSize, segmentId, segmentSize, k, std::cout);
-				}
-
 				prevSegmentId = segmentId;
 				prevSegmentSize = segmentSize;
 				begin = end;
 			}
 			else
-			{
-				g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
+			{				
 				chrReader.NextChr(chr);
 				prevSegmentId = 0;
 				begin = end;
@@ -573,8 +579,6 @@ void GenerateFastaOutput(const std::string & inputFileName, const std::vector<st
 			}
 		}
 	}
-
-	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);*/
 }
 
 
