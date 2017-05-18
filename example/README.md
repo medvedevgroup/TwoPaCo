@@ -3,7 +3,7 @@ Introduction
 Here is an example of the de Bruijn graph built from a small input with k=11.
 Below are commands used to produce the files. Run TwoPaCo:
 	
-	twopaco -f 20 -k 11 example.fa -o example1.dbg
+	twopaco -f 20 -k 11 example.fa -o example.dbg
 
 Get DOT file for Graphviz visualisation and render it:
 

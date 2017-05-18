@@ -55,7 +55,7 @@ int main(int argc, char * argv[])
 	OddConstraint constraint;
 	try
 	{
-		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.9.0");
+		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.9.2");
 		
 		TCLAP::ValueArg<unsigned int> kvalue("k",
 			"kvalue",

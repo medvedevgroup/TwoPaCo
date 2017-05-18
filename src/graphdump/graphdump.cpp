@@ -618,7 +618,7 @@ int main(int argc, char * argv[])
 	std::copy(format.begin(), format.begin(), std::ostream_iterator<std::string>(formatString, "|"));
 	try
 	{
-		TCLAP::CmdLine cmd("This utility converts the binary output of TwoPaCo to another format", ' ', "0.9.0");
+		TCLAP::CmdLine cmd("This utility converts the binary output of TwoPaCo to another format", ' ', "0.9.2");
 		TCLAP::SwitchArg prefix("", "prefix", "Add a prefix to segments in GFA (in case if you have genomes with identical FASTA headers)", cmd, false);
 
 		TCLAP::UnlabeledValueArg<std::string> inputFileName("infile",

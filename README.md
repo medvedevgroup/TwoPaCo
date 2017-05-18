@@ -1,6 +1,6 @@
-TwoPaCo 0.9.1
+TwoPaCo 0.9.2
 
-Release date: 29th March 2017
+Release date: 18th May 2017
 =============================
 
 Authors
