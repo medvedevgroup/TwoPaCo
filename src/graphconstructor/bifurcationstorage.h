@@ -24,9 +24,10 @@ namespace TwoPaCo
 			return bifurcationKey_.size() * 2;
 		}
 
-		void Init(std::istream & bifurcationTempRead, uint64_t verticesCount, uint64_t vertexLength, size_t threads)
+		void Init(std::istream & bifurcationTempRead, uint64_t verticesCount, uint64_t vertexLength, bool singleStrand, size_t threads)
 		{
 			uint64_t bitsPower = 0;
+			singleStrand_ = singleStrand;
 			vertexLength_ = vertexLength;
 			while (verticesCount * 8 >= (uint64_t(1) << bitsPower))
 			{
@@ -67,22 +68,22 @@ namespace TwoPaCo
 
 		int64_t GetId(std::string::const_iterator pos) const
 		{
-			return GetId(pos, true, true);
+			return GetId(pos, true, !singleStrand_);
 		}
 
 		int64_t GetId(std::string::const_iterator pos, const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash) const
 		{
 			bool posFound = true;
-			bool negFound = true;
+			bool negFound = !singleStrand_;
 			int64_t ret = INVALID_VERTEX;
 			for (size_t i = 0; i < posVertexHash.size() && (posFound || negFound); i++)
 			{
-				if (!bifurcationFilter_[posVertexHash[i]->hashvalue])
+				if (posFound && !bifurcationFilter_[posVertexHash[i]->hashvalue])
 				{
 					posFound = false;
 				}
 
-				if (!bifurcationFilter_[negVertexHash[i]->hashvalue])
+				if (negFoud && !bifurcationFilter_[negVertexHash[i]->hashvalue])
 				{
 					negFound = false;
 				}
@@ -155,6 +156,7 @@ namespace TwoPaCo
 		DISALLOW_COPY_AND_ASSIGN(BifurcationStorage<CAPACITY>);
 
 		size_t vertexLength_;
+		bool singleStrand_;
 		std::vector<bool> bifurcationFilter_;
 		std::vector<DnaString> bifurcationKey_;
 		std::vector<HashFunctionPtr> hashFunction_;

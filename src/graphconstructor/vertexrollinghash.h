@@ -29,7 +29,7 @@ namespace TwoPaCo
 			{
 				ptr = HashFunctionPtr(new HashFunction(vertexLength, bits));
 			}
-		}
+		}		
 
 		size_t VertexLength() const
 		{
@@ -76,28 +76,35 @@ namespace TwoPaCo
 			return posVertexHash_.size();
 		}
 
-		VertexRollingHash(const VertexRollingHashSeed & seed, std::string::const_iterator begin, size_t hashFunctions)
-		{
+		VertexRollingHash(const VertexRollingHashSeed & seed, std::string::const_iterator begin, size_t hashFunctions, bool singleStrand) : singleStrand_(singleStrand)
+		{			
 			size_t size = seed.hashFunction_[0]->n;
 			posVertexHash_.resize(hashFunctions);
-			negVertexHash_.resize(hashFunctions);
+			if (!singleStrand)
+			{
+				negVertexHash_.resize(hashFunctions);
+			}
+
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
-				posVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));
-				negVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));
+				posVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));				
 				for (auto it = begin; it != begin + size; ++it)
 				{
 					posVertexHash_[i]->eat(*it);
 				}
 
 				assert(posVertexHash_[i]->hashvalue == posVertexHash_[i]->hash(std::string(begin, begin + size)));
-				for (std::string::const_reverse_iterator it(begin + size); it != std::string::const_reverse_iterator(begin); ++it)
+				if (!singleStrand_)
 				{
-					char ch = DnaChar::ReverseChar(*it);
-					negVertexHash_[i]->eat(DnaChar::ReverseChar(*it));
-				}
+					negVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));
+					for (std::string::const_reverse_iterator it(begin + size); it != std::string::const_reverse_iterator(begin); ++it)
+					{
+						char ch = DnaChar::ReverseChar(*it);
+						negVertexHash_[i]->eat(DnaChar::ReverseChar(*it));
+					}
 
-				assert(negVertexHash_[i]->hashvalue == negVertexHash_[i]->hash(DnaChar::ReverseCompliment(std::string(begin, begin + size))));
+					assert(negVertexHash_[i]->hashvalue == negVertexHash_[i]->hash(DnaChar::ReverseCompliment(std::string(begin, begin + size))));
+				}
 			}
 		}
 
@@ -108,7 +115,10 @@ namespace TwoPaCo
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				posVertexHash_[i]->update(positivePreviousChar, positiveNextChar);
-				negVertexHash_[i]->reverse_update(negativeNextChar, negativePreviousChar);
+				if (!singleStrand_)
+				{
+					negVertexHash_[i]->reverse_update(negativeNextChar, negativePreviousChar);
+				}
 			}
 		}
 
@@ -118,7 +128,10 @@ namespace TwoPaCo
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				assert(posVertexHash_[i]->hashvalue == posVertexHash_[i]->hash(std::string(begin, begin + size)));
-				assert(negVertexHash_[i]->hashvalue == negVertexHash_[i]->hash(DnaChar::ReverseCompliment(std::string(begin, begin + size))));
+				if (!singleStrand_)
+				{
+					assert(negVertexHash_[i]->hashvalue == negVertexHash_[i]->hash(DnaChar::ReverseCompliment(std::string(begin, begin + size))));
+				}
 			}
 
 			return true;
@@ -135,10 +148,15 @@ namespace TwoPaCo
 		}
 
 		uint64_t GetVertexHash() const
-		{			
+		{	
 			uint64_t posHash = posVertexHash_[0]->hashvalue;
-			uint64_t negHash = negVertexHash_[0]->hashvalue;
-			return min(posHash, negHash);
+			if (!singleStrand_)
+			{				
+				uint64_t negHash = negVertexHash_[0]->hashvalue;
+				return min(posHash, negHash);
+			}
+			
+			return posHash;
 		}
 
 		uint64_t GetIngoingEdgeHash(char previousPositiveCharacter, StrandComparisonResult result, size_t idx) const
@@ -169,6 +187,11 @@ namespace TwoPaCo
 
 		StrandComparisonResult DetermineStrandExtend(char nextCh) const
 		{
+			if (singleStrand_)
+			{
+				return positiveLess;
+			}
+
 			char revNextCh = DnaChar::ReverseChar(nextCh);
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
@@ -185,6 +208,11 @@ namespace TwoPaCo
 
 		StrandComparisonResult DetermineStrandPrepend(char prevCh) const
 		{
+			if (singleStrand_)
+			{
+				return positiveLess;
+			}
+
 			char revPrevCh = DnaChar::ReverseChar(prevCh);
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
@@ -200,7 +228,8 @@ namespace TwoPaCo
 		}
 
 	private:
-		DISALLOW_COPY_AND_ASSIGN(VertexRollingHash);		
+		DISALLOW_COPY_AND_ASSIGN(VertexRollingHash);
+		bool singleStrand_;
 		std::vector<HashFunctionPtr> posVertexHash_;
 		std::vector<HashFunctionPtr> negVertexHash_;			
 	};

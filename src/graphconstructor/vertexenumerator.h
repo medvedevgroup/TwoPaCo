@@ -48,6 +48,7 @@ namespace TwoPaCo
 		size_t hashFunctions,
 		size_t rounds,
 		size_t threads,
+		bool singleStrand,
 		const std::string & tmpFileName,
 		const std::string & outFileName,
 		std::ostream & logStream);
@@ -130,10 +131,12 @@ namespace TwoPaCo
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
+			bool singleStrand,
 			const std::string & tmpDirName,
 			const std::string & outFileNamePrefix,
 			std::ostream & logStream) :
 			vertexSize_(vertexLength),
+			singleStrand_(singleStrand),
 			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
 			filterDumpFile_(tmpDirName + "/filter.bin")
 		{
@@ -185,6 +188,7 @@ namespace TwoPaCo
 						hashFunctionSeed_,
 						bitVector,
 						vertexLength,
+						singleStrand,
 						*taskQueue[i],
 						binCounter);
 					workerThread[i].reset(new tbb::tbb_thread(worker));
@@ -259,6 +263,7 @@ namespace TwoPaCo
 								std::cref(hashFunctionSeed_),
 								std::ref(bitVector),
 								edgeLength,
+								singleStrand,
 								std::ref(*taskQueue[i]));
 							workerThread[i].reset(new tbb::tbb_thread(worker));
 						}
@@ -281,6 +286,7 @@ namespace TwoPaCo
 								hashFunctionSeed_,
 								bitVector,
 								vertexLength,
+								singleStrand,
 								*taskQueue[i],
 								tmpDirName,
 								marks,
@@ -316,6 +322,7 @@ namespace TwoPaCo
 					{
 						CandidateFinalFilteringWorker worker(hashFunctionSeed_,
 							vertexLength,
+							singleStrand_,
 							*taskQueue[i],
 							occurenceSet,
 							mutex,
@@ -370,7 +377,7 @@ namespace TwoPaCo
 					throw StreamFastaParser::Exception("Can't open the temp file");
 				}
 
-				bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, threads);
+				bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, singleStrand, threads);
 			}
 
 			std::remove(bifurcationTempReadName.c_str());
@@ -455,9 +462,10 @@ namespace TwoPaCo
 				const VertexRollingHashSeed & hashFunction,
 				ConcurrentBitVector & filter,
 				size_t vertexLength,
+				bool singleStrand,
 				TaskQueue & taskQueue,
 				std::atomic<uint32_t> * binCounter) : binSize(binSize), hashFunction(hashFunction), filter(filter),
-				vertexLength(vertexLength), taskQueue(taskQueue), binCounter(binCounter)
+				vertexLength(vertexLength), singleStrand(singleStrand), taskQueue(taskQueue), binCounter(binCounter)
 			{
 
 			}
@@ -482,7 +490,7 @@ namespace TwoPaCo
 
 						std::vector<uint64_t> hashValue;
 						size_t vertexLength = edgeLength - 1;						
-						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());
+						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber(), singleStrand);
 						for (size_t pos = 0; pos + edgeLength - 1 < task.str.size(); ++pos)
 						{							
 							hashValue.clear();
@@ -526,6 +534,7 @@ namespace TwoPaCo
 			const VertexRollingHashSeed & hashFunction;
 			ConcurrentBitVector & filter;
 			size_t vertexLength;
+			bool singleStrand;
 			TaskQueue & taskQueue;
 			std::atomic<uint32_t> * binCounter;
 		};
@@ -538,13 +547,14 @@ namespace TwoPaCo
 				const VertexRollingHashSeed & hashFunction,
 				const ConcurrentBitVector & bitVector,
 				size_t vertexLength,
+				bool singleStrand,
 				TaskQueue & taskQueue,
 				const std::string & tmpDirectory,
 				std::atomic<uint64_t> & marksCount,
 				size_t round,
 				std::unique_ptr<std::runtime_error> & error,				
-				tbb::mutex & errorMutex) : bound(bound), hashFunction(hashFunction), bitVector(bitVector), vertexLength(vertexLength), taskQueue(taskQueue),
-				tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex), round(round)
+				tbb::mutex & errorMutex) : bound(bound), hashFunction(hashFunction), bitVector(bitVector), vertexLength(vertexLength),
+				singleStrand(singleStrand), taskQueue(taskQueue), tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex), round(round)
 			{
 
 			}
@@ -574,7 +584,7 @@ namespace TwoPaCo
 						if (task.str.size() >= vertexLength + 2)
 						{
 							candidateMask.Reset();
-							VertexRollingHash hash(hashFunction, task.str.begin() + 1, hashFunction.HashFunctionsNumber());
+							VertexRollingHash hash(hashFunction, task.str.begin() + 1, hashFunction.HashFunctionsNumber(), singleStrand);
 							size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 							for (size_t pos = 1;; ++pos)
 							{
@@ -637,6 +647,7 @@ namespace TwoPaCo
 			const VertexRollingHashSeed & hashFunction;
 			const ConcurrentBitVector & bitVector;
 			size_t vertexLength;
+			bool singleStrand;
 			TaskQueue & taskQueue;
 			const std::string & tmpDirectory;
 			std::atomic<uint64_t> & marksCount;
@@ -652,14 +663,16 @@ namespace TwoPaCo
 		public:
 			CandidateFinalFilteringWorker(const VertexRollingHashSeed & hashFunction,
 				size_t vertexLength,
+				bool singleStrand,
 				TaskQueue & taskQueue,
 				OccurenceSet & occurenceSet,
 				tbb::spin_rw_mutex & mutex,
 				const std::string & tmpDirectory,
 				size_t round,
 				std::unique_ptr<std::runtime_error> & error,
-				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
-				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex)
+				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), singleStrand(singleStrand),
+				taskQueue(taskQueue), occurenceSet(occurenceSet), mutex(mutex), tmpDirectory(tmpDirectory), round(round),
+				error(error), errorMutex(errorMutex)
 			{
 
 			}
@@ -685,7 +698,7 @@ namespace TwoPaCo
 						size_t edgeLength = vertexLength + 1;
 						if (task.str.size() >= vertexLength + 2)
 						{
-							VertexRollingHash hash(hashFunction, task.str.begin() + 1, 1);
+							VertexRollingHash hash(hashFunction, task.str.begin() + 1, 1, singleStrand);
 							{
 								try
 								{
@@ -704,14 +717,27 @@ namespace TwoPaCo
 								if (candidateMask.GetBit(pos))
 								{
 									Occurence now;
-									bool isBifurcation = false;						
-									now.Set(hash.RawPositiveHash(0),
-										hash.RawNegativeHash(0),
-										task.str.begin() + pos,
-										vertexLength,
-										posExtend,
-										posPrev,
-										isBifurcation);
+									bool isBifurcation = false;
+									if (!singleStrand)
+									{
+										now.Set(hash.RawPositiveHash(0),
+											hash.RawNegativeHash(0),
+											task.str.begin() + pos,
+											vertexLength,
+											posExtend,
+											posPrev,
+											isBifurcation);
+									}
+									else
+									{
+										now.Set(0, 1,
+											task.str.begin() + pos,
+											vertexLength,
+											posExtend,
+											posPrev,
+											isBifurcation);
+									}
+
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
@@ -746,6 +772,7 @@ namespace TwoPaCo
 		private:
 			const VertexRollingHashSeed & hashFunction;
 			size_t vertexLength;
+			bool singleStrand;
 			TaskQueue & taskQueue;
 			OccurenceSet & occurenceSet;
 			tbb::spin_rw_mutex & mutex;
@@ -920,7 +947,9 @@ namespace TwoPaCo
 				const VertexRollingHashSeed & hashFunction,
 				ConcurrentBitVector & filter,
 				size_t edgeLength,
-				TaskQueue & taskQueue) : low(low), high(high), hashFunction(hashFunction), filter(filter), edgeLength(edgeLength), taskQueue(taskQueue)
+				bool singleStrand,
+				TaskQueue & taskQueue) : low(low), high(high), hashFunction(hashFunction), filter(filter),
+				edgeLength(edgeLength), singleStrand(singleStrand), taskQueue(taskQueue)
 			{
 
 			}
@@ -950,7 +979,7 @@ namespace TwoPaCo
 						uint64_t secondMinHash0;
 						size_t vertexLength = edgeLength - 1;
 						size_t definiteCount = std::count_if(task.str.begin(), task.str.begin() + vertexLength, DnaChar::IsDefinite);
-						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber());						
+						VertexRollingHash hash(hashFunction, task.str.begin(), hashFunction.HashFunctionsNumber(), singleStrand);
 						for (size_t pos = 0;; ++pos)
 						{
 							hashValue.clear();
@@ -1020,6 +1049,7 @@ namespace TwoPaCo
 			const VertexRollingHashSeed & hashFunction;
 			ConcurrentBitVector & filter;
 			size_t edgeLength;
+			bool singleStrand;
 			TaskQueue & taskQueue;
 		};
 
@@ -1141,6 +1171,7 @@ namespace TwoPaCo
 		}
 
 		size_t vertexSize_;
+		bool singleStrand_;
 		DISALLOW_COPY_AND_ASSIGN(VertexEnumeratorImpl<CAPACITY>);
 	};	
 }

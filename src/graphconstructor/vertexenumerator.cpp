@@ -21,6 +21,7 @@ namespace TwoPaCo
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
+			bool singleStrand,
 			const std::string & tmpFileName,
 			const std::string & outFileName,
 			std::ostream & logStream)
@@ -34,6 +35,7 @@ namespace TwoPaCo
 					hashFunctions,
 					rounds,
 					threads,
+					singleStrand,
 					tmpFileName,
 					outFileName,
 					logStream));
@@ -45,6 +47,7 @@ namespace TwoPaCo
 				hashFunctions,
 				rounds,
 				threads,
+				singleStrand,
 				tmpFileName,
 				outFileName,
 				logStream);
@@ -57,6 +60,7 @@ namespace TwoPaCo
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
+			bool singleStrand,
 			const std::string & tmpFileName,
 			const std::string & outFileName,
 			std::ostream & logStream)
@@ -72,6 +76,7 @@ namespace TwoPaCo
 		size_t hashFunctions,
 		size_t rounds,
 		size_t threads,
+		bool singleStrand,
 		const std::string & tmpFileName,
 		const std::string & outFileName,
 		std::ostream & logStream)
@@ -82,6 +87,7 @@ namespace TwoPaCo
 			hashFunctions,
 			rounds,
 			threads,
+			singleStrand,
 			tmpFileName,
 			outFileName,
 			logStream);

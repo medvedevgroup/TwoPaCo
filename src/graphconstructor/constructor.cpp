@@ -16,7 +16,7 @@
 #include <tclap/CmdLine.h>
 
 #include "test.h"
-#include "assemblyedgeconstructor.h"
+#include "vertexenumerator.h"
 
 size_t Atoi(const char * str)
 {
@@ -55,7 +55,7 @@ int main(int argc, char * argv[])
 	OddConstraint constraint;
 	try
 	{
-		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.9.2");
+		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.9.3");
 		
 		TCLAP::ValueArg<unsigned int> kvalue("k",
 			"kvalue",
@@ -110,6 +110,11 @@ int main(int argc, char * argv[])
 			"Run tests",				
 			cmd);
 
+		TCLAP::SwitchArg singleStrand("",
+			"onestrand",
+			"Build graph from single strand only",
+			cmd);
+
 		TCLAP::UnlabeledMultiArg<std::string> fileName("filenames",
 			"FASTA file(s) with nucleotide sequences.",
 			true,
@@ -128,7 +133,8 @@ int main(int argc, char * argv[])
 		using TwoPaCo::Range;
 		if (runTests.getValue())
 		{
-			TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 5), Range(4, 5), 0.05, 0.1, tmpDirName.getValue());
+			TwoPaCo::RunTests(10, 20, 900, 2, Range(3, 11), Range(1, 2), Range(1, 5), Range(4, 5), true, 0.05, 0.1, tmpDirName.getValue());
+			TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 5), Range(4, 5), false, 0.05, 0.1, tmpDirName.getValue());
 			return 0;
 		}
 		
@@ -137,6 +143,7 @@ int main(int argc, char * argv[])
 			hashFunctions.getValue(),
 			rounds.getValue(),
 			threads.getValue(),
+			singleStrand.getValue(),
 			tmpDirName.getValue(),
 			outFileName.getValue(),
 			std::cout);

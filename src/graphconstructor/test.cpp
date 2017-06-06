@@ -68,7 +68,7 @@ namespace TwoPaCo
 
 	namespace
 	{
-		void FindJunctionsNaively(const std::vector<std::string> & chr, size_t vertexLength, std::set<std::string> & junction, std::vector<std::vector<bool> > & marks)
+		void FindJunctionsNaively(const std::vector<std::string> & chr, size_t vertexLength, bool singleStrand, std::set<std::string> & junction, std::vector<std::vector<bool> > & marks)
 		{
 			int unknownCount = CHAR_MAX;
 			typedef std::vector<int> DnaString;
@@ -92,20 +92,24 @@ namespace TwoPaCo
 
 				nowGenome.push_back(unknownCount++);
 				genome.push_back(nowGenome);
-				DnaString nowGenomeReverse;
-				for (DnaString::const_reverse_iterator it = nowGenome.rbegin(); it != nowGenome.rend(); ++it)
-				{
-					if (IsDefinite(*it))
-					{
-						nowGenomeReverse.push_back(DnaChar::ReverseChar(*it));
-					}
-					else
-					{
-						nowGenomeReverse.push_back(unknownCount++);
-					}
-				}
 
-				genome.push_back(nowGenomeReverse);
+				if (!singleStrand)
+				{
+					DnaString nowGenomeReverse;
+					for (DnaString::const_reverse_iterator it = nowGenome.rbegin(); it != nowGenome.rend(); ++it)
+					{
+						if (IsDefinite(*it))
+						{
+							nowGenomeReverse.push_back(DnaChar::ReverseChar(*it));
+						}
+						else
+						{
+							nowGenomeReverse.push_back(unknownCount++);
+						}
+					}
+
+					genome.push_back(nowGenomeReverse);
+				}				
 			}
 
 			std::map<DnaString, std::set<int> > inEdge;
@@ -142,7 +146,10 @@ namespace TwoPaCo
 					{
 						std::string cand(it->first.begin(), it->first.end());
 						junction.insert(cand);
-						junction.insert(DnaChar::ReverseCompliment(cand));					
+						if (!singleStrand)
+						{
+							junction.insert(DnaChar::ReverseCompliment(cand));
+						}						
 					}
 				}
 			}
@@ -160,7 +167,18 @@ namespace TwoPaCo
 		}
 	}
 
-	bool RunTests(size_t tests, size_t filterBits, size_t length, size_t chrNumber, Range vertexSize, Range hashFunctions, Range rounds, Range threads, double changeRate, double indelRate, const std::string & temporaryDir)
+	bool RunTests(size_t tests,
+		size_t filterBits,
+		size_t length,
+		size_t chrNumber,
+		Range vertexSize,
+		Range hashFunctions,
+		Range rounds,
+		Range threads,
+		bool singleStrand,
+		double changeRate,
+		double indelRate,
+		const std::string & temporaryDir)
 	{
 		const std::string temporaryFasta = temporaryDir + "/test.fa";
 		const std::string temporaryEdge = temporaryDir + "/out.bin";
@@ -198,7 +216,7 @@ namespace TwoPaCo
 				}
 
 				std::vector<std::vector<bool > > fastMarks(chrNumber);
-				FindJunctionsNaively(chr, k, junctions, naiveMarks);
+				FindJunctionsNaively(chr, k, singleStrand, junctions, naiveMarks);
 				for (size_t hf = hashFunctions.first; hf < hashFunctions.second; ++hf)
 				{
 					for (size_t r = rounds.first; r < rounds.second; ++r)
@@ -206,7 +224,7 @@ namespace TwoPaCo
 						for (size_t thr = threads.first; thr < threads.second; ++thr)
 						{
 							std::stringstream null;
-							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, temporaryDir, temporaryEdge, null);
+							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, singleStrand, temporaryDir, temporaryEdge, null);
 							for (size_t i = 0; i < chrNumber; i++)
 							{
 								fastMarks[i].assign(chr[i].size(), false);
