@@ -80,11 +80,7 @@ namespace TwoPaCo
 		{			
 			size_t size = seed.hashFunction_[0]->n;
 			posVertexHash_.resize(hashFunctions);
-			if (!singleStrand)
-			{
-				negVertexHash_.resize(hashFunctions);
-			}
-
+			negVertexHash_.resize(!singleStrand ? hashFunctions : 0);
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				posVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));				
@@ -94,17 +90,18 @@ namespace TwoPaCo
 				}
 
 				assert(posVertexHash_[i]->hashvalue == posVertexHash_[i]->hash(std::string(begin, begin + size)));
-				if (!singleStrand_)
-				{
-					negVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));
-					for (std::string::const_reverse_iterator it(begin + size); it != std::string::const_reverse_iterator(begin); ++it)
-					{
-						char ch = DnaChar::ReverseChar(*it);
-						negVertexHash_[i]->eat(DnaChar::ReverseChar(*it));
-					}
+			}
 
-					assert(negVertexHash_[i]->hashvalue == negVertexHash_[i]->hash(DnaChar::ReverseCompliment(std::string(begin, begin + size))));
+			for (size_t i = 0; i < negVertexHash_.size(); i++)
+			{
+				negVertexHash_[i] = HashFunctionPtr(new HashFunction(*seed.hashFunction_[i]));
+				for (std::string::const_reverse_iterator it(begin + size); it != std::string::const_reverse_iterator(begin); ++it)
+				{
+					char ch = DnaChar::ReverseChar(*it);
+					negVertexHash_[i]->eat(DnaChar::ReverseChar(*it));
 				}
+
+				assert(negVertexHash_[i]->hashvalue == negVertexHash_[i]->hash(DnaChar::ReverseCompliment(std::string(begin, begin + size))));				
 			}
 		}
 
@@ -115,10 +112,11 @@ namespace TwoPaCo
 			for (size_t i = 0; i < posVertexHash_.size(); i++)
 			{
 				posVertexHash_[i]->update(positivePreviousChar, positiveNextChar);
-				if (!singleStrand_)
-				{
-					negVertexHash_[i]->reverse_update(negativeNextChar, negativePreviousChar);
-				}
+			}
+
+			for (size_t i = 0; i < negVertexHash_.size(); i++)
+			{
+				negVertexHash_[i]->reverse_update(negativeNextChar, negativePreviousChar);				
 			}
 		}
 
