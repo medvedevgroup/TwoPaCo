@@ -71,27 +71,6 @@ namespace TwoPaCo
 			return GetId(pos, true, !singleStrand_);
 		}
 
-		int64_t GetId(std::string::const_iterator pos, const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash) const
-		{
-			bool posFound = true;
-			bool negFound = !singleStrand_;
-			int64_t ret = INVALID_VERTEX;
-			for (size_t i = 0; i < posVertexHash.size() && (posFound || negFound); i++)
-			{
-				if (posFound && !bifurcationFilter_[posVertexHash[i]->hashvalue])
-				{
-					posFound = false;
-				}
-
-				if (negFoud && !bifurcationFilter_[negVertexHash[i]->hashvalue])
-				{
-					negFound = false;
-				}
-			}
-
-			return GetId(pos, posFound, negFound);
-		}
-
 		const std::vector<HashFunctionPtr>& GetHashFunctions() const
 		{
 			return hashFunction_;
