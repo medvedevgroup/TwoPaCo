@@ -8,6 +8,7 @@
 #include <numeric>
 #include <sstream>
 #include <unordered_map>
+#include <tbb/compat/condition_variable>
 
 #include <tbb/tbb.h>
 #include <tbb/mutex.h>
@@ -57,6 +58,7 @@ namespace TwoPaCo
 	class VertexEnumeratorImpl : public VertexEnumerator
 	{
 	private:
+
 		std::string filterDumpFile_;
 		VertexRollingHashSeed hashFunctionSeed_;
 		static const size_t BUF_SIZE = 1 << 24;
@@ -312,8 +314,7 @@ namespace TwoPaCo
 					logStream << time(0) - mark << "\t" << std::endl;
 				}
 
-				mark = time(0);
-				tbb::spin_rw_mutex mutex;
+				mark = time(0);			
 				logStream << "2\t";
 				OccurenceSet occurenceSet(1 << 20);
 				{
@@ -324,8 +325,7 @@ namespace TwoPaCo
 							vertexLength,
 							singleStrand_,
 							*taskQueue[i],
-							occurenceSet,
-							mutex,
+							occurenceSet,							
 							tmpDirName,
 							round,
 							error,
@@ -665,13 +665,12 @@ namespace TwoPaCo
 				size_t vertexLength,
 				bool singleStrand,
 				TaskQueue & taskQueue,
-				OccurenceSet & occurenceSet,
-				tbb::spin_rw_mutex & mutex,
+				OccurenceSet & occurenceSet,				
 				const std::string & tmpDirectory,
 				size_t round,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), singleStrand(singleStrand),
-				taskQueue(taskQueue), occurenceSet(occurenceSet), mutex(mutex), tmpDirectory(tmpDirectory), round(round),
+				taskQueue(taskQueue), occurenceSet(occurenceSet), tmpDirectory(tmpDirectory), round(round),
 				error(error), errorMutex(errorMutex)
 			{
 
@@ -774,8 +773,7 @@ namespace TwoPaCo
 			size_t vertexLength;
 			bool singleStrand;
 			TaskQueue & taskQueue;
-			OccurenceSet & occurenceSet;
-			tbb::spin_rw_mutex & mutex;
+			OccurenceSet & occurenceSet;			
 			const std::string & tmpDirectory;
 			size_t round;
 			std::unique_ptr<std::runtime_error> & error;

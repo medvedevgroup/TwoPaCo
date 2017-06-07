@@ -1,6 +1,7 @@
 #ifndef _STREAM_FASTA_PARSER_H_
 #define _STREAM_FASTA_PARSER_H_
 
+#include <memory>
 #include <vector>
 #include <fstream>
 #include <stdexcept>
@@ -176,7 +177,7 @@ namespace TwoPaCo
 	private:
 		size_t currentFile_;
 		std::vector<std::string> fileName_;
-		std::auto_ptr<TwoPaCo::StreamFastaParser> parser_;
+		std::unique_ptr<TwoPaCo::StreamFastaParser> parser_;
 	};
 
 }
