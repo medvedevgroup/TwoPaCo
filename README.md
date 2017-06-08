@@ -74,6 +74,16 @@ header "vertexenumerator.h" and recompile. The value of "MAX_CAPACITY" should be
 at least (K + 4) / 32 + 1. Note that increasing the parameter will slow down 
 the compilation.
 
+Single or both strands
+----------------------
+By default TwoPaCo constructs the graph from both DNA strands. To construct
+the graph from one strand only, use option:
+
+	--onestrand
+
+This option is not yet supported by graphdump and for performance evaluation
+only.
+
 Number of hash functions
 ------------------------
 The number of hash functions used for the Bloom filter. The default is five. To
