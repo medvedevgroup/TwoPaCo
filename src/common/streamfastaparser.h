@@ -178,7 +178,7 @@ namespace TwoPaCo
 	private:
 		size_t currentFile_;
 		std::vector<std::string> fileName_;
-		std::auto_ptr<TwoPaCo::StreamFastaParser> parser_;
+		std::unique_ptr<TwoPaCo::StreamFastaParser> parser_;
 	};
 
 }

@@ -55,8 +55,8 @@ int main(int argc, char * argv[])
 	OddConstraint constraint;
 	try
 	{
-		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.9.2");
-		
+		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "0.9.3");
+
 		TCLAP::ValueArg<unsigned int> kvalue("k",
 			"kvalue",
 			"Value of k",
@@ -65,7 +65,7 @@ int main(int argc, char * argv[])
 			&constraint,
 			cmd);
 
-		TCLAP::ValueArg<uint64_t> filterSize("f",
+		TCLAP::ValueArg<unsigned int> filterSize("f",
 			"filtersize",
 			"Size of the filter",
 			true,
