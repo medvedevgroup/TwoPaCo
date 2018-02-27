@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <algorithm>
 #include <tbb/mutex.h>
+#include <iostream>
+#include <memory>
 
 #include "dnachar.h"
 
