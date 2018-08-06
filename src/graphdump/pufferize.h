@@ -16,7 +16,9 @@ constexpr uint16_t MERGE_RIGHT = 1 << 12;
 constexpr uint16_t COMPLEX = 1 << 13;
 
 struct KmerInfo {
-    //<..>
+    //<1 bit: complex node (crop both start and end)>
+    //<1 bit: merge right (crop end)>
+    //<1 bit: merge left (crop start)>
     //<1 bit: set if kmer has already been seen>
     //<1 bit: set if a reference ends with the kmer in forward>
     //<1 bit: set if a reference starts with the kmer in forward>
@@ -43,49 +45,49 @@ struct KmerInfo {
         }
     }
 
-    void setStart() {
+    inline void setStart() {
         kinf |= START;
     }
-    void setEnd() {
+    inline void setEnd() {
         kinf |= END;
     }
-    void setSeen() {
+    inline void setSeen() {
         kinf |= SEEN;
     }
 
-    bool isStart() {
+    inline bool isStart() {
         return kinf & START;
     }
 
-    bool isEnd() {
+    inline bool isEnd() {
         return kinf & END;
     }
 
-    bool seen() {
+    inline bool seen() {
         return kinf & SEEN;
     }
 
-    void setCropBoth() {
+    inline void setCropBoth() {
         kinf |= COMPLEX;
     }
 
-    bool cropBoth() {
+    inline bool cropBoth() {
         return  kinf & COMPLEX;
     }
 
-    void setCropStart() {
+    inline void setCropStart() {
         kinf |= MERGE_LEFT;
     }
 
-    bool cropStart() {
+    inline bool cropStart() {
         return kinf & MERGE_LEFT;
     }
 
-    void setCropEnd() {
+    inline void setCropEnd() {
         kinf |= MERGE_RIGHT;
     }
 
-    bool cropEnd() {
+    inline bool cropEnd() {
         return kinf & MERGE_RIGHT;
     }
 
