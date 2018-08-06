@@ -640,29 +640,33 @@ void GeneratePufferizedOutput(const std::string & inputFileName, const std::vect
 #endif
 
 	// First round going over the junctions file
-	reader.NextJunctionPosition(prev);
-	while (reader.NextJunctionPosition(curr)) {
-		auto currAbsId = Abs(curr.GetId());
-		auto prevAbsId = Abs(prev.GetId());
-		if (prev.GetChr() != curr.GetChr()) { // If we are starting a new reference/path
-			// set current kmer as the start of a path if it is forward
-			if (curr.GetId() > 0) {
-				kmerInfo[currAbsId].setStart();
-			} else { // set it as an end kmer if it is rc
-				kmerInfo[currAbsId].setEnd();
+	if (reader.NextJunctionPosition(prev)) {
+		while (reader.NextJunctionPosition(curr)) {
+			auto currAbsId = Abs(curr.GetId());
+			auto prevAbsId = Abs(prev.GetId());
+			if (prev.GetChr() != curr.GetChr()) { // If we are starting a new reference/path
+				// set current kmer as the start of a path if it is forward
+				if (curr.GetId() > 0) {
+					kmerInfo[currAbsId].setStart();
+				} else { // set it as an end kmer if it is rc
+					kmerInfo[currAbsId].setEnd();
+				}
+				// set prev kmer as the end of a path if it is forward
+				if (prev.GetId() > 0) {
+					kmerInfo[prevAbsId].setEnd();
+				} else {
+					kmerInfo[prevAbsId].setStart();
+				}
+			} else { // If we are in the middle of a path
+				kmerInfo[prevAbsId].setSucceedingChar(prev.GetId() >= 0, chr[prev.GetPos() + k]);
+				kmerInfo[currAbsId].setPrecedingChar(curr.GetId() >= 0, chr[curr.GetPos() - 1]);
 			}
-			// set prev kmer as the end of a path if it is forward
-			if (prev.GetId() > 0) {
-				kmerInfo[prevAbsId].setEnd();
-			} else {
-				kmerInfo[prevAbsId].setStart();
-			}
-		} else { // If we are in the middle of a path
-			kmerInfo[prevAbsId].setSucceedingChar(prev.GetId() >= 0, chr[prev.GetPos() + k]);
-			kmerInfo[currAbsId].setPrecedingChar(curr.GetId() >= 0, chr[curr.GetPos()-1]);
+			prev = curr;
 		}
-		prev = curr;
-    }
+		for (uint64_t i = 0; i < kmerInfo.size(); i++) {
+			kmerInfo[i].decideType();
+		}
+	}
 	reader.RestoreReader();
     // Having all the required information for each junction,
     // Second round going over the junctions file
