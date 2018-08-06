@@ -17,6 +17,7 @@
 #include <streamfastaparser.h>
 #include <junctionapi/junctionapi.h>
 
+#include "pufferize.h"
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
 {
@@ -605,6 +606,114 @@ void GenerateDotOutput(const std::string & inputFileName)
 	std::cout << "}" << std::endl;
 }
 
+template <class G>
+void GeneratePufferizedOutput(const std::string & inputFileName, const std::vector<std::string> & genomes, size_t k, bool prefix, G g)
+{
+	std::vector<uint64_t> chrSegmentLength;
+	std::vector<std::string> chrSegmentId;
+	std::map<std::string, std::string> chrFileName;
+
+	//std::cout << "H\tVN:Z:1.0" << std::endl;
+	g.Header(std::cout);
+
+	ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+	g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
+
+	std::vector<int64_t> currentPath;
+	const int64_t NO_SEGMENT = 0;
+	std::string chr;
+	int64_t seqId = NO_SEGMENT;
+	int64_t prevSegmentId = NO_SEGMENT;
+	int64_t prevSegmentSize = -1;
+	TwoPaCo::JunctionPosition end;
+	TwoPaCo::JunctionPosition begin;
+	TwoPaCo::JunctionPosition juncPos;
+	TwoPaCo::ChrReader chrReader(genomes);
+	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
+	std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
+	std::vector<KmerInfo> kmerInfo(MAX_JUNCTION_ID);
+	int64_t previousId = 0;
+
+#ifdef _DEBUG
+	std::map<int64_t, std::string> segmentBody;
+#endif
+	while (reader.NextJunctionPosition(juncPos)) {
+        kmerInfo[Abs(juncPos.GetId())].setStart();
+    }
+	if (reader.NextJunctionPosition(begin))
+	{
+		chrReader.NextChr(chr);
+		while (reader.NextJunctionPosition(end))
+		{
+			if (begin.GetChr() == end.GetChr())
+			{
+				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
+				int64_t segmentId = nowSegment.GetSegmentId();
+				currentPath.push_back(segmentId);
+				uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
+				if (!seen[Abs(segmentId)])
+				{
+					//std::cout << "S\t" << Abs(segmentId) << "\t";
+					std::stringstream ss;
+					if (segmentId > 0)
+					{
+						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
+
+					}
+					else
+					{
+						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+					}
+
+					g.Segment(segmentId, segmentSize, ss.str(), std::cout);
+					seen[Abs(segmentId)] = true;
+				}
+
+#ifdef _DEBUG
+				int64_t absSegmentId = Abs(segmentId);
+				std::string buf = segmentId > 0 ? std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k) :
+					TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+				if (segmentBody.count(absSegmentId) == 0)
+				{
+					segmentBody[absSegmentId] = buf;
+				}
+				else
+				{
+					assert(segmentBody[absSegmentId] == buf);
+				}
+#endif
+				g.Occurrence(segmentId, segmentSize, chrSegmentId[seqId], chrSegmentLength[seqId], begin.GetPos(), end.GetPos(), k, std::cout);
+				//std::cout << "C\t" << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << chrSegmentId[seqId] << "\t+\t" << begin.GetPos() << std::endl;
+
+				if (prevSegmentId != NO_SEGMENT)
+				{
+					//std::cout << "L\t" << Abs(prevSegmentId) << '\t' << Sign(prevSegmentId) << '\t' << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << k << 'M' << std::endl;
+					g.Edge(prevSegmentId, prevSegmentSize, segmentId, segmentSize, k, std::cout);
+				}
+
+				prevSegmentId = segmentId;
+				prevSegmentSize = segmentSize;
+				begin = end;
+			}
+			else
+			{
+				g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
+				chrReader.NextChr(chr);
+				prevSegmentId = 0;
+				begin = end;
+
+				if (begin.GetChr() != ++seqId)
+				{
+					throw std::runtime_error("The input is corrupted");
+				}
+			}
+		}
+	}
+
+	g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
+}
+
 int main(int argc, char * argv[])
 {
 	std::vector<std::string> format;
@@ -614,6 +723,7 @@ int main(int argc, char * argv[])
 	format.push_back("gfa1");
 	format.push_back("gfa2");
 	format.push_back("fasta");
+	format.push_back("pufferized");
 	std::stringstream formatString;
 	std::copy(format.begin(), format.begin(), std::ostream_iterator<std::string>(formatString, "|"));
 	try
@@ -691,6 +801,14 @@ int main(int argc, char * argv[])
 			}
 
 			GenerateFastaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue());
+		}
+		else if (outputFileFormat.getValue() == format[6]) {
+			if (!seqFileName.isSet())
+			{
+				throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
+			}
+
+			GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(), prefix.getValue(), Gfa1Generator());
 		}
 	}
 	catch (TCLAP::ArgException &e)
