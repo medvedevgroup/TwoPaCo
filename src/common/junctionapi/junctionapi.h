@@ -49,6 +49,12 @@ namespace TwoPaCo
 			}
 		}
 
+		void RestoreReader() {
+			if (!in_) {
+				throw std::runtime_error("No input file exists");
+			}
+			in_.seekg(0, in_.beg);
+		}
 		void RestoreVector(std::vector<bool> & mark, size_t chr)
 		{
 			JunctionPosition pos;

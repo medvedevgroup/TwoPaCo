@@ -663,7 +663,7 @@ void GeneratePufferizedOutput(const std::string & inputFileName, const std::vect
 		}
 		prev = curr;
     }
-
+	reader.RestoreReader();
     // Having all the required information for each junction,
     // Second round going over the junctions file
 	if (reader.NextJunctionPosition(begin))
