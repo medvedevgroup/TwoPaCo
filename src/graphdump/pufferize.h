@@ -21,17 +21,25 @@ struct KmerInfo {
     //<4 bits: characters that succeed kmer in forward>
     uint16_t kinf{0};
 
-    void setChar(bool precedes, bool isRC, char c) {
-        char trueC = c;
-        if (isRC)
-            trueC = TwoPaCo::DnaChar::ReverseChar(c);
-        auto idx = TwoPaCo::DnaChar::MakeUpChar(c);
-        if (precedes == isRC) {
-            kinf |= 1 << (idx);
+    void setPrecedingChar(bool isFw, char c) {
+        if (isFw) {
+            auto idx = TwoPaCo::DnaChar::MakeUpChar(c);
+            kinf |= 1 << (4 + idx);
         } else {
-            kinf |= 1 << (4+idx);
+            auto idx = TwoPaCo::DnaChar::MakeUpChar(TwoPaCo::DnaChar::ReverseChar(c));
+            kinf |= 1 << (idx);
         }
     }
+    void setSucceedingChar(bool isFw, char c) {
+        if (isFw) {
+            auto idx = TwoPaCo::DnaChar::MakeUpChar(c);
+            kinf |= 1 << (idx);
+        } else {
+            auto idx = TwoPaCo::DnaChar::MakeUpChar(TwoPaCo::DnaChar::ReverseChar(c));
+            kinf |= 1 << (4 + idx);
+        }
+    }
+
     void setStart() {
         kinf |= START;
     }

@@ -627,7 +627,8 @@ void GeneratePufferizedOutput(const std::string & inputFileName, const std::vect
 	int64_t prevSegmentSize = -1;
 	TwoPaCo::JunctionPosition end;
 	TwoPaCo::JunctionPosition begin;
-	TwoPaCo::JunctionPosition juncPos;
+	TwoPaCo::JunctionPosition curr;
+	TwoPaCo::JunctionPosition prev;
 	TwoPaCo::ChrReader chrReader(genomes);
 	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
 	std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
@@ -637,9 +638,34 @@ void GeneratePufferizedOutput(const std::string & inputFileName, const std::vect
 #ifdef _DEBUG
 	std::map<int64_t, std::string> segmentBody;
 #endif
-	while (reader.NextJunctionPosition(juncPos)) {
-        kmerInfo[Abs(juncPos.GetId())].setStart();
+
+	// First round going over the junctions file
+	reader.NextJunctionPosition(prev);
+	while (reader.NextJunctionPosition(curr)) {
+		auto currAbsId = Abs(curr.GetId());
+		auto prevAbsId = Abs(prev.GetId());
+		if (prev.GetChr() != curr.GetChr()) { // If we are starting a new reference/path
+			// set current kmer as the start of a path if it is forward
+			if (curr.GetId() > 0) {
+				kmerInfo[currAbsId].setStart();
+			} else { // set it as an end kmer if it is rc
+				kmerInfo[currAbsId].setEnd();
+			}
+			// set prev kmer as the end of a path if it is forward
+			if (prev.GetId() > 0) {
+				kmerInfo[prevAbsId].setEnd();
+			} else {
+				kmerInfo[prevAbsId].setStart();
+			}
+		} else { // If we are in the middle of a path
+			kmerInfo[prevAbsId].setSucceedingChar(prev.GetId() >= 0, chr[prev.GetPos() + k]);
+			kmerInfo[currAbsId].setPrecedingChar(curr.GetId() >= 0, chr[curr.GetPos()-1]);
+		}
+		prev = curr;
     }
+
+    // Having all the required information for each junction,
+    // Second round going over the junctions file
 	if (reader.NextJunctionPosition(begin))
 	{
 		chrReader.NextChr(chr);
