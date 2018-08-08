@@ -344,7 +344,6 @@ void GenerateGfaOutput(const std::string &inputFileName, const std::vector<std::
     TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
     std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
     int64_t previousId = 0;
-
 #ifdef _DEBUG
     std::map<int64_t, std::string> segmentBody;
 #endif
@@ -623,7 +622,6 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 Segment nowSegment(begin, end, chr[begin.GetPos() + k],
                                    TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
                 int64_t segmentId = nowSegment.GetSegmentId();
-                currentPath.push_back(segmentId);
 
                 int64_t absEnd = Abs(end.GetId());
                 uint64_t beginPos{begin.GetPos()}, endPos{end.GetPos()}, extension{k};
@@ -638,20 +636,23 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                     extension--;
                 }
                 uint64_t segmentSize = endPos + extension - beginPos;
-                if (!seen[Abs(segmentId)]) {
-                    std::stringstream ss;
-                    if (segmentId > 0) {
-                        std::copy(chr.begin() + beginPos, chr.begin() + endPos + extension,
-                                  std::ostream_iterator<char>(ss));
-                    } else {
-                        std::string buf =
-                                TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + beginPos,
-                                                                                chr.begin() + endPos + extension));
-                        std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-                    }
+                if (segmentSize >= k) {
+                    currentPath.push_back(segmentId);
+                    if (!seen[Abs(segmentId)]) {
+                        std::stringstream ss;
+                        if (segmentId > 0) {
+                            std::copy(chr.begin() + beginPos, chr.begin() + endPos + extension,
+                                      std::ostream_iterator<char>(ss));
+                        } else {
+                            std::string buf =
+                                    TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + beginPos,
+                                                                                    chr.begin() + endPos + extension));
+                            std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+                        }
 
-                    g.Segment(segmentId, segmentSize, ss.str(), std::cout);
-                    seen[Abs(segmentId)] = true;
+                        g.Segment(segmentId, segmentSize, ss.str(), std::cout);
+                        seen[Abs(segmentId)] = true;
+                    }
                 }
                 begin = end;
             } else {
