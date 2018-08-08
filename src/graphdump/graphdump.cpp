@@ -583,15 +583,18 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
             }
             prev = curr;
         }
+        uint64_t cntr1{0}, cntr2{0}, cntr3{0}, cntr4{0};
         for (uint64_t i = 0; i < kmerInfo.size(); i++) {
-            kmerInfo[i].decideType();
+            kmerInfo[i].decideType(cntr1, cntr2, cntr3, cntr4);
         }
+        std::cerr << "counters:\n" << cntr1 << " " << cntr2 << " " << cntr3 << " " << cntr4 << "\n";
     }
     reader.RestoreReader();
     chrReader.reset();
     std::cerr << "Passed first pass over Junctions\n";
     // Having all the required information for each junction,
     // Second round going over the junctions file
+    uint64_t cntr{0};
     if (reader.NextJunctionPosition(begin)) {
         chrReader.NextChr(chr);
         while (reader.NextJunctionPosition(end)) {
@@ -604,6 +607,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 }
                 currentPath.push_back(kmerId);
                 if (!kmerInfo[absBegin].seen()) {
+                    cntr++;
                     std::stringstream ss;
                     if (begin.GetId() > 0) {
                         std::copy(chr.begin() + begin.GetPos(), chr.begin() + begin.GetPos() + k,
@@ -691,6 +695,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         }
     }
     g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
+    std::cerr << "complex nodes: " << cntr << "\n";
 }
 
 int main(int argc, char *argv[]) {

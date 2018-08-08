@@ -8,12 +8,13 @@
 #include <dnachar.h>
 #include <junctionapi/junctionapi.h>
 
-constexpr uint16_t START = 1 << 8;
-constexpr uint16_t END = 1 << 9;
-constexpr uint16_t SEEN = 1 << 10;
-constexpr uint16_t MERGE_LEFT = 1 << 11;
-constexpr uint16_t MERGE_RIGHT = 1 << 12;
-constexpr uint16_t COMPLEX = 1 << 13;
+constexpr uint16_t ONE = 1;
+constexpr uint16_t START = ONE << 8;
+constexpr uint16_t END = ONE << 9;
+constexpr uint16_t SEEN = ONE << 10;
+constexpr uint16_t MERGE_LEFT = ONE << 11;
+constexpr uint16_t MERGE_RIGHT = ONE << 12;
+constexpr uint16_t COMPLEX = ONE << 13;
 
 struct KmerInfo {
     //<1 bit: complex node (crop both start and end)>
@@ -29,19 +30,19 @@ struct KmerInfo {
     void setPrecedingChar(bool isFw, char c) {
         if (isFw) {
             auto idx = TwoPaCo::DnaChar::MakeUpChar(c);
-            kinf |= 1 << (4 + idx);
+            kinf |= ONE << (4 + idx);
         } else {
             auto idx = TwoPaCo::DnaChar::MakeUpChar(TwoPaCo::DnaChar::ReverseChar(c));
-            kinf |= 1 << (idx);
+            kinf |= ONE << (idx);
         }
     }
     void setSucceedingChar(bool isFw, char c) {
         if (isFw) {
             auto idx = TwoPaCo::DnaChar::MakeUpChar(c);
-            kinf |= 1 << (idx);
+            kinf |= ONE << (idx);
         } else {
             auto idx = TwoPaCo::DnaChar::MakeUpChar(TwoPaCo::DnaChar::ReverseChar(c));
-            kinf |= 1 << (4 + idx);
+            kinf |= ONE << (4 + idx);
         }
     }
 
@@ -56,15 +57,15 @@ struct KmerInfo {
     }
 
     inline bool isStart() {
-        return kinf & START;
+        return (kinf & START) != 0;
     }
 
     inline bool isEnd() {
-        return kinf & END;
+        return (kinf & END) != 0;
     }
 
     inline bool seen() {
-        return kinf & SEEN;
+        return (kinf & SEEN) != 0;
     }
 
     inline void setCropBoth() {
@@ -72,7 +73,7 @@ struct KmerInfo {
     }
 
     inline bool cropBoth() {
-        return  kinf & COMPLEX;
+        return  (kinf & COMPLEX) != 0;
     }
 
     inline void setCropStart() {
@@ -80,7 +81,7 @@ struct KmerInfo {
     }
 
     inline bool cropStart() {
-        return kinf & MERGE_LEFT;
+        return (kinf & MERGE_LEFT) != 0;
     }
 
     inline void setCropEnd() {
@@ -88,48 +89,66 @@ struct KmerInfo {
     }
 
     inline bool cropEnd() {
-        return kinf & MERGE_RIGHT;
+        return (kinf & MERGE_RIGHT) != 0;
     }
 
     uint16_t countSucceeding() {
         uint16_t cnt{0};
-        for (auto i = 0; i < 4; i++) {
-            cnt += (kinf & (1 << i));
+        for (uint16_t i = 0; i < 4; i++) {
+            cnt += (kinf >> i) & ONE;
         }
+        //std::cerr << kinf << "  " << cnt << "\n";
         return cnt;
     }
 
     uint16_t countPreceding() {
         uint16_t cnt{0};
-        for (auto i = 4; i < 8; i++) {
-            cnt += (kinf & (1 << i));
+        for (uint16_t i = 4; i < 8; i++) {
+            cnt += (kinf >> i) & ONE;
         }
+        //std::cerr << kinf << " " << cnt << "\n";
         return cnt;
     }
-    void decideType() {
+    void decideType(uint64_t &cntr1, uint64_t &cntr2, uint64_t &cntr3, uint64_t &cntr4) {
         if (!kinf) // if kmer doesn't exist
             return;
         auto precedeCnt = countPreceding();
         auto succeedCnt = countSucceeding();
         if (precedeCnt > 1 and succeedCnt > 1) {
             setCropBoth();
+            cntr1++;
         } else if (succeedCnt > 1) {
             if (isStart()) {
                 setCropBoth();
+                cntr2++;
             } else {
                 setCropStart();
             }
+
         } else if (precedeCnt > 1) {
             if (isEnd()) {
                 setCropBoth();
+                cntr3++;
             } else {
                 setCropEnd();
             }
+
         } else if (precedeCnt == 1 and succeedCnt == 1) {
+            if (isEnd() and isStart()) {
+                setCropBoth();
+                cntr4++;
+            } else if (isStart()) {
+                setCropEnd();
+            } else {
+                setCropStart();
+            }
+/*
             if (!isEnd() or !isStart()) {
                 std::cerr << "ERROR!! Such case cannot happen in the output of TwoPaCo: precedingCnt=1, succeedingCnt=1, neither start nor end\n";
             }
             setCropBoth();
+            cntr4++;
+*/
         } // otherwise, we don't require to crop any nucleotides from any sides of a contig/segment
 
     }
