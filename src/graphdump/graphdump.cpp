@@ -540,14 +540,12 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     g.Header(std::cout);
 
     ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
-    g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
+    //g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
 
     std::vector<int64_t> currentPath;
     const int64_t NO_SEGMENT = 0;
     std::string chr;
     int64_t seqId = NO_SEGMENT;
-    int64_t prevSegmentId = NO_SEGMENT;
-    int64_t prevSegmentSize = -1;
     TwoPaCo::JunctionPosition end;
     TwoPaCo::JunctionPosition begin;
     TwoPaCo::JunctionPosition curr;
@@ -556,30 +554,30 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
     std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
     std::vector<KmerInfo> kmerInfo(MAX_JUNCTION_ID);
-    int64_t previousId = 0;
 
-#ifdef _DEBUG
-    std::map<int64_t, std::string> segmentBody;
-#endif
+    std::cerr << MAX_SEGMENT_NUMBER << " " << MAX_JUNCTION_ID << "\n";
 
     // First round going over the junctions file
     if (reader.NextJunctionPosition(prev)) {
+        chrReader.NextChr(chr);
         while (reader.NextJunctionPosition(curr)) {
             auto currAbsId = Abs(curr.GetId());
             auto prevAbsId = Abs(prev.GetId());
             if (prev.GetChr() != curr.GetChr()) { // If we are starting a new reference/path
-                // set current kmer as the start of a path if it is forward
-                if (curr.GetId() > 0) {
-                    kmerInfo[currAbsId].setStart();
-                } else { // set it as an end kmer if it is rc
-                    kmerInfo[currAbsId].setEnd();
-                }
+                //std::cerr << prev.GetChr() << " " << prev.GetId() << " " << curr.GetId() << " p" << prev.GetPos() << " p" << curr.GetPos() << "\n";
                 // set prev kmer as the end of a path if it is forward
-                if (prev.GetId() > 0) {
+                if (prev.GetId() >= 0) {
                     kmerInfo[prevAbsId].setEnd();
                 } else {
                     kmerInfo[prevAbsId].setStart();
                 }
+                // set current kmer as the start of a path if it is forward
+                if (curr.GetId() >= 0) {
+                    kmerInfo[currAbsId].setStart();
+                } else { // set it as an end kmer if it is rc
+                    kmerInfo[currAbsId].setEnd();
+                }
+                chrReader.NextChr(chr);
             } else { // If we are in the middle of a path
                 kmerInfo[prevAbsId].setSucceedingChar(prev.GetId() >= 0, chr[prev.GetPos() + k]);
                 kmerInfo[currAbsId].setPrecedingChar(curr.GetId() >= 0, chr[curr.GetPos() - 1]);
@@ -591,11 +589,14 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         }
     }
     reader.RestoreReader();
+    chrReader.reset();
+    std::cerr << "Passed first pass over Junctions\n";
     // Having all the required information for each junction,
     // Second round going over the junctions file
     if (reader.NextJunctionPosition(begin)) {
         chrReader.NextChr(chr);
         while (reader.NextJunctionPosition(end)) {
+            //std::cerr << begin.GetChr() << " " << end.GetId() << " " << end.GetId() << " p" << begin.GetPos() << " p" << begin.GetPos() << "\n";
             int64_t absBegin = Abs(begin.GetId());
             if (kmerInfo[absBegin].cropBoth()) {
                 int64_t kmerId = MAX_SEGMENT_NUMBER + absBegin;
@@ -659,6 +660,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 begin = end;
 
                 if (begin.GetChr() != ++seqId) {
+                    std::cerr << begin.GetChr() << " " << seqId << "\n";
                     throw std::runtime_error("The input is corrupted");
                 }
             }
