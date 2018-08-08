@@ -551,10 +551,17 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     TwoPaCo::JunctionPosition prev;
     TwoPaCo::ChrReader chrReader(genomes);
     TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
-    std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
-    std::vector<KmerInfo> kmerInfo(MAX_JUNCTION_ID);
 
-    std::cerr << MAX_SEGMENT_NUMBER << " " << MAX_JUNCTION_ID << "\n";
+    uint64_t maxJunction{0};
+    while (reader.NextJunctionPosition(curr)) {
+        if (Abs(curr.GetId()) > maxJunction)
+            maxJunction = (uint64_t)Abs(curr.GetId());
+    }
+    reader.RestoreReader();
+    std::cerr << "Max Junction ID: " << maxJunction << "\n";
+
+    std::vector<bool> seen((maxJunction << 3 + 9)/*MAX_SEGMENT_NUMBER*/, 0);
+    std::vector<KmerInfo> kmerInfo(maxJunction/*MAX_JUNCTION_ID*/);
 
     // First round going over the junctions file
     if (reader.NextJunctionPosition(prev)) {
@@ -591,7 +598,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     }
     reader.RestoreReader();
     chrReader.reset();
-    std::cerr << "Passed first pass over Junctions\n";
+    std::cerr << "Done with the first pass over Junctions\n";
     // Having all the required information for each junction,
     // Second round going over the junctions file
     uint64_t cntr{0};
@@ -608,7 +615,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 if (begin.GetId() < 0) {
                     kmerId = -kmerId;
                 }
-                currentPath.push_back(kmerId);
+                currentPath.push_back(kmerId); // Add complex node as a new segment to the path
                 if (!kmerInfo[absBegin].seen()) {
                     cntr++;
                     std::stringstream ss;
@@ -644,7 +651,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 }
                 uint64_t segmentSize = endPos + extension - beginPos;
                 if (segmentSize >= k) { // write the middle segment only if its length is above the valid min segment length
-                    currentPath.push_back(segmentId);
+                    currentPath.push_back(segmentId); // Add segment to the path
                     if (!seen[Abs(segmentId)]) {
                         std::stringstream ss;
                         if (segmentId > 0) {
