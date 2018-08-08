@@ -652,6 +652,24 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 uint64_t segmentSize = endPos + extension - beginPos;
                 if (segmentSize >= k) { // write the middle segment only if its length is above the valid min segment length
                     currentPath.push_back(segmentId); // Add segment to the path
+                    // If the contig is palindrome
+                    bool isPalindrome = false;
+                    if (begin.GetId() == -end.GetId() and chr[begin.GetPos() + k] ==  TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1])) {
+                        /*std::cerr << "here:\n";
+                        std::stringstream ss;
+                        std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k,
+                                  std::ostream_iterator<char>(ss));
+                        std::cerr << ss.str() << "\n";*/
+                        currentPath.push_back(-segmentId);
+                        if (segmentSize % 2 != 0) {
+                            std::cerr << "This shouldn't happen. Problem handling palindromes!!\n";
+                            std::exit(1);
+                        }
+                        //std::cerr << beginPos << " " << endPos << " ";
+                        endPos = (beginPos + endPos)/2;
+                        /*std::cerr << endPos << "\n";
+                        isPalindrome = true;*/
+                    }
                     if (!seen[Abs(segmentId)]) {
                         std::stringstream ss;
                         if (segmentId > 0) {
@@ -663,7 +681,8 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                                     chr.begin() + endPos + extension));
                             std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                         }
-
+                        /*if (isPalindrome)
+                            std::cerr << ss.str() << "\n\n";*/
                         g.Segment(segmentId, segmentSize, ss.str(), std::cout);
                         seen[Abs(segmentId)] = true;
                     }
