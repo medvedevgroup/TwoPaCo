@@ -600,7 +600,10 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         while (reader.NextJunctionPosition(end)) {
             //std::cerr << begin.GetChr() << " " << end.GetId() << " " << end.GetId() << " p" << begin.GetPos() << " p" << begin.GetPos() << "\n";
             int64_t absBegin = Abs(begin.GetId());
-            if (kmerInfo[absBegin].cropBoth()) {
+            if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
+                //TODO get rid of the copy-paste section below
+                // the complex kmer ID (new segment ID) shouldn't interfere the segment ID range
+                // so start from max_segment_number --> TODO potential segfault!! can be handled by an assert at the top
                 int64_t kmerId = MAX_SEGMENT_NUMBER + absBegin;
                 if (begin.GetId() < 0) {
                     kmerId = -kmerId;
@@ -622,7 +625,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                     kmerInfo[absBegin].setSeen();
                 }
             }
-            if (begin.GetChr() == end.GetChr()) {
+            if (begin.GetChr() == end.GetChr()) { // store the segment
                 Segment nowSegment(begin, end, chr[begin.GetPos() + k],
                                    TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
                 int64_t segmentId = nowSegment.GetSegmentId();
@@ -632,15 +635,15 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 if (kmerInfo[absBegin].cropBoth() or
                     (kmerInfo[absBegin].cropStart() and begin.GetId() >= 0) or
                     (kmerInfo[absBegin].cropEnd() and begin.GetId() < 0)) {
-                    beginPos++;
+                    beginPos++; // If need to crop the first nucleotide
                 }
                 if (kmerInfo[absEnd].cropBoth() or
                     (kmerInfo[absEnd].cropEnd() and end.GetId() >= 0) or
                     (kmerInfo[absEnd].cropStart() and end.GetId() < 0)) {
-                    extension--;
+                    extension--; // If need to crop the last nucleotide
                 }
                 uint64_t segmentSize = endPos + extension - beginPos;
-                if (segmentSize >= k) {
+                if (segmentSize >= k) { // write the middle segment only if its length is above the valid min segment length
                     currentPath.push_back(segmentId);
                     if (!seen[Abs(segmentId)]) {
                         std::stringstream ss;
@@ -672,6 +675,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         }
     }
 
+    //TODO repeated section!! need to take care of the very last junction separately!! UGLY
     int64_t absBegin = Abs(begin.GetId());
     if (kmerInfo[absBegin].cropBoth()) {
         int64_t kmerId = MAX_SEGMENT_NUMBER + absBegin;
