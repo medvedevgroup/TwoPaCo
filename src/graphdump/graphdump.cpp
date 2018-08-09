@@ -53,7 +53,9 @@ public:
             throw std::runtime_error("A vertex id is too large, cannot generate GFA");
         }
 
-        if (absBeginId < absEndId || (absBeginId == absEndId && begin.GetId() > 0)) {
+        bool choseEndJunction = false;
+        if (absBeginId < absEndId ||
+        (absBeginId == absEndId && (posEdgeCh < negEdgeCh || (posEdgeCh == negEdgeCh && begin.GetId() > 0)))) {
             uniquePath = posEdgeCh == 'N';
             segmentId_ = TwoPaCo::DnaChar::MakeUpChar(posEdgeCh);
             begin_ = begin;
@@ -63,6 +65,7 @@ public:
             segmentId_ = TwoPaCo::DnaChar::MakeUpChar(negEdgeCh);
             begin_ = TwoPaCo::JunctionPosition(begin.GetChr(), begin.GetPos(), -end.GetId());
             end_ = TwoPaCo::JunctionPosition(end.GetChr(), end.GetPos(), -begin.GetId());
+            choseEndJunction = true;
         }
 
         if (!uniquePath) {
@@ -73,7 +76,8 @@ public:
                 segmentId_ |= begin_.GetId() << 3;
             }
 
-            if (begin.GetId() != begin_.GetId()) {
+            //if (begin.GetId() != begin_.GetId()) {
+            if (choseEndJunction) {
                 segmentId_ = -segmentId_;
             }
         } else {
