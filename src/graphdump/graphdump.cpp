@@ -53,7 +53,7 @@ public:
             throw std::runtime_error("A vertex id is too large, cannot generate GFA");
         }
 
-        if (absBeginId < absEndId || (absBeginId == absEndId && absBeginId > 0)) {
+        if (absBeginId < absEndId || (absBeginId == absEndId && begin.GetId() > 0)) {
             uniquePath = posEdgeCh == 'N';
             segmentId_ = TwoPaCo::DnaChar::MakeUpChar(posEdgeCh);
             begin_ = begin;
