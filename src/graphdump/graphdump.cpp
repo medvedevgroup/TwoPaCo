@@ -539,11 +539,9 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     std::vector<std::string> chrSegmentId;
     std::map<std::string, std::string> chrFileName;
 
-    //std::cout << "H\tVN:Z:1.0" << std::endl;
     g.Header(std::cout);
 
     ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
-    //g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
 
     std::vector<int64_t> currentPath;
     const int64_t NO_SEGMENT = 0;
@@ -574,7 +572,6 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
             auto currAbsId = Abs(curr.GetId());
             auto prevAbsId = Abs(prev.GetId());
             if (prev.GetChr() != curr.GetChr()) { // If we are starting a new reference/path
-                //std::cerr << prev.GetChr() << " " << prev.GetId() << " " << curr.GetId() << " p" << prev.GetPos() << " p" << curr.GetPos() << "\n";
                 // set prev kmer as the end of a path if it is forward
                 if (prev.GetId() >= 0) {
                     kmerInfo[prevAbsId].setEnd();
@@ -604,38 +601,41 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     chrReader.reset();
     std::cerr << "Done with the first pass over Junctions\n";
     // Having all the required information for each junction,
-    // Second round going over the junctions file
+    // Start the second round of going over the junctions file
+
     uint64_t cntr{0};
+    auto addKmerIfComplex = [&] (int64_t absBegin) {
+        if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
+            // the complex kmer ID (new segment ID) shouldn't interfere with the segment ID range
+            // so start from max_segment_number --> TODO potential segfault!!
+            int64_t kmerId = MAX_SEGMENT_NUMBER + absBegin;
+            if (begin.GetId() < 0) {
+                kmerId = -kmerId;
+            }
+            currentPath.push_back(kmerId); // Add complex node as a new segment to the path
+            if (!kmerInfo[absBegin].seen()) {
+                cntr++;
+                std::stringstream ss;
+                if (begin.GetId() > 0) {
+                    std::copy(chr.begin() + begin.GetPos(), chr.begin() + begin.GetPos() + k,
+                              std::ostream_iterator<char>(ss));
+                } else {
+                    std::string buf =
+                            TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(),
+                                                                            chr.begin() + begin.GetPos() + k));
+                    std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+                }
+                g.Segment(kmerId, k, ss.str(), std::cout);
+                kmerInfo[absBegin].setSeen();
+            }
+        }
+    };
     if (reader.NextJunctionPosition(begin)) {
         chrReader.NextChr(chr);
         while (reader.NextJunctionPosition(end)) {
-            //std::cerr << begin.GetChr() << " " << end.GetId() << " " << end.GetId() << " p" << begin.GetPos() << " p" << begin.GetPos() << "\n";
             int64_t absBegin = Abs(begin.GetId());
-            if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
-                //TODO get rid of the copy-paste section below
-                // the complex kmer ID (new segment ID) shouldn't interfere the segment ID range
-                // so start from max_segment_number --> TODO potential segfault!! can be handled by an assert at the top
-                int64_t kmerId = MAX_SEGMENT_NUMBER + absBegin;
-                if (begin.GetId() < 0) {
-                    kmerId = -kmerId;
-                }
-                currentPath.push_back(kmerId); // Add complex node as a new segment to the path
-                if (!kmerInfo[absBegin].seen()) {
-                    cntr++;
-                    std::stringstream ss;
-                    if (begin.GetId() > 0) {
-                        std::copy(chr.begin() + begin.GetPos(), chr.begin() + begin.GetPos() + k,
-                                  std::ostream_iterator<char>(ss));
-                    } else {
-                        std::string buf =
-                                TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(),
-                                                                                chr.begin() + begin.GetPos() + k));
-                        std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-                    }
-                    g.Segment(kmerId, k, ss.str(), std::cout);
-                    kmerInfo[absBegin].setSeen();
-                }
-            }
+            addKmerIfComplex(absBegin); // If the start junction is complex, treat it as a segment
+
             if (begin.GetChr() == end.GetChr()) { // store the segment
                 Segment nowSegment(begin, end, chr[begin.GetPos() + k],
                                    TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
@@ -659,20 +659,12 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                     // If the contig is palindrome
                     bool isPalindrome = false;
                     if (begin.GetId() == -end.GetId() and chr[begin.GetPos() + k] ==  TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1])) {
-                        /*std::cerr << "here:\n";
-                        std::stringstream ss;
-                        std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k,
-                                  std::ostream_iterator<char>(ss));
-                        std::cerr << ss.str() << "\n";*/
                         currentPath.push_back(-segmentId);
                         if (segmentSize % 2 != 0) {
                             std::cerr << "This shouldn't happen. Problem handling palindromes!!\n";
                             std::exit(1);
                         }
-                        //std::cerr << beginPos << " " << endPos << " ";
                         endPos = (beginPos + endPos)/2;
-                        /*std::cerr << endPos << "\n";
-                        isPalindrome = true;*/
                     }
                     if (!seen[Abs(segmentId)]) {
                         std::stringstream ss;
@@ -685,8 +677,6 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                                     chr.begin() + endPos + extension));
                             std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                         }
-                        /*if (isPalindrome)
-                            std::cerr << ss.str() << "\n\n";*/
                         g.Segment(segmentId, segmentSize, ss.str(), std::cout);
                         seen[Abs(segmentId)] = true;
                     }
@@ -705,29 +695,9 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         }
     }
 
-    //TODO repeated section!! need to take care of the very last junction separately!! UGLY
+    // Need to take care of the very last junction
     int64_t absBegin = Abs(begin.GetId());
-    if (kmerInfo[absBegin].cropBoth()) {
-        int64_t kmerId = MAX_SEGMENT_NUMBER + absBegin;
-        if (begin.GetId() < 0) {
-            kmerId = -kmerId;
-        }
-        currentPath.push_back(kmerId);
-        if (!kmerInfo[absBegin].seen()) {
-            std::stringstream ss;
-            if (begin.GetId() > 0) {
-                std::copy(chr.begin() + begin.GetPos(), chr.begin() + begin.GetPos() + k,
-                          std::ostream_iterator<char>(ss));
-            } else {
-                std::string buf =
-                        TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(),
-                                                                        chr.begin() + begin.GetPos() + k));
-                std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-            }
-            g.Segment(kmerId, k, ss.str(), std::cout);
-            kmerInfo[absBegin].setSeen();
-        }
-    }
+    addKmerIfComplex(absBegin);
     g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
     std::cerr << "complex nodes: " << cntr << "\n";
 }
