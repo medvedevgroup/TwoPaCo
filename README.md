@@ -56,6 +56,33 @@ either converted to a text file or read directly using an API (will be available
 
 Below is description of the other parameters.
 
+Filter size
+-----------
+The filter size -f is a very important parameter that controls the trade-off between
+the memory usage and the speed. For the fastest speed, set the -f parameters as large
+as possible. Here are the recommended settings given the memory size of a machine:
+
+1) 4GB - 34
+2) 8GB - 35
+3) 16GB - 36
+4) 32GB - 37
+5) 64GB - 38
+6) 128GB - 39
+7) 256GB - 40
+
+For the memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
+However, if you are trying to save memory usage (which makes sense for small datasets),
+it is perfectly possible to use a smaller Bloom filter. In general, the size of the 
+filter should be proportional to the number of distinct k-mers that occur in the genome.
+For example, if the genome contains ~3 * 10^9 k-mers, the optimal size of the filter 
+should be 2^34, and -f should be 34. Smaller filter will degrade the performance.
+As a rule of thumb, for a human genome it should be at least 34 or even 35. For
+more details, see the paper. For a collection of bacterial genomes 30 should be
+enough.
+
+In case if the machine cannot allocate the filter which is large enough, it is possible
+to reduce the memory usage by using multiple rounds, see the section "Number of rounds."
+
 K-mer size
 ----------
 This value sets the size of a vertex in the de Bruijn graph. Default is 25, to
