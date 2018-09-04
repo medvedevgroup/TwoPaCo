@@ -61,7 +61,7 @@ the memory used and slow down the program. We recommend the user to set -f to to
 so that 2^\<filter_size\> / 8 is the maximum memory in bytes they wish to allocate to
 the algorithm. If the memory usage then exceeds the value above, then the number of rounds
 should be increased until the memory usage falls below the desired value
-(see the section ["Number of rounds"](https://github.com/medvedevgroup/TwoPaCo#number-of-rounds).
+(see the section ["Number of rounds"](https://github.com/medvedevgroup/TwoPaCo#number-of-rounds)).
 
 If the memory usage is not a concern, then as a rule of thumb for the fastest speed,
 set the parameter -f as large as possible. Here are the recommended settings given
