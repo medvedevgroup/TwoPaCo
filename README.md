@@ -54,13 +54,14 @@ This will constuct the compressed graph for the vertex size of \<value_of_k\> us
 2^\<filter_size\> bits in the Bloom filter. The output file is a binary that can be
 either converted to a text file or read directly using an API (will be available soon).
 
-The filter size -f is a very important parameter that controls the trade-off between
-the memory usage and the speed. Setting it too low can massively increase the size of
+The filter size -f is a very important parameter that controls affects both
+the memory usage and the speed. TwoPaCo will use at least 2^\<filter_size\> / 8 bytes of
+memory, but setting it too low can massively increase the size of
 the memory used and slow down the program. We recommend the user to set -f to to the value
 so that 2^\<filter_size\> / 8 is the maximum memory in bytes they wish to allocate to
 the algorithm. If the memory usage then exceeds the value above, then the number of rounds
-should be increased until the memory usage falls below the desired value.
-(see section "number of rounds").
+should be increased until the memory usage falls below the desired value
+(see the section ["Number of rounds"](https://github.com/medvedevgroup/TwoPaCo#number-of-rounds).
 
 If the memory usage is not a concern, then as a rule of thumb for the fastest speed,
 set the parameter -f as large as possible. Here are the recommended settings given
@@ -74,18 +75,17 @@ the memory size of a machine:
 6) 128GB - 39
 7) 256GB - 40
 
-For the memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
-For more details on the internals of the algorithm, please refer to the paper.
+For a memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
+For more details on how the Bloom filter size affects performance, please see the paper.
 Below is description of the other parameters.
 
 Number of rounds
 ----------------
-Number of computational rounds. Each rounds processses a separate subset of k-mers
-which reduces memory usage. The default is 1. To change, use:
+Number of computational rounds. For the fastest performance, use 1 round (the default).
+Increasing the number of rounds will decrease the memory usage at the expense of longer
+runtime. To set the parameter, use:
 
 	-r <number> or --rounds <number>
-
-The more the number of rounds, the longer the program works.
 
 K-mer size
 ----------
