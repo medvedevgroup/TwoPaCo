@@ -56,11 +56,18 @@ either converted to a text file or read directly using an API (will be available
 
 Below is description of the other parameters.
 
-Filter size
------------
+Controlling memory usage
+------------------------
 The filter size -f is a very important parameter that controls the trade-off between
-the memory usage and the speed. For the fastest speed, set the -f parameters as large
-as possible. Here are the recommended settings given the memory size of a machine:
+the memory usage and the speed. Setting it too low can massively increase the size of
+the memory used and slow down the program. We recommend the user to set -f to to the value
+so that 2^\<filter_size\> / 8 is the maximum memory in bytes they wish to allocate to
+the algorithm. If the memory usage then exceeds the value above, then the number of rounds
+should be increased until the memory usage falls below b (see section "number of rounds").
+
+If the memory usage is not a concern, then as a rule of thumb for the fastest speed,
+set the parameter -f as large as possible. Here are the recommended settings given
+the memory size of a machine:
 
 1) 4GB - 34
 2) 8GB - 35
@@ -71,17 +78,16 @@ as possible. Here are the recommended settings given the memory size of a machin
 7) 256GB - 40
 
 For the memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
-However, if you are trying to save memory usage (which makes sense for small datasets),
-it is perfectly possible to use a smaller Bloom filter. In general, the size of the 
-filter should be proportional to the number of distinct k-mers that occur in the genome.
-For example, if the genome contains ~3 * 10^9 k-mers, the optimal size of the filter 
-should be 2^34, and -f should be 34. Smaller filter will degrade the performance.
-As a rule of thumb, for a human genome it should be at least 34 or even 35. For
-more details, see the paper. For a collection of bacterial genomes 30 should be
-enough.
+For more details on the internals of the algorithm, please refer to the paper.
 
-In case if the machine cannot allocate the filter which is large enough, it is possible
-to reduce the memory usage by using multiple rounds, see the section "Number of rounds."
+Number of rounds
+----------------
+Number of computational rounds. Each rounds processses a separate subset of k-mers
+which reduces memory usage. The default is 1. To change, use:
+
+	-r <number> or --rounds <number>
+
+The more the number of rounds, the longer the program works.
 
 K-mer size
 ----------
@@ -111,14 +117,6 @@ change, use:
 More hash functions increases the running time. At the same time, more hash functions
 may decrease the number of false positives and the memory usage.
 
-Number of rounds
-----------------
-Number of computational rounds. Each rounds processses a separate subset of k-mers
-which reduces memory usage. The default is 1. To change, use:
-
-	-r <number> or --rounds <number>
-
-The more the number of rounds, the longer the program works.
 
 Number of threads
 -----------------
