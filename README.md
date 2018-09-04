@@ -54,7 +54,7 @@ This will constuct the compressed graph for the vertex size of \<value_of_k\> us
 2^\<filter_size\> bits in the Bloom filter. The output file is a binary that can be
 either converted to a text file or read directly using an API (will be available soon).
 
-The filter size -f is a very important parameter that controls affects both
+The filter size -f is a very important parameter that affects both
 the memory usage and the speed. TwoPaCo will use at least 2^\<filter_size\> / 8 bytes of
 memory, but setting it too low can massively increase the size of
 the memory used and slow down the program. We recommend the user to set -f to to the value
