@@ -54,16 +54,13 @@ This will constuct the compressed graph for the vertex size of \<value_of_k\> us
 2^\<filter_size\> bits in the Bloom filter. The output file is a binary that can be
 either converted to a text file or read directly using an API (will be available soon).
 
-Below is description of the other parameters.
-
-Controlling memory usage
-------------------------
 The filter size -f is a very important parameter that controls the trade-off between
 the memory usage and the speed. Setting it too low can massively increase the size of
 the memory used and slow down the program. We recommend the user to set -f to to the value
 so that 2^\<filter_size\> / 8 is the maximum memory in bytes they wish to allocate to
 the algorithm. If the memory usage then exceeds the value above, then the number of rounds
-should be increased until the memory usage falls below b (see section "number of rounds").
+should be increased until the memory usage falls below the desired value.
+(see section "number of rounds").
 
 If the memory usage is not a concern, then as a rule of thumb for the fastest speed,
 set the parameter -f as large as possible. Here are the recommended settings given
@@ -79,6 +76,7 @@ the memory size of a machine:
 
 For the memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
 For more details on the internals of the algorithm, please refer to the paper.
+Below is description of the other parameters.
 
 Number of rounds
 ----------------
