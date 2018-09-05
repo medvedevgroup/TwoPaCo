@@ -85,7 +85,8 @@ Number of rounds
 ----------------
 Number of computational rounds. For the fastest performance, use 1 round (the default).
 Increasing the number of rounds will decrease the memory usage at the expense of longer
-runtime. To set the parameter, use:
+runtime. Prior to increasing the number of rounds, please make sure to set the Bloom 
+filter size correctly as described above. To set the rounds parameter, use:
 
 	-r <number> or --rounds <number>
 
