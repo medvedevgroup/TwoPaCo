@@ -67,13 +67,15 @@ If the memory usage is not a concern, then as a rule of thumb for the fastest sp
 set the parameter -f as large as possible. Here are the recommended settings given
 the memory size of a machine:
 
-1) 4GB - 34
-2) 8GB - 35
-3) 16GB - 36
-4) 32GB - 37
-5) 64GB - 38
-6) 128GB - 39
-7) 256GB - 40
+| Machine RAM | Recommended -f value | Corresponding Bloom fitler size |
+| ----------- | -------------------- | ------------ |
+| 4 GB   | 34 | 2.1 GB   |
+| 8 GB   | 35 | 4.3 GB   |
+| 16 GB  | 36 | 8.6 GB   |
+| 32 GB  | 37 | 17.2 GB  |
+| 64 GB  | 38 | 34.4 GB  |
+| 128 GB | 39 | 68.7 GB  |
+| 256 GB | 40 | 137.4 GB |
 
 For a memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
 For more details on how the Bloom filter size affects performance, please see the paper.
