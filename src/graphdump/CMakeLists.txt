@@ -2,9 +2,9 @@ project(graphdump CXX)
 cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_PROJECT_NAME graphdump)
-if(CMAKE_COMPILER_IS_GNUCXX)
-	list(APPEND "CMAKE_CXX_FLAGS" "-std=c++0x")
-endif()
+#if(CMAKE_COMPILER_IS_GNUCXX)
+#	list(APPEND "CMAKE_CXX_FLAGS" "-std=c++0x")
+#endif()
 
 add_executable(graphdump graphdump.cpp ../common/dnachar.cpp ../common/streamfastaparser.cpp)
 link_directories(${TBB_LIB_DIR})
