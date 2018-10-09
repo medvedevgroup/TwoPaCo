@@ -7,8 +7,8 @@ set(CMAKE_PROJECT_NAME twopaco)
 #endif()
 
 include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIR} "../common")
-add_executable(twopaco ../common/dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp ../common/streamfastaparser.cpp test.cpp vertexenumerator.cpp ../common/spooky/SpookyV2.cpp common.cpp)
 link_directories(${TBB_LIB_DIR})
+add_executable(twopaco ../common/dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp ../common/streamfastaparser.cpp test.cpp vertexenumerator.cpp ../common/spooky/SpookyV2.cpp common.cpp)
 target_link_libraries(twopaco  "tbb")
 
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
