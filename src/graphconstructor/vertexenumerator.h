@@ -19,7 +19,7 @@
 #include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_unordered_set.h>
 
-#include <junctionapi/junctionapi.h>
+#include <junctionapi.h>
 
 #include "vertexrollinghash.h"
 #include "streamfastaparser.h"

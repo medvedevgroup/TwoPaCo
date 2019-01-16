@@ -15,7 +15,7 @@
 
 #include <dnachar.h>
 #include <streamfastaparser.h>
-#include <junctionapi/junctionapi.h>
+#include <junctionapi.h>
 
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
