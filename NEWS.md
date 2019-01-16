@@ -4,6 +4,10 @@ Plans for TwoPaCo 1.0.0:
 * Better description of the example (probably a sort of detailed tutorial)
 * Documentation on reading the binary output directly
 
+TwoPaCo 0.9.4
+=============
+* Added the installation scripts
+
 TwoPaCo 0.9.3
 =============
 * Fixed some compilation errors

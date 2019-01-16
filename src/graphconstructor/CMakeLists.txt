@@ -10,7 +10,8 @@ add_executable(twopaco ../common/dnachar.cpp constructor.cpp concurrentbitvector
 link_directories(${TBB_LIB_DIR})
 include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIR} "../common") 
 target_link_libraries(twopaco  "tbb")
+install(TARGETS twopaco RUNTIME DESTINATION bin)
 
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
 set(CPACK_PACKAGE_VERSION_MINOR "9")
-set(CPACK_PACKAGE_VERSION_PATCH "3")
+set(CPACK_PACKAGE_VERSION_PATCH "4")
