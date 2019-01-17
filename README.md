@@ -81,6 +81,15 @@ For a memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
 For more details on how the Bloom filter size affects performance, please see the paper.
 Below is description of the other parameters.
 
+Alternatively, you can specify the memory used by the filter using the "filtermemory"
+option:
+
+	--filtermemory <memory amount in GB>
+
+Note that the filter will be of size 2^n bits with n being as large as possible such
+that the filter fits the memory size specified. So if you use 20 as the filtermemory, 
+TwoPaCo will allocate 17.2 GBs for the Bloom filter.
+
 Number of rounds
 ----------------
 Number of computational rounds. For the fastest performance, use 1 round (the default).

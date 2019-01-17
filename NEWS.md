@@ -7,6 +7,7 @@ Plans for TwoPaCo 1.0.0:
 TwoPaCo 0.9.4
 =============
 * Added the installation scripts
+* Added the "filtermemory" option
 
 TwoPaCo 0.9.3
 =============

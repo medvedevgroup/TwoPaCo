@@ -69,9 +69,16 @@ int main(int argc, char * argv[])
 			"filtersize",
 			"Size of the filter",
 			true,
-			0,
-			"integer",
-			cmd);
+			32,
+			"integer");
+
+		TCLAP::ValueArg<double> filterMemory("",
+                        "filtermemory",
+                        "Memory in GBs allocated for the filter",
+                        true,
+                        4,
+                        "float");
+
 
 		TCLAP::ValueArg<unsigned int> hashFunctions("q",
 			"hashfnumber",
@@ -104,10 +111,10 @@ int main(int argc, char * argv[])
 			".",
 			"directory name",
 			cmd);
-		
+
 		TCLAP::SwitchArg runTests("",
 			"test",
-			"Run tests",				
+			"Run tests",
 			cmd);
 
 		TCLAP::UnlabeledMultiArg<std::string> fileName("filenames",
@@ -124,29 +131,41 @@ int main(int argc, char * argv[])
 			"file name",
 			cmd);
 
-		cmd.parse(argc, argv);		
+		cmd.xorAdd(filterSize, filterMemory);
+		cmd.parse(argc, argv);
 		using TwoPaCo::Range;
 		if (runTests.getValue())
 		{
 			TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 5), Range(4, 5), 0.05, 0.1, tmpDirName.getValue());
 			return 0;
 		}
-		
+
+		int64_t filterBits = 1;
+		if (filterSize.isSet())
+		{
+			filterBits = filterSize.getValue();
+		}
+		else
+		{
+			filterBits = log2(filterMemory.getValue() * 8e+9);
+		}
+
 		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = TwoPaCo::CreateEnumerator(fileName.getValue(),
-			kvalue.getValue(), filterSize.getValue(),
+			kvalue.getValue(),
+			filterBits,
 			hashFunctions.getValue(),
 			rounds.getValue(),
 			threads.getValue(),
 			tmpDirName.getValue(),
 			outFileName.getValue(),
 			std::cout);
-		
+
 		if (vid)
 		{
 			std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
 			std::cout << std::endl;
 		}
-		
+
 	}
 	catch (TCLAP::ArgException & e)
 	{
