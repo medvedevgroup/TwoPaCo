@@ -60,25 +60,30 @@ public:
             segmentId_ = TwoPaCo::DnaChar::MakeUpChar(posEdgeCh);
             begin_ = begin;
             end_ = end;
+            std::cerr << "firstIf: " << segmentId_ << "\n";
         } else {
             uniquePath = negEdgeCh == 'N';
             segmentId_ = TwoPaCo::DnaChar::MakeUpChar(negEdgeCh);
             begin_ = TwoPaCo::JunctionPosition(begin.GetChr(), begin.GetPos(), -end.GetId());
             end_ = TwoPaCo::JunctionPosition(end.GetChr(), end.GetPos(), -begin.GetId());
             choseEndJunction = true;
+            std::cerr << "secondIf: " << segmentId_ << "\n";
         }
 
         if (!uniquePath) {
             if (begin_.GetId() < 0) {
                 segmentId_ |= 1 << 2;
                 segmentId_ |= Abs(begin_.GetId()) << 3;
+                std::cerr << "benig_GetId() < 0: " << segmentId_ << "\n";
             } else {
                 segmentId_ |= begin_.GetId() << 3;
+                std::cerr << "benig_GetId() >= 0: " << segmentId_ << "\n";
             }
 
             //if (begin.GetId() != begin_.GetId()) {
             if (choseEndJunction) {
                 segmentId_ = -segmentId_;
+                std::cerr << "choseEndJunction: " << segmentId_ << "\n";
             }
         } else {
             segmentId_ = reservedPath++;
@@ -392,10 +397,10 @@ void GenerateGfaOutput(const std::string &inputFileName, const std::vector<std::
 #endif
                 g.Occurrence(segmentId, segmentSize, chrSegmentId[seqId], chrSegmentLength[seqId], begin.GetPos(),
                              end.GetPos(), k, std::cout);
-                //std::cout << "C\t" << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << chrSegmentId[seqId] << "\t+\t" << begin.GetPos() << std::endl;
+//                std::cout << "C\t" << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << chrSegmentId[seqId] << "\t+\t" << begin.GetPos() << std::endl;
 
                 if (prevSegmentId != NO_SEGMENT) {
-                    //std::cout << "L\t" << Abs(prevSegmentId) << '\t' << Sign(prevSegmentId) << '\t' << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << k << 'M' << std::endl;
+//                    std::cout << "L\t" << Abs(prevSegmentId) << '\t' << Sign(prevSegmentId) << '\t' << Abs(segmentId) << '\t' << Sign(segmentId) << '\t' << k << 'M' << std::endl;
                     g.Edge(prevSegmentId, prevSegmentSize, segmentId, segmentSize, k, std::cout);
                 }
 
@@ -540,6 +545,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     std::map<std::string, std::string> chrFileName;
 
     g.Header(std::cout);
+    std::cerr <<"\n\nIs called\n\n";
 
     ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
 
@@ -563,7 +569,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     std::cerr << "Max Junction ID: " << maxJunction << "\n";
 
     std::vector<bool> seen((maxJunction << 3 + 9)/*MAX_SEGMENT_NUMBER*/, 0);
-    std::vector<KmerInfo> kmerInfo(maxJunction/*MAX_JUNCTION_ID*/);
+    std::vector<KmerInfo> kmerInfo(maxJunction << 3 + 9/*MAX_JUNCTION_ID*/);
 
     // First round going over the junctions file
     if (reader.NextJunctionPosition(prev)) {
@@ -597,14 +603,13 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         }
         std::cerr << "counters:\n" << cntr1 << " " << cntr2 << " " << cntr3 << " " << cntr4 << "\n";
     }
-    reader.RestoreReader();
-    chrReader.reset();
     std::cerr << "Done with the first pass over Junctions\n";
     // Having all the required information for each junction,
     // Start the second round of going over the junctions file
 
     uint64_t cntr{0};
     auto addKmerIfComplex = [&] (int64_t absBegin) {
+//        std::cerr << "absBegin: " << absBegin << "\n";
         if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
             // the complex kmer ID (new segment ID) shouldn't interfere with the segment ID range
             // so start from max_segment_number --> TODO potential segfault!!
@@ -612,8 +617,11 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
             if (begin.GetId() < 0) {
                 kmerId = -kmerId;
             }
+//            std::cerr << "adding " << kmerId << " to the path\n";
             currentPath.push_back(kmerId); // Add complex node as a new segment to the path
+//            std::cerr << "kmerInfo.size(): " << kmerInfo.size() << " idx: " << absBegin << "\n";
             if (!kmerInfo[absBegin].seen()) {
+//                std::cerr << "aaaaa\n";
                 cntr++;
                 std::stringstream ss;
                 if (begin.GetId() > 0) {
@@ -625,11 +633,14 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                             chr.begin() + begin.GetPos() + k));
                     std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                 }
+//                std::cerr << "kmerId in case of cropBoth: " << kmerId << " " << k << "\n";
                 g.Segment(kmerId, k, ss.str(), std::cout);
                 kmerInfo[absBegin].setSeen();
             }
         }
     };
+    reader.RestoreReader();
+    chrReader.reset();
     if (reader.NextJunctionPosition(begin)) {
         chrReader.NextChr(chr);
         while (reader.NextJunctionPosition(end)) {
@@ -640,6 +651,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 Segment nowSegment(begin, end, chr[begin.GetPos() + k],
                                    TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
                 int64_t segmentId = nowSegment.GetSegmentId();
+//                std::cerr << "segmentId generated: " << segmentId << "\n";
 
                 int64_t absEnd = Abs(end.GetId());
                 uint64_t beginPos{begin.GetPos()}, endPos{end.GetPos()}, extension{k};
@@ -655,10 +667,12 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 }
                 uint64_t segmentSize = endPos + extension - beginPos;
                 if (segmentSize >= k) { // write the middle segment only if its length is above the valid min segment length
+//                    std::cerr << "segmentId being pushed to path1: " << segmentId << "\n";
                     currentPath.push_back(segmentId); // Add segment to the path
                     // If the contig is palindrome
                     bool isPalindrome = false;
                     if (begin.GetId() == -end.GetId() and chr[begin.GetPos() + k] ==  TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1])) {
+//                        std::cerr << "segmentId being pushed to path2: " << segmentId << "\n";
                         currentPath.push_back(-segmentId);
                         if (segmentSize % 2 != 0) {
                             std::cerr << "This shouldn't happen. Problem handling palindromes!!\n";
