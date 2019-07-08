@@ -18,6 +18,7 @@
 #include <junctionapi/junctionapi.h>
 
 #include "pufferize.h"
+#include "binaryWriter.h"
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition &a, const TwoPaCo::JunctionPosition &b) {
     return a.GetId() < b.GetId();
@@ -226,6 +227,82 @@ public:
             }
 
             out << Abs(currentPath.back()) << Sign(currentPath.back()) << "\t*" << std::endl;
+            currentPath.clear();
+        }
+    }
+};
+
+class Gfa1BinaryGenerator {
+    BinaryWriter bw;
+    std::ofstream out;
+public:
+    Gfa1BinaryGenerator(): bw(std::cout) {}
+    Gfa1BinaryGenerator(std::ostream &out): bw(out) {}
+
+    void Header(std::ostream &out)  {
+        std::string header="H\tVN:Z:1.0";
+        bw << header;
+    }
+
+    void ListInputSequences(const std::vector<std::string> &seq, std::map<std::string, std::string> &fileName,
+                            std::ostream &out) {
+        for (const auto &it : seq) {
+            bw << EntryType::S
+                << it
+                << "\t*\tUR:Z:"
+                << fileName[it];
+        }
+    }
+
+    void Segment(int64_t segmentId, uint64_t segmentSize, const std::string &body, std::ostream &out)  {
+        compact::vector<uint64_t, 2> seqVec_(body.size()); // capacity and size are both set to body.size()
+//        seqVec_.set_capacity(body.size());
+        for (size_t i = 0; i < body.size(); ++i) {
+            uint16_t c = 0;
+            switch (body[i]) {
+                case 'C':
+                    c = 1;
+                    break;
+                case 'G':
+                    c = 2;
+                    break;
+                case 'T':
+                    c = 3;
+                    break;
+                default:
+                    c = 0;
+            }
+            seqVec_[i] = c;
+        }
+        bw << EntryType::S << seqVec_;
+    }
+
+    void Occurrence(int64_t segmentId, uint64_t segmentSize, const std::string &chrSegmentId, uint64_t chrSegmentSize,
+                    uint64_t begin, uint64_t end, uint64_t k, std::ostream &out)  {
+        bw << EntryType::C
+            << segmentId // contains segmentId and its sign (could be negative)
+            << chrSegmentId
+            << end;
+    }
+
+    void Edge(int64_t prevSegmentId, uint64_t prevSegmentSize, int64_t segmentId, uint64_t segmentSize, uint64_t k,
+              std::ostream &out)  {
+        bw << EntryType::L
+            << prevSegmentId // contains segmentId and its sign (could be negative)
+            << segmentId
+            << k;
+    }
+
+    void FlushPath(std::vector<int64_t> &currentPath, const std::string &seqId, size_t k, std::ostream &out)  {
+        if (currentPath.size() > 0) {
+            bw << EntryType::P;
+            bw << seqId;
+            uint64_t pathLength = currentPath.size();
+            bw << pathLength;
+            for (auto it = currentPath.begin(); it != currentPath.end(); ++it) {
+                int64_t segId = (*it);
+                bw << segId; // contains segmentId and its sign (could be negative)
+            }
             currentPath.clear();
         }
     }
@@ -729,6 +806,7 @@ int main(int argc, char *argv[]) {
     format.push_back("gfa2");
     format.push_back("fasta");
     format.push_back("pufferized");
+    format.push_back("binPufferized");
     std::stringstream formatString;
     std::copy(format.begin(), format.begin(), std::ostream_iterator<std::string>(formatString, "|"));
     try {
@@ -795,13 +873,19 @@ int main(int argc, char *argv[]) {
             }
 
             GenerateFastaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue());
-        } else if (outputFileFormat.getValue() == format[6]) {
+        } else if (outputFileFormat.getValue() == format[6]) { // pufferized
             if (!seqFileName.isSet()) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
             }
 
             GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
                                      prefix.getValue(), Gfa1Generator());
+        } else if (outputFileFormat.getValue() == format[7]) { // binPufferized
+            if (!seqFileName.isSet()) {
+                throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
+            }
+            GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
+                                     prefix.getValue(), Gfa1BinaryGenerator());
         }
     }
     catch (TCLAP::ArgException &e) {

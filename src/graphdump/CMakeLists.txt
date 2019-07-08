@@ -6,7 +6,7 @@ set(CMAKE_PROJECT_NAME graphdump)
 #	list(APPEND "CMAKE_CXX_FLAGS" "-std=c++0x")
 #endif()
 
-include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIR} "../common")
+include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIR} "../common" "./" )
 link_directories(${TBB_LIB_DIR})
 add_executable(graphdump graphdump.cpp ../common/dnachar.cpp ../common/streamfastaparser.cpp)
 target_link_libraries(graphdump  "tbb")
