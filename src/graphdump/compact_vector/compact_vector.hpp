@@ -128,7 +128,7 @@ public:
 
   W* get() { return m_mem; }
   const W* get() const { return m_mem; }
-  size_t bytes() const { return sizeof(W) * elements_to_words(m_capacity, bits()); }
+  size_t bytes() const { return sizeof(W) * elements_to_words(m_size, bits()); }
   inline unsigned bits() const { return static_cast<const Derived*>(this)->bits(); }
   static constexpr unsigned static_bits() { return BITS; }
   static constexpr unsigned used_bits() { return UB; }
@@ -229,7 +229,7 @@ public:
     }
     return result;
   }
-  void set_capacity(size_t m) { m_size = m; m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
+  void set_capacity(size_t m) { m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
 
   vector& operator=(vector &vec){
     m_allocator = vec.m_allocator;

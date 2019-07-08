@@ -256,7 +256,7 @@ public:
 
     void Segment(int64_t segmentId, uint64_t segmentSize, const std::string &body, std::ostream &out)  {
         compact::vector<uint64_t, 2> seqVec_(body.size()); // capacity and size are both set to body.size()
-//        seqVec_.set_capacity(body.size());
+//        seqVec_.set_capacity(body.size()); // this now only sets the m_capacity to body.size() while m_size is still zero
         for (size_t i = 0; i < body.size(); ++i) {
             uint16_t c = 0;
             switch (body[i]) {

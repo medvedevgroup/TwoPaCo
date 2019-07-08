@@ -79,8 +79,8 @@ public:
     BinaryWriter& operator<<(const compact::vector<uint64_t, 2> &inval) {
         uint64_t w_size = inval.size();
         out.write(reinterpret_cast<char*>(&w_size), sizeof(w_size));
-        uint64_t w_capacity = inval.capacity();
-        out.write(reinterpret_cast<char*>(&w_capacity), sizeof(w_capacity));
+//        uint64_t w_capacity = inval.capacity();
+//        out.write(reinterpret_cast<char*>(&w_capacity), sizeof(w_capacity));
         uint64_t* m_mem = inval.get_words();
         out.write(reinterpret_cast<char*>(m_mem), inval.bytes());
         return *this;
