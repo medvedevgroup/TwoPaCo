@@ -26,6 +26,7 @@ struct KmerInfo {
     //<4 bits: characters that precede kmer in forward>
     //<4 bits: characters that succeed kmer in forward>
     uint16_t kinf{0};
+    uint32_t len{0};
 
     void setPrecedingChar(bool isFw, char c) {
         if (isFw) {
@@ -109,9 +110,11 @@ struct KmerInfo {
         //std::cerr << kinf << " " << cnt << "\n";
         return cnt;
     }
-    void decideType(uint64_t &cntr1, uint64_t &cntr2, uint64_t &cntr3, uint64_t &cntr4) {
-        if (!kinf) // if kmer doesn't exist
+    void decideType(uint64_t k, uint64_t &approximateContigLen, uint64_t &cntr1, uint64_t &cntr2, uint64_t &cntr3, uint64_t &cntr4) {
+
+        if (!kinf) {// if kmer doesn't exist
             return;
+        }
         auto precedeCnt = countPreceding();
         auto succeedCnt = countSucceeding();
         if (precedeCnt > 1 and succeedCnt > 1) {
@@ -142,15 +145,9 @@ struct KmerInfo {
             } else {
                 setCropStart();
             }
-/*
-            if (!isEnd() or !isStart()) {
-                std::cerr << "ERROR!! Such case cannot happen in the output of TwoPaCo: precedingCnt=1, succeedingCnt=1, neither start nor end\n";
-            }
-            setCropBoth();
-            cntr4++;
-*/
         } // otherwise, we don't require to crop any nucleotides from any sides of a contig/segment
-
+        if (cropBoth()) approximateContigLen+=(len+k);
+        else approximateContigLen+=len;
     }
 };
 

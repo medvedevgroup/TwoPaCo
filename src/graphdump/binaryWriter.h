@@ -14,9 +14,24 @@ enum EntryType {
 class BinaryWriter {
 private:
     std::ostream & out;
+    compact::vector<uint64_t, 2> seqVec_;
+    compact::vector<uint64_t, 1> rankVec_;
 
 public:
-    explicit BinaryWriter(std::ostream &outin): out(outin) {}
+    BinaryWriter(): out(std::cout) {}
+    //BinaryWriter(std::ostream &outin): out(outin) {}
+
+    void setCapacity(uint64_t c) {
+        seqVec_.set_capacity(c);
+        rankVec_.set_capacity(c);
+    }
+
+    void flushSegments(std::string &prefix) {
+        std::ofstream seqOut(prefix+"/seq.bin");
+        seqVec_.serialize(seqOut);
+        std::ofstream rankOut(prefix+"/rank.bin");
+        rankVec_.serialize(rankOut);
+    }
 
     BinaryWriter& operator<<(const EntryType &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
@@ -69,8 +84,6 @@ public:
         }
         char tmp = static_cast<uint8_t>(inval.size());
         out.write(&tmp, sizeof(tmp));
-        //(*this) << inval.size();
-        //std::cout << inval.size() << " " << inval.c_str()  << " " << inval << "\n";
         char* inCharPtr = const_cast<char*>(inval.c_str());
         out.write(inCharPtr, inval.size());
         return *this;
@@ -79,11 +92,34 @@ public:
     BinaryWriter& operator<<(const compact::vector<uint64_t, 2> &inval) {
         uint64_t w_size = inval.size();
         out.write(reinterpret_cast<char*>(&w_size), sizeof(w_size));
-//        uint64_t w_capacity = inval.capacity();
-//        out.write(reinterpret_cast<char*>(&w_capacity), sizeof(w_capacity));
         uint64_t* m_mem = inval.get_words();
         out.write(reinterpret_cast<char*>(m_mem), inval.bytes());
         return *this;
+    }
+
+    void addSeq(const std::string &inval) {
+//        std::cerr << seqVec_.capacity() << " " << seqVec_.size() << " ";
+
+        for (size_t i = 0; i < inval.size(); ++i) {
+            uint16_t c = 0;
+            switch (inval[i]) {
+                case 'C':
+                    c = 1;
+                    break;
+                case 'G':
+                    c = 2;
+                    break;
+                case 'T':
+                    c = 3;
+                    break;
+                default:
+                    c = 0;
+            }
+            seqVec_.push_back(c);
+            rankVec_.push_back(0);
+        }
+        rankVec_[rankVec_.size()-1] = 1;
+//        std::cerr << "r" << rankVec_.capacity() << " " << rankVec_.size() << "\n";
     }
 
 };

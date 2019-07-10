@@ -244,7 +244,7 @@ protected:
     const size_t new_capacity = std::max(m_capacity * 2, (size_t)1);
     W* new_mem = m_allocator.allocate(new_capacity);
     if(new_mem == nullptr) throw std::bad_alloc();
-    std::copy(m_mem, m_mem + m_capacity, new_mem);
+    std::copy(m_mem, m_mem + (m_capacity * bits()) /(sizeof(W)*8), new_mem);
     m_allocator.deallocate(m_mem, m_capacity);
     m_mem      = new_mem;
     m_capacity = new_capacity;

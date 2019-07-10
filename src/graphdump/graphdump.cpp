@@ -179,6 +179,15 @@ void ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std
 
 class Gfa1Generator {
 public:
+
+    void setCapacity(uint64_t c) {
+        //empty body -- forced by template
+    }
+
+    void flushSegments(std::string &prefix) {
+        //empty body-- forced by template
+    }
+
     void Header(std::ostream &out) const {
         out << "H\tVN:Z:1.0" << std::endl;
     }
@@ -234,68 +243,31 @@ public:
 
 class Gfa1BinaryGenerator {
     BinaryWriter bw;
-    std::ofstream out;
+    //std::ofstream out;
 public:
-    Gfa1BinaryGenerator(): bw(std::cout) {}
-    Gfa1BinaryGenerator(std::ostream &out): bw(out) {}
+    //Gfa1BinaryGenerator(): bw(std::cout) {}
+//    Gfa1BinaryGenerator(std::ostream &out): bw(out) {}
+
+    void setCapacity(uint64_t c) {
+        bw.setCapacity(c);
+    }
+
+    void flushSegments(std::string & prefix) {
+        bw.flushSegments(prefix);
+    }
 
     void Header(std::ostream &out)  {
         std::string header="H\tVN:Z:1.0";
         bw << header;
     }
 
-    void ListInputSequences(const std::vector<std::string> &seq, std::map<std::string, std::string> &fileName,
-                            std::ostream &out) {
-        for (const auto &it : seq) {
-            bw << EntryType::S
-                << it
-                << "\t*\tUR:Z:"
-                << fileName[it];
-        }
-    }
-
     void Segment(int64_t segmentId, uint64_t segmentSize, const std::string &body, std::ostream &out)  {
-        compact::vector<uint64_t, 2> seqVec_(body.size()); // capacity and size are both set to body.size()
-//        seqVec_.set_capacity(body.size()); // this now only sets the m_capacity to body.size() while m_size is still zero
-        for (size_t i = 0; i < body.size(); ++i) {
-            uint16_t c = 0;
-            switch (body[i]) {
-                case 'C':
-                    c = 1;
-                    break;
-                case 'G':
-                    c = 2;
-                    break;
-                case 'T':
-                    c = 3;
-                    break;
-                default:
-                    c = 0;
-            }
-            seqVec_[i] = c;
-        }
-        bw << EntryType::S << seqVec_;
-    }
-
-    void Occurrence(int64_t segmentId, uint64_t segmentSize, const std::string &chrSegmentId, uint64_t chrSegmentSize,
-                    uint64_t begin, uint64_t end, uint64_t k, std::ostream &out)  {
-        bw << EntryType::C
-            << segmentId // contains segmentId and its sign (could be negative)
-            << chrSegmentId
-            << end;
-    }
-
-    void Edge(int64_t prevSegmentId, uint64_t prevSegmentSize, int64_t segmentId, uint64_t segmentSize, uint64_t k,
-              std::ostream &out)  {
-        bw << EntryType::L
-            << prevSegmentId // contains segmentId and its sign (could be negative)
-            << segmentId
-            << k;
+        bw.addSeq(body);
     }
 
     void FlushPath(std::vector<int64_t> &currentPath, const std::string &seqId, size_t k, std::ostream &out)  {
         if (currentPath.size() > 0) {
-            bw << EntryType::P;
+//            bw << EntryType::P;
             bw << seqId;
             uint64_t pathLength = currentPath.size();
             bw << pathLength;
@@ -327,6 +299,15 @@ std::string Gfa2Segment(int64_t segment) {
 
 class Gfa2Generator {
 public:
+
+    void setCapacity(uint64_t c) {
+        //empty body -- forced by template
+    }
+
+    void flushSegments(std::string & dummy) {
+        //empty body-- forced by template
+    }
+
     void Header(std::ostream &out) const {
         out << "H\tVN:Z:2.0" << std::endl;
     }
@@ -611,12 +592,12 @@ void GenerateDotOutput(const std::string &inputFileName) {
 
 template<class G>
 void GeneratePufferizedOutput(const std::string &inputFileName, const std::vector<std::string> &genomes, size_t k,
-                              bool prefix, G g) {
+                              bool prefix, std::string &prefixDir, G* g) {
     std::vector<uint64_t> chrSegmentLength;
     std::vector<std::string> chrSegmentId;
     std::map<std::string, std::string> chrFileName;
 
-    g.Header(std::cout);
+    g->Header(std::cout);
 
     ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
 
@@ -646,6 +627,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     // First round going over the junctions file
 //    std::cerr << "\n\nRound one:\n";
     reader.RestoreReader();
+    uint64_t approximateContigLen=0;
     if (reader.NextJunctionPosition(prev)) {
         chrReader.NextChr(chr);
 
@@ -655,11 +637,14 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         } else {
             kmerInfo[Abs(prev.GetId())].setEnd();
         }
+        // for the first contig
+        kmerInfo[Abs(prev.GetId())].len = curr.GetPos();
 
         while (reader.NextJunctionPosition(curr)) {
             auto currAbsId = Abs(curr.GetId());
             auto prevAbsId = Abs(prev.GetId());
             if (prev.GetChr() != curr.GetChr()) { // If we are starting a new reference/path
+                kmerInfo[currAbsId].len = curr.GetPos();
                 // set prev kmer as the end of a path if it is forward
                 if (prev.GetId() >= 0) {
                     kmerInfo[prevAbsId].setEnd();
@@ -674,11 +659,14 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 }
                 chrReader.NextChr(chr);
             } else { // If we are in the middle of a path
+                kmerInfo[currAbsId].len = curr.GetPos() - prev.GetPos();
                 kmerInfo[prevAbsId].setSucceedingChar(prev.GetId() >= 0, chr[prev.GetPos() + k]);
                 kmerInfo[currAbsId].setPrecedingChar(curr.GetId() >= 0, chr[curr.GetPos() - 1]);
             }
             prev = curr;
         }
+        // for the last contig
+        kmerInfo[Abs(curr.GetId())].len = curr.GetPos() - prev.GetPos();
 
         // set the last junction kmer of the last sequence as seq. end (if fw) or seq. start (if rc)
         if (prev.GetId() >= 0) {
@@ -687,15 +675,16 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
             kmerInfo[Abs(prev.GetId())].setStart();
         }
         uint64_t cntr1{0}, cntr2{0}, cntr3{0}, cntr4{0};
-        for (uint64_t i = 0; i < kmerInfo.size(); i++) {
-            kmerInfo[i].decideType(cntr1, cntr2, cntr3, cntr4);
+        for (auto &kmerIn : kmerInfo) {
+            kmerIn.decideType(k, approximateContigLen, cntr1, cntr2, cntr3, cntr4);
         }
-        std::cerr << "counters:\n" << cntr1 << " " << cntr2 << " " << cntr3 << " " << cntr4 << "\n";
+        std::cerr << "approximateContigTotalLength: " << approximateContigLen << "\ncounters:\n" << cntr1 << " " << cntr2 << " " << cntr3 << " " << cntr4 << "\n";
     }
     // Having all the required information for each junction,
     // Start the second round of going over the junctions file
 
-    uint64_t cntr{0};
+    g->setCapacity(approximateContigLen);
+    uint64_t cntr{0}, contigCntr{0};
     auto addKmerIfComplex = [&] (int64_t absBegin) {
         if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
             // the complex kmer ID (new segment ID) shouldn't interfere with the segment ID range
@@ -717,11 +706,13 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                             chr.begin() + begin.GetPos() + k));
                     std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                 }
-                g.Segment(kmerId, k, ss.str(), std::cout);
+                g->Segment(kmerId, k, ss.str(), std::cout);
+                contigCntr++;
                 kmerInfo[absBegin].setSeen();
             }
         }
     };
+
 
 //    std::cerr << "\n\nRound two:\n";
     reader.RestoreReader();
@@ -772,13 +763,14 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                                     chr.begin() + endPos + extension));
                             std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                         }
-                        g.Segment(segmentId, segmentSize, ss.str(), std::cout);
+                        g->Segment(segmentId, segmentSize, ss.str(), std::cout);
+                        contigCntr++;
                         seen[Abs(segmentId)] = true;
                     }
                 }
                 begin = end;
             } else {
-                g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
+                g->FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
                 chrReader.NextChr(chr);
                 begin = end;
 
@@ -793,8 +785,9 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     // Need to take care of the very last junction
     int64_t absBegin = Abs(begin.GetId());
     addKmerIfComplex(absBegin);
-    g.FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
-    std::cerr << "complex nodes: " << cntr << "\n";
+    g->FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
+    std::cerr << "contig count: " << contigCntr << " complex nodes: " << cntr << "\n";
+    g->flushSegments(prefixDir);
 }
 
 int main(int argc, char *argv[]) {
@@ -831,6 +824,13 @@ int main(int argc, char *argv[]) {
                                                       &formatConstraint,
                                                       cmd);
 
+        TCLAP::ValueArg<std::string> seqAndRankOutputDir("p",
+                                                      "SeqRankDirPrefix",
+                                                      "Sequence and rank output files directory prefix",
+                                                      false,
+                                                      "./",
+                                                      "string",
+                                                      cmd);
         TCLAP::MultiArg<std::string> seqFileName("s",
                                                  "seqfile",
                                                  "sequences file name",
@@ -878,14 +878,21 @@ int main(int argc, char *argv[]) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
             }
 
+            auto * g = new Gfa1Generator();
             GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
-                                     prefix.getValue(), Gfa1Generator());
+                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g);
+            delete g;
         } else if (outputFileFormat.getValue() == format[7]) { // binPufferized
             if (!seqFileName.isSet()) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
             }
-            GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
-                                     prefix.getValue(), Gfa1BinaryGenerator());
+            if (!seqAndRankOutputDir.isSet()) {
+                throw TCLAP::ArgParseException("Required argument missing\n", "SeqRankDirPrefix");
+            }
+            auto * g = new Gfa1BinaryGenerator();
+           GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
+                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g);
+           delete g;
         }
     }
     catch (TCLAP::ArgException &e) {
@@ -896,7 +903,6 @@ int main(int argc, char *argv[]) {
         std::cerr << "error: " << e.what() << std::endl;
         return 1;
     }
-
 
     return 0;
 }
