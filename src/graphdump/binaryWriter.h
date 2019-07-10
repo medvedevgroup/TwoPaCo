@@ -82,8 +82,8 @@ public:
                       << inval.size() << "\n";
             std::exit(1);
         }
-        char tmp = static_cast<uint8_t>(inval.size());
-        out.write(&tmp, sizeof(tmp));
+        auto tmp = static_cast<uint16_t>(inval.size());
+        out.write(reinterpret_cast<const char *>(&tmp), sizeof(tmp));
         char* inCharPtr = const_cast<char*>(inval.c_str());
         out.write(inCharPtr, inval.size());
         return *this;

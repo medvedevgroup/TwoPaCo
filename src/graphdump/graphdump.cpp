@@ -9,6 +9,7 @@
 #include <iterator>
 #include <iostream>
 #include <algorithm>
+#include <unordered_map>
 
 #include <tclap/CmdLine.h>
 #include <tbb/parallel_sort.h>
@@ -257,8 +258,8 @@ public:
     }
 
     void Header(std::ostream &out)  {
-        std::string header="H\tVN:Z:1.0";
-        bw << header;
+        /*std::string header="H\tVN:Z:1.0";
+        bw << header;*/
     }
 
     void Segment(int64_t segmentId, uint64_t segmentSize, const std::string &body, std::ostream &out)  {
@@ -685,6 +686,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
 
     g->setCapacity(approximateContigLen);
     uint64_t cntr{0}, contigCntr{0};
+    std::unordered_map<uint64_t, uint64_t> contigMap;
     auto addKmerIfComplex = [&] (int64_t absBegin) {
         if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
             // the complex kmer ID (new segment ID) shouldn't interfere with the segment ID range
@@ -693,7 +695,6 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
             if (begin.GetId() < 0) {
                 kmerId = -kmerId;
             }
-            currentPath.push_back(kmerId); // Add complex node as a new segment to the path
             if (!kmerInfo[absBegin].seen()) {
                 cntr++;
                 std::stringstream ss;
@@ -706,10 +707,16 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                             chr.begin() + begin.GetPos() + k));
                     std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                 }
-                g->Segment(kmerId, k, ss.str(), std::cout);
+                contigMap[Abs(kmerId)] = contigCntr;
+                g->Segment(contigCntr, k, ss.str(), std::cout);
                 contigCntr++;
                 kmerInfo[absBegin].setSeen();
             }
+
+            int64_t newId = contigMap[Abs(kmerId)];
+            if (kmerId<0)
+                newId = -newId;
+            currentPath.push_back(newId); // Add complex node as a new segment to the path
         }
     };
 
@@ -741,17 +748,6 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 }
                 uint64_t segmentSize = endPos + extension - beginPos;
                 if (segmentSize >= k) { // write the middle segment only if its length is above the valid min segment length
-                    currentPath.push_back(segmentId); // Add segment to the path
-                    // If the contig is palindrome
-                    bool isPalindrome = false;
-                    if (begin.GetId() == -end.GetId() and chr[begin.GetPos() + k] ==  TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1])) {
-                        currentPath.push_back(-segmentId);
-                        if (segmentSize % 2 != 0) {
-                            std::cerr << "This shouldn't happen. Problem handling palindromes!!\n";
-                            std::exit(1);
-                        }
-                        endPos = (beginPos + endPos)/2;
-                    }
                     if (!seen[Abs(segmentId)]) {
                         std::stringstream ss;
                         if (segmentId > 0) {
@@ -763,9 +759,24 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                                     chr.begin() + endPos + extension));
                             std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                         }
-                        g->Segment(segmentId, segmentSize, ss.str(), std::cout);
+                        contigMap[Abs(segmentId)] = contigCntr;
+                        g->Segment(contigCntr, segmentSize, ss.str(), std::cout);
                         contigCntr++;
                         seen[Abs(segmentId)] = true;
+                    }
+                    int64_t newId = contigMap[Abs(segmentId)];
+                    if (segmentId<0)
+                        newId = -newId;
+                    currentPath.push_back(newId); // Add segment to the path
+                    // If the contig is palindrome
+                    bool isPalindrome = false;
+                    if (begin.GetId() == -end.GetId() and chr[begin.GetPos() + k] ==  TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1])) {
+                        currentPath.push_back(-newId);
+                        if (segmentSize % 2 != 0) {
+                            std::cerr << "This shouldn't happen. Problem handling palindromes!!\n";
+                            std::exit(1);
+                        }
+                        endPos = (beginPos + endPos)/2;
                     }
                 }
                 begin = end;
