@@ -135,7 +135,8 @@ namespace TwoPaCo
 			std::ostream & logStream) :
 			vertexSize_(vertexLength),
 			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
-			filterDumpFile_(tmpDirName + "/filter.bin")
+			filterDumpFile_(tmpDirName + "/filter.bin"),
+			parsingException_("")
 		{
 			uint64_t realSize = uint64_t(1) << filterSize;
 			logStream << "Threads = " << threads << std::endl;
@@ -194,6 +195,11 @@ namespace TwoPaCo
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i]->join();
+				}
+
+				if (error != 0)
+				{
+					throw *error;
 				}
 			}
 
@@ -986,11 +992,6 @@ namespace TwoPaCo
 								{
 									for (uint64_t value : hashValue)
 									{
-										if (value >= filter.Size())
-										{
-											std::cout << "F#";
-										}
-
 										setup.push_back(value);
 									}
 								}
@@ -1078,8 +1079,9 @@ namespace TwoPaCo
 						}
 						catch (const StreamFastaParser::Exception & e)
 						{
-							std::cerr << std::endl << e.what() << std::endl;
+							error.reset(new std::runtime_error(e.what()));
 							fail = over = true;
+							break;
 						}
 
 						if (!over)
@@ -1129,11 +1131,6 @@ namespace TwoPaCo
 					
 				}
 			}
-
-			if (fail)
-			{
-				throw StreamFastaParser::Exception("Can't parse FASTA");
-			}
 		}
 
 		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t & falsePositives) const
@@ -1161,6 +1158,7 @@ namespace TwoPaCo
 		}
 
 		size_t vertexSize_;
+		StreamFastaParser::Exception parsingException_;
 		DISALLOW_COPY_AND_ASSIGN(VertexEnumeratorImpl<CAPACITY>);
 	};	
 }
