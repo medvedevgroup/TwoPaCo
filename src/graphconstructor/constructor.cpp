@@ -169,12 +169,12 @@ int main(int argc, char * argv[])
 	}
 	catch (TCLAP::ArgException & e)
 	{
-		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+		std::cerr << "Error: " << e.error() << " for arg " << e.argId() << std::endl;
 		return 1;
 	}
 	catch (std::runtime_error & e)
 	{
-		std::cerr << "error: " << e.what() << std::endl;
+		std::cerr << "Error: " << e.what() << std::endl;
 		return 1;
 	}
 	

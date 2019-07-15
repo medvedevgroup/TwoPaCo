@@ -986,6 +986,11 @@ namespace TwoPaCo
 								{
 									for (uint64_t value : hashValue)
 									{
+										if (value >= filter.Size())
+										{
+											std::cout << "F#";
+										}
+
 										setup.push_back(value);
 									}
 								}
@@ -1034,6 +1039,7 @@ namespace TwoPaCo
 			size_t record = 0;
 			size_t nowQueue = 0;
 			uint32_t pieceCount = 0;
+			bool fail = false;
 #ifdef LOGGING
 			logFile << "Starting a new stage" << std::endl;
 #endif
@@ -1043,7 +1049,7 @@ namespace TwoPaCo
 				logFile << "Reading " << fileName[file] << std::endl;
 #endif
 				const std::string & nowFileName = fileName[file];
-				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+				for (StreamFastaParser parser(nowFileName); !fail && parser.ReadRecord(); record++)
 				{
 					{
 						errorMutex.lock();
@@ -1066,7 +1072,16 @@ namespace TwoPaCo
 					bool over = false;
 					do
 					{
-						over = !parser.GetChar(ch);
+						try
+						{
+							over = !parser.GetChar(ch);
+						}
+						catch (const StreamFastaParser::Exception & e)
+						{
+							std::cerr << std::endl << e.what() << std::endl;
+							fail = over = true;
+						}
+
 						if (!over)
 						{
 							start++;
@@ -1113,6 +1128,11 @@ namespace TwoPaCo
 				{
 					
 				}
+			}
+
+			if (fail)
+			{
+				throw StreamFastaParser::Exception("Can't parse FASTA");
 			}
 		}
 
