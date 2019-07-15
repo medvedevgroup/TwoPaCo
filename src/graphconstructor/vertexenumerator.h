@@ -1079,7 +1079,9 @@ namespace TwoPaCo
 						}
 						catch (const StreamFastaParser::Exception & e)
 						{
+							errorMutex.lock();
 							error.reset(new std::runtime_error(e.what()));
+							errorMutex.unlock();
 							fail = over = true;
 							break;
 						}
