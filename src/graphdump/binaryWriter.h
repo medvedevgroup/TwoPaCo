@@ -22,8 +22,8 @@ public:
     //BinaryWriter(std::ostream &outin): out(outin) {}
 
     void setCapacity(uint64_t c) {
-        seqVec_.set_capacity(c);
-        rankVec_.set_capacity(c);
+        seqVec_.reserve(c);
+        rankVec_.reserve(c);
     }
 
     void flushSegments(std::string &prefix) {

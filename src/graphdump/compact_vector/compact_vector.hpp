@@ -230,7 +230,9 @@ public:
     }
     return result;
   }
-  void set_capacity(size_t m) { m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
+  void reserve(size_t m) { m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
+
+  void resize(size_t m) { m_size = m; m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
 
   vector& operator=(vector &vec){
     m_allocator = vec.m_allocator;
