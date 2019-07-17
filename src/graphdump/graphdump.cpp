@@ -685,7 +685,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     // Start the second round of going over the junctions file
 
     g->setCapacity(approximateContigLen);
-    uint64_t cntr{0}, contigCntr{0};
+    uint64_t cntr{0}, contigCntr{0}, elementCntr{0};
     std::unordered_map<uint64_t, uint64_t> contigMap;
     auto addKmerIfComplex = [&] (int64_t absBegin) {
         if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
@@ -710,6 +710,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 contigMap[Abs(kmerId)] = contigCntr;
                 g->Segment(contigCntr, k, ss.str(), std::cout);
                 contigCntr++;
+                elementCntr+=ss.str().size();
                 kmerInfo[absBegin].setSeen();
             }
 
@@ -762,6 +763,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                         contigMap[Abs(segmentId)] = contigCntr;
                         g->Segment(contigCntr, segmentSize, ss.str(), std::cout);
                         contigCntr++;
+                        elementCntr+=ss.str().size();
                         seen[Abs(segmentId)] = true;
                     }
                     int64_t newId = contigMap[Abs(segmentId)];
@@ -797,7 +799,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     int64_t absBegin = Abs(begin.GetId());
     addKmerIfComplex(absBegin);
     g->FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
-    std::cerr << "contig count: " << contigCntr << " complex nodes: " << cntr << "\n";
+    std::cerr << "contig count: " << contigCntr << " element count: " << elementCntr << " complex nodes: " << cntr << "\n";
     g->flushSegments(prefixDir);
 }
 

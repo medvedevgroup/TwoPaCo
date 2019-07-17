@@ -30,6 +30,13 @@ public:
         std::ofstream seqOut(prefix+"/seq.bin");
         seqVec_.serialize(seqOut);
         std::ofstream rankOut(prefix+"/rank.bin");
+        uint64_t ones=0;
+        for (uint64_t idx=0; idx < rankVec_.size(); idx++) {
+            if (rankVec_[idx]) {
+                ones++;
+            }
+        }
+        std::cerr << "# of ones in rank vector: " << ones << "\n";
         rankVec_.serialize(rankOut);
     }
 
@@ -119,7 +126,6 @@ public:
             rankVec_.push_back(0);
         }
         rankVec_[rankVec_.size()-1] = 1;
-//        std::cerr << "r" << rankVec_.capacity() << " " << rankVec_.size() << "\n";
     }
 
 };

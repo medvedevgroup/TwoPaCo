@@ -145,6 +145,7 @@ public:
       of.write(reinterpret_cast<char*>(&bits_per_element), sizeof(bits_per_element));
     }
     uint64_t w_size = m_size;
+    std::cerr << "size: " << w_size << "\n";
     of.write(reinterpret_cast<char*>(&w_size), sizeof(w_size));
     uint64_t w_capacity = m_capacity;
     of.write(reinterpret_cast<char*>(&w_capacity), sizeof(w_capacity));
@@ -167,7 +168,7 @@ public:
       uint64_t w_size{0};
       std::memcpy(reinterpret_cast<void*>(&w_size), reinterpret_cast<void*>(const_cast<char*>(data)), sizeof(w_size));
       m_size = w_size;
-      //std::cerr<< "size = " << m_size << "\n";
+      std::cerr<< "size = " << m_size << "\n";
       data += sizeof(w_size);
       uint64_t w_capacity{0};
       std::memcpy(reinterpret_cast<void*>(&w_capacity), reinterpret_cast<void*>(const_cast<char*>(data)), sizeof(w_capacity));
@@ -190,7 +191,7 @@ public:
       uint64_t w_size{0};
       ifile.read(reinterpret_cast<char*>(&w_size), sizeof(w_size));
       m_size = w_size;
-      //std::cerr<< "size = " << m_size << "\n";
+      std::cerr<< "size = " << m_size << "\n";
 
       uint64_t w_capacity{0};
       ifile.read(reinterpret_cast<char*>(&w_capacity), sizeof(w_capacity));
@@ -244,7 +245,7 @@ protected:
     const size_t new_capacity = std::max(m_capacity * 2, (size_t)1);
     W* new_mem = m_allocator.allocate(new_capacity);
     if(new_mem == nullptr) throw std::bad_alloc();
-    std::copy(m_mem, m_mem + (m_capacity * bits()) /(sizeof(W)*8), new_mem);
+    std::copy(m_mem, m_mem + elements_to_words(m_capacity, bits()), new_mem);
     m_allocator.deallocate(m_mem, m_capacity);
     m_mem      = new_mem;
     m_capacity = new_capacity;
