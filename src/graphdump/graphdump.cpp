@@ -708,7 +708,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                     std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                 }
                 contigMap[Abs(kmerId)] = contigCntr;
-                std::cerr << "AddkmerIfComplex: " << contigCntr << " " << k << " " << ss.str() << "\n";
+//                std::cerr << "AddkmerIfComplex: " << contigCntr << " " << k << " " << ss.str() << "\n";
                 g->Segment(contigCntr, k, ss.str(), std::cout);
                 contigCntr++;
                 elementCntr+=ss.str().size();
@@ -785,6 +785,19 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                     if (isPalindrome) {
                         currentPath.push_back(-newId);
                     }
+                }
+                else {
+                    std::stringstream ss;
+                    if (segmentId > 0) {
+                        std::copy(chr.begin() + beginPos, chr.begin() + endPos + extension,
+                                  std::ostream_iterator<char>(ss));
+                    } else {
+                        std::string buf =
+                                TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + beginPos,
+                                                                                chr.begin() + endPos + extension));
+                        std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+                    }
+                    std::cerr << "Segment size is less than k: " << ss.str() << "\n";
                 }
                 begin = end;
             } else {
