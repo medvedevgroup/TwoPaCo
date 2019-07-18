@@ -797,7 +797,10 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                                                                                 chr.begin() + endPos + extension));
                         std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                     }
-                    std::cerr << "Segment size is less than k: " << ss.str() << "\n";
+                    std::string s = ss.str();
+                    if (s == "CTTTTCCTAATATAAAAAACTATGCTGGCT" or s == "TTTTCCTAATATAAAAAACTATGCTGGCTC" or
+                        s == "GAGCCAGCATAGTTTTTTATATTAGGAAAA" or s == "AGCCAGCATAGTTTTTTATATTAGGAAAAG")
+                        std::cerr << "Segment size is less than k: " << ss.str() << "\n";
                 }
                 begin = end;
             } else {
