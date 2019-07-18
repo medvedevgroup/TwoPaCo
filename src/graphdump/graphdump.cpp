@@ -685,7 +685,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     // Start the second round of going over the junctions file
 
     g->setCapacity(approximateContigLen);
-    uint64_t cntr{0}, contigCntr{0}, elementCntr{0};
+    uint64_t cntr{0}, contigCntr{1}, elementCntr{0};
     std::unordered_map<uint64_t, uint64_t> contigMap;
     auto addKmerIfComplex = [&] (int64_t absBegin) {
         if (kmerInfo[absBegin].cropBoth()) { // If the start junction is complex, treat it as a segment
