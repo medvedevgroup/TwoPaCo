@@ -786,22 +786,6 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                         currentPath.push_back(-newId);
                     }
                 }
-                else {
-                    std::stringstream ss;
-                    if (segmentId > 0) {
-                        std::copy(chr.begin() + beginPos, chr.begin() + endPos + extension,
-                                  std::ostream_iterator<char>(ss));
-                    } else {
-                        std::string buf =
-                                TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + beginPos,
-                                                                                chr.begin() + endPos + extension));
-                        std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-                    }
-                    std::string s = ss.str();
-                    if (s == "CTTTTCCTAATATAAAAAACTATGCTGGCT" or s == "TTTTCCTAATATAAAAAACTATGCTGGCTC" or
-                        s == "GAGCCAGCATAGTTTTTTATATTAGGAAAA" or s == "AGCCAGCATAGTTTTTTATATTAGGAAAAG")
-                        std::cerr << "Segment size is less than k: " << ss.str() << "\n";
-                }
                 begin = end;
             } else {
                 g->FlushPath(currentPath, chrSegmentId[seqId], k, std::cout);
