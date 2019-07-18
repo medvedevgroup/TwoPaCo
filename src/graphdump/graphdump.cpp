@@ -708,6 +708,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                     std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                 }
                 contigMap[Abs(kmerId)] = contigCntr;
+                std::cerr << "AddkmerIfComplex: " << contigCntr << " " << k << " " << ss.str() << "\n";
                 g->Segment(contigCntr, k, ss.str(), std::cout);
                 contigCntr++;
                 elementCntr+=ss.str().size();
@@ -749,6 +750,16 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                 }
                 uint64_t segmentSize = endPos + extension - beginPos;
                 if (segmentSize >= k) { // write the middle segment only if its length is above the valid min segment length
+                    // If the contig is palindrome
+                    bool isPalindrome = false;
+                    if (begin.GetId() == -end.GetId() and chr[begin.GetPos() + k] ==  TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1])) {
+                        isPalindrome = true;
+                        if (segmentSize % 2 != 0) {
+                            std::cerr << "This shouldn't happen. Problem handling palindromes!!\n";
+                            std::exit(1);
+                        }
+                        endPos = (beginPos + endPos)/2;
+                    }
                     if (!seen[Abs(segmentId)]) {
                         std::stringstream ss;
                         if (segmentId > 0) {
@@ -761,6 +772,7 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                             std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                         }
                         contigMap[Abs(segmentId)] = contigCntr;
+//                        std::cerr << contigCntr << " " << segmentSize << " " << ss.str() << "\n";
                         g->Segment(contigCntr, segmentSize, ss.str(), std::cout);
                         contigCntr++;
                         elementCntr+=ss.str().size();
@@ -770,15 +782,8 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
                     if (segmentId<0)
                         newId = -newId;
                     currentPath.push_back(newId); // Add segment to the path
-                    // If the contig is palindrome
-                    bool isPalindrome = false;
-                    if (begin.GetId() == -end.GetId() and chr[begin.GetPos() + k] ==  TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1])) {
+                    if (isPalindrome) {
                         currentPath.push_back(-newId);
-                        if (segmentSize % 2 != 0) {
-                            std::cerr << "This shouldn't happen. Problem handling palindromes!!\n";
-                            std::exit(1);
-                        }
-                        endPos = (beginPos + endPos)/2;
                     }
                 }
                 begin = end;
