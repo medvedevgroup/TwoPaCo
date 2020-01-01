@@ -48,6 +48,7 @@ namespace TwoPaCo
 		size_t hashFunctions,
 		size_t rounds,
 		size_t threads,
+		size_t abundance,
 		const std::string & tmpFileName,
 		const std::string & outFileName,
 		std::ostream & logStream);
@@ -130,6 +131,7 @@ namespace TwoPaCo
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
+			size_t abundance,
 			const std::string & tmpDirName,
 			const std::string & outFileNamePrefix,
 			std::ostream & logStream) :
@@ -349,7 +351,7 @@ namespace TwoPaCo
 
 				mark = time(0);
 				size_t falsePositives = 0;
-				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
+				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, abundance, falsePositives);
 				logStream << time(0) - mark << std::endl;
 				logStream << "True junctions count = " << truePositives << std::endl;
 				logStream << "False junctions count = " << falsePositives << std::endl;
@@ -722,6 +724,7 @@ namespace TwoPaCo
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
 									typename OccurenceSet::iterator it = ret.first;
+									it->Inc();
 									if (!ret.second && !it->IsBifurcation())
 									{
 										inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
@@ -904,6 +907,7 @@ namespace TwoPaCo
 			}
 
 		private:
+			size_t abundance;
 			size_t vertexLength;
 			TaskQueue & taskQueue;
 			uint64_t & currentStubVertexId;
@@ -1135,13 +1139,13 @@ namespace TwoPaCo
 			}
 		}
 
-		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t & falsePositives) const
+		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t abundance, size_t & falsePositives) const
 		{
 			uint64_t truePositives = falsePositives = 0;
 			for (auto it = occurenceSet.begin(); it != occurenceSet.end();++it)
 			{
 				bool bifurcation = it->IsBifurcation();
-				if (bifurcation)
+				if (bifurcation && it->Count() <= abundance)
 				{
 					++truePositives;
 					it->GetBase().WriteToFile(out);

@@ -104,6 +104,14 @@ int main(int argc, char * argv[])
 			"integer",
 			cmd);
 
+		TCLAP::ValueArg<unsigned int> abundance("a",
+			"abundance",
+			"Vertex abundance threshold",
+			false,
+			UINT32_MAX,
+			"integer",
+			cmd);
+
 		TCLAP::ValueArg<std::string> tmpDirName("",
 			"tmpdir",
 			"Temporary directory name",
@@ -156,6 +164,7 @@ int main(int argc, char * argv[])
 			hashFunctions.getValue(),
 			rounds.getValue(),
 			threads.getValue(),
+			abundance.getValue(),
 			tmpDirName.getValue(),
 			outFileName.getValue(),
 			std::cout);
