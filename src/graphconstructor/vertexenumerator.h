@@ -57,7 +57,9 @@ namespace TwoPaCo
 	class VertexEnumeratorImpl : public VertexEnumerator
 	{
 	private:
+		bool offsetFill_;
 		std::string filterDumpFile_;
+		std::vector<size_t> bufferOffset_;
 		VertexRollingHashSeed hashFunctionSeed_;
 		static const size_t BUF_SIZE = 1 << 24;
 		BifurcationStorage<CAPACITY> bifStorage_;		
@@ -140,6 +142,7 @@ namespace TwoPaCo
 			filterDumpFile_(tmpDirName + "/filter.bin"),
 			parsingException_("")
 		{
+			offsetFill_ = false;
 			uint64_t realSize = uint64_t(1) << filterSize;
 			logStream << "Threads = " << threads << std::endl;
 			logStream << "Vertex length = " << vertexLength << std::endl;
@@ -224,7 +227,8 @@ namespace TwoPaCo
 				throw StreamFastaParser::Exception("Can't create a temp file");
 			}
 
-			time_t mark;			
+			time_t mark;
+			offsetFill_ = true;
 			for (size_t round = 0; round < rounds; round++)
 			{
 				std::atomic<uint64_t> marks;
@@ -253,7 +257,6 @@ namespace TwoPaCo
 					high = realSize;
 				}
 
-
 				{
 					ConcurrentBitVector bitVector(realSize);
 					logStream << "Round " << round << ", " << low << ":" << high << std::endl;
@@ -278,6 +281,7 @@ namespace TwoPaCo
 						}
 					}
 
+					offsetFill_ = false;
 					bitVector.WriteToFile(filterDumpFile_);
 					logStream << time(0) - mark << "\t";
 					mark = time(0);
