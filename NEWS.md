@@ -8,6 +8,7 @@ TwoPaCo 0.9.4
 =============
 * Added the installation scripts
 * Added the "filtermemory" option
+* Better handling of temporary files
 
 TwoPaCo 0.9.3
 =============
