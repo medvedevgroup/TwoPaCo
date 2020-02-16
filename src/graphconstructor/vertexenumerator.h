@@ -475,7 +475,14 @@ namespace TwoPaCo
 		{
 			return hvalue >= low && hvalue <= high;
 		}
-
+/*
+		static std::string CandidateMaskFileNamePart(const std::string & directory, size_t sequence, size_t pos, size_t round)
+		{
+			std::stringstream ss;
+			ss << directory << "/" << sequence << "_" << pos << "_" << round << ".tmp";
+			return ss.str();
+		}
+*/
 		static std::string CandidateMaskFileName(const std::string & directory,  size_t round)
 		{
 			std::stringstream ss;
@@ -743,7 +750,7 @@ namespace TwoPaCo
 							{
 								try
 								{
-									maskStorageMutex.lock();
+									maskStorageMutex.lock();							
 									candidateMask.ReadFromFile(maskStorage, task.offset, task.str.size());
 									maskStorageMutex.unlock();
 								}
@@ -1107,6 +1114,11 @@ namespace TwoPaCo
 #ifdef LOGGING
 			logFile << "Starting a new stage" << std::endl;
 #endif
+			if (offsetFill)
+			{
+				offset.push_back(0);
+			}
+
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
 #ifdef LOGGING
@@ -1156,12 +1168,7 @@ namespace TwoPaCo
 						}
 
 						if (buf.size() >= overlapSize && (buf.size() == Task::TASK_SIZE || over))
-						{
-							if (offsetFill)
-							{
-								offset.push_back((offset.size() > 0 ? offset.back() : 0) + buf.size() / 32 + ((buf.size() % 32) != 0));
-							}
-
+						{						
 							for (bool found = false; !found; nowQueue = nowQueue + 1 < taskQueue.size() ? nowQueue + 1 : 0)
 							{
 								TaskQueuePtr & q = taskQueue[nowQueue];
@@ -1177,8 +1184,15 @@ namespace TwoPaCo
 										buf.push_back('N');
 									}
 
+									size_t currentTaskSize = buf.size();
 									uint64_t currentOffset = offset.size() > 0 ? offset[pieceCount] : 0;
 									q->push(Task(record, prev, pieceCount++, currentOffset, over, std::move(buf)));
+
+									if (offsetFill)
+									{
+										offset.push_back(offset.back() + currentTaskSize / 32 + 1);
+									}
+
 #ifdef LOGGING
 									logFile << "Passed chunk " << prev << " to worker " << nowQueue << std::endl;
 #endif
