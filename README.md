@@ -1,6 +1,6 @@
 TwoPaCo 0.9.4
 
-Release date: ---
+Release date: 25th September 2020
 =============================
 
 Authors
