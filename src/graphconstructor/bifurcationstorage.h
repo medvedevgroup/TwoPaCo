@@ -1,6 +1,7 @@
 #ifndef _BIFURCATION_STORAGE_H_
 #define _BIFURCATION_STORAGE_H_
 
+#include "oneapi/tbb/task_arena.h"
 #include "common.h"
 #include "compressedstring.h"
 
@@ -34,7 +35,7 @@ namespace TwoPaCo
 			}
 
 			size_t hashFunctionNumber = 3;
-			bitsPower = max(bitsPower, size_t(24));
+			bitsPower = std::max(static_cast<size_t>(bitsPower), size_t(24));
 			bifurcationFilter_.assign(uint64_t(1) << bitsPower, false);
 			hashFunction_.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction_)
@@ -61,8 +62,13 @@ namespace TwoPaCo
 				}
 			}
 
-			tbb::task_scheduler_init init(threads);
-			tbb::parallel_sort(bifurcationKey_.begin(), bifurcationKey_.end(), DnaString::Less);
+
+			// Create the custom task_arena with four threads
+			oneapi::tbb::task_arena arena(threads);
+
+			arena.execute([this]{
+				oneapi::tbb::parallel_sort(this->bifurcationKey_.begin(), this->bifurcationKey_.end(), DnaString::Less);
+			});
 		}
 
 		int64_t GetId(std::string::const_iterator pos) const
