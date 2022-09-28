@@ -2,14 +2,12 @@ project(graphdump CXX)
 cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_PROJECT_NAME graphdump)
-if(CMAKE_COMPILER_IS_GNUCXX)
-	list(APPEND "CMAKE_CXX_FLAGS" "-std=c++11 -lstdc++")
-endif()
+set(CMAKE_CXX_STANDARD 14)
 
 add_executable(graphdump graphdump.cpp ../common/dnachar.cpp ../common/streamfastaparser.cpp)
 link_directories(${TBB_LIB_DIR})
 include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIR} "../common")
-target_link_libraries(graphdump  "tbb")
+target_link_libraries(graphdump  "tbb" "pthread")
 install(TARGETS graphdump RUNTIME DESTINATION bin)
 
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
