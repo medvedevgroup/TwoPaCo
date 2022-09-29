@@ -1,3 +1,7 @@
+TwoPaCo 1.0.0
+=============
+* Added support of the newer version of TBB library
+
 TwoPaCo 0.9.4
 =============
 * Added the installation scripts

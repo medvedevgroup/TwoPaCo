@@ -38,7 +38,7 @@ namespace TwoPaCo
 		static const size_t TASK_SIZE = 32;
 #else
 		static const size_t TASK_SIZE = 1 << 19;
-#endif					
+#endif
 		static const size_t GAME_OVER = SIZE_MAX;
 		Task() {}
 		Task(uint64_t seqId, uint64_t start, uint64_t piece, uint64_t offset, bool isFinal, std::string && str) :

@@ -1,6 +1,6 @@
-TwoPaCo 0.9.4
+TwoPaCo 1.0.0
 
-Release date: 25th September 2020
+Release date: 29th September 2022
 =============================
 
 Authors
