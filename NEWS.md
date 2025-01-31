@@ -1,6 +1,7 @@
 TwoPaCo 1.1.0
 =============
 * Fixed a crash caused by illegal characters in FASTA
+* Got rid of the dependence on TBB
 
 TwoPaCo 1.0.0
 =============

@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include <tclap/CmdLine.h>
-#include "oneapi/tbb/parallel_sort.h"
 
 #include <dnachar.h>
 #include <streamfastaparser.h>
@@ -145,7 +144,7 @@ void GenerateGroupOutupt(const std::string & inputFileName)
 		i = j;
 	}
 
-	tbb::parallel_sort(eqClass.begin(), eqClass.end(), CompareJunctionClasses);
+	std::sort(eqClass.begin(), eqClass.end(), CompareJunctionClasses);
 	for (auto junctionClass : eqClass)
 	{
 		for (auto j : junctionClass.position)

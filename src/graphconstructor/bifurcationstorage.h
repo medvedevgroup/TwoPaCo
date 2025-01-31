@@ -1,7 +1,6 @@
 #ifndef _BIFURCATION_STORAGE_H_
 #define _BIFURCATION_STORAGE_H_
 
-#include "oneapi/tbb/task_arena.h"
 #include "common.h"
 #include "compressedstring.h"
 
@@ -63,12 +62,7 @@ namespace TwoPaCo
 			}
 
 
-			// Create the custom task_arena with four threads
-			oneapi::tbb::task_arena arena(threads);
-
-			arena.execute([this]{
-				oneapi::tbb::parallel_sort(this->bifurcationKey_.begin(), this->bifurcationKey_.end(), DnaString::Less);
-			});
+			std::sort(this->bifurcationKey_.begin(), this->bifurcationKey_.end(), DnaString::Less);
 		}
 
 		int64_t GetId(std::string::const_iterator pos) const

@@ -14,10 +14,9 @@
 #include <sstream>
 
 #include <tclap/CmdLine.h>
-#include "oneapi/tbb/scalable_allocator.h"
 
 #include "test.h"
-#include "assemblyedgeconstructor.h"
+#include "vertexenumerator.h"
 
 size_t Atoi(const char * str)
 {
@@ -56,7 +55,7 @@ int main(int argc, char * argv[])
 	OddConstraint constraint;
 	try
 	{
-		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "1.0.0");
+		TCLAP::CmdLine cmd("Program for construction of the condensed de Bruijn graph from complete genomes", ' ', "1.1.0");
 
 		TCLAP::ValueArg<unsigned int> kvalue("k",
 			"kvalue",
@@ -187,7 +186,7 @@ int main(int argc, char * argv[])
 		std::cerr << std::endl << "Error: " << e.what() << std::endl;
 		return 1;
 	}
-	
+
 
 	// NOTE: why do this here?  Well, this is to 
 	// fix the OSX build under [bioconda](https://bioconda.github.io).
@@ -203,17 +202,17 @@ int main(int argc, char * argv[])
 	// This ensures (for the cost of one extra allocation call) that the 
 	// call to `scalable_allocation_command` works across all platforms on 
 	// which we need to build.
-	void* salloc = scalable_malloc(1024);
-  
-	if (salloc == nullptr) {
-		std::cerr << "TwoPaCo::buildGraphMain:: couldn't allocate using scalable_malloc!" << std::endl; 
-	} else {
-		std::cerr << "TwoPaCo::buildGraphMain:: allocated with scalable_malloc; freeing." << std::endl;
-		scalable_free(salloc);
-
-		std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);" << std::endl;
-		scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
-	}
+//	void* salloc = scalable_malloc(1024);
+ 
+//	if (salloc == nullptr) {
+//		std::cerr << "TwoPaCo::buildGraphMain:: couldn't allocate using scalable_malloc!" << std::endl; 
+//	} else {
+//		std::cerr << "TwoPaCo::buildGraphMain:: allocated with scalable_malloc; freeing." << std::endl;
+//		scalable_free(salloc);
+//
+//		std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);" << std::endl;
+//		scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
+//	}
 
 	return 0;
 }

@@ -5,19 +5,14 @@
 
 #include <deque>
 #include <cstdio>
+#include <thread>
 #include <numeric>
 #include <sstream>
-#include <unordered_map>
-
-#include "tbb/tbb.h"
-#include "oneapi/tbb/spin_rw_mutex.h"
-#include "oneapi/tbb/blocked_range.h"
-#include "oneapi/tbb/parallel_sort.h"
-#include "oneapi/tbb/parallel_reduce.h"
-#include "oneapi/tbb/concurrent_unordered_set.h"
+#include <unordered_set>
 
 #include <junctionapi.h>
 
+#include "taskqueue.h"
 #include "vertexrollinghash.h"
 #include "streamfastaparser.h"
 #include "bifurcationstorage.h"
@@ -58,7 +53,7 @@ namespace TwoPaCo
 		std::vector<size_t> bufferOffset_;
 		VertexRollingHashSeed hashFunctionSeed_;
 		static const size_t BUF_SIZE = 1 << 24;
-		BifurcationStorage<CAPACITY> bifStorage_;		
+		BifurcationStorage<CAPACITY> bifStorage_;
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
 
@@ -91,7 +86,7 @@ namespace TwoPaCo
 			}
 		};
 
-		typedef oneapi::tbb::concurrent_unordered_set<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
+		typedef std::unordered_set<Occurence, OccurenceHash, OccurenceEquality> OccurenceSet;
 
 	public:
 
@@ -161,7 +156,7 @@ namespace TwoPaCo
 
 			std::mutex errorMutex;
 			std::unique_ptr<std::runtime_error> error;
-			
+
 			size_t edgeLength = vertexLength + 1;
 			std::vector<TaskQueuePtr> taskQueue(threads);
 			for (size_t i = 0; i < taskQueue.size(); i++)
@@ -337,7 +332,7 @@ namespace TwoPaCo
 				}
 
 				mark = time(0);
-				oneapi::tbb::spin_rw_mutex mutex;
+				std::mutex mutex;
 				logStream << "2\t";
 				OccurenceSet occurenceSet(1 << 20);
 				{
@@ -715,7 +710,7 @@ namespace TwoPaCo
 				size_t vertexLength,
 				TaskQueue & taskQueue,
 				OccurenceSet & occurenceSet,
-				oneapi::tbb::spin_rw_mutex & mutex,
+				std::mutex & mutex,
 				const std::string & tmpDirectory,
 				size_t round,
 				std::ifstream & maskStorage,
@@ -752,7 +747,7 @@ namespace TwoPaCo
 							{
 								try
 								{
-									maskStorageMutex.lock();							
+									maskStorageMutex.lock();
 									candidateMask.ReadFromFile(maskStorage, task.offset, task.str.size());
 									maskStorageMutex.unlock();
 								}
@@ -769,7 +764,7 @@ namespace TwoPaCo
 								if (candidateMask.GetBit(pos))
 								{
 									Occurence now;
-									bool isBifurcation = false;						
+									bool isBifurcation = false;
 									now.Set(hash.RawPositiveHash(0),
 										hash.RawNegativeHash(0),
 										task.str.begin() + pos,
@@ -779,6 +774,8 @@ namespace TwoPaCo
 										isBifurcation);
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
+
+									mutex.lock();
 									auto ret = occurenceSet.insert(now);
 									typename OccurenceSet::iterator it = ret.first;
 									it->Inc();
@@ -791,6 +788,7 @@ namespace TwoPaCo
 											it->MakeBifurcation();
 										}
 									}
+									mutex.unlock();
 								}
 
 								if (pos + edgeLength < task.str.size())
@@ -814,7 +812,7 @@ namespace TwoPaCo
 			size_t vertexLength;
 			TaskQueue & taskQueue;
 			OccurenceSet & occurenceSet;
-			oneapi::tbb::spin_rw_mutex & mutex;
+			std::mutex & mutex;
 			const std::string & tmpDirectory;
 			size_t round;
 			std::ifstream & maskStorage;
@@ -1170,7 +1168,7 @@ namespace TwoPaCo
 						}
 
 						if (buf.size() >= overlapSize && (buf.size() == Task::TASK_SIZE || over))
-						{						
+						{
 							for (bool found = false; !found; nowQueue = nowQueue + 1 < taskQueue.size() ? nowQueue + 1 : 0)
 							{
 								TaskQueuePtr & q = taskQueue[nowQueue];
@@ -1188,7 +1186,7 @@ namespace TwoPaCo
 
 									size_t currentTaskSize = buf.size();
 									uint64_t currentOffset = offset.size() > 0 ? offset[pieceCount] : 0;
-									q->push(Task(record, prev, pieceCount++, currentOffset, over, std::move(buf)));
+									q->try_push(Task(record, prev, pieceCount++, currentOffset, over, std::move(buf)));
 
 									if (offsetFill)
 									{

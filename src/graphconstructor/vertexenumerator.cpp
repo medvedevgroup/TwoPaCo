@@ -40,7 +40,7 @@ namespace TwoPaCo
 					outFileName,
 					logStream));
 			}
-			
+
 			return CreateEnumeratorImpl<CAPACITY + 1>(fileName,
 				vertexLength,
 				filterSize,
@@ -67,7 +67,7 @@ namespace TwoPaCo
 		{
 			throw std::runtime_error("The value of K is too big. Please refer to documentaion how to increase the max supported value of K.");
 			return 0;
-		}		
+		}
 	}
 
 	std::unique_ptr<VertexEnumerator> CreateEnumerator(const std::vector<std::string> & fileName,
@@ -78,7 +78,7 @@ namespace TwoPaCo
 		size_t threads,
 		size_t abundance,
 		const std::string & tmpFileName,
-		const std::string & outFileName,		
+		const std::string & outFileName,
 		std::ostream & logStream)
 	{
 		return CreateEnumeratorImpl<1>(fileName,

@@ -1,6 +1,7 @@
 #ifndef _JUNCTION_POSITION_API_H_
 #define _JUNCTION_POSITION_API_H_
 
+#include <vector>
 #include <fstream>
 #include <cstdint>
 #include <exception>

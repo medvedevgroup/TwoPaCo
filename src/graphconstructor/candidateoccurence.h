@@ -61,9 +61,9 @@ namespace TwoPaCo
 			count_ = toCopy.count_;
 		}
 
-		void Inc()
+		void Inc() const
 		{
-			count_++;
+			const_cast<uint64_t&>(count_)++;
 		}
 
 		uint64_t Count() const
@@ -121,7 +121,7 @@ namespace TwoPaCo
 			return DnaChar::LITERAL[(next == 'N' ? IS_NEXT_N : 0) | (prev == 'N' ? IS_PREV_N : 0)];
 		}
 
-		std::atomic<uint64_t> count_;
+		uint64_t count_;
 		CompressedString<CAPACITY> body_;
 	};
 
