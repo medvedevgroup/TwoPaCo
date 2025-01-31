@@ -1,3 +1,7 @@
+TwoPaCo 1.1.0
+=============
+* Fixed a crash caused by illegal characters in FASTA
+
 TwoPaCo 1.0.0
 =============
 * Added support of the newer version of TBB library

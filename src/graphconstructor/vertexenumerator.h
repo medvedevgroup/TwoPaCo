@@ -279,6 +279,11 @@ namespace TwoPaCo
 						{
 							workerThread[i]->join();
 						}
+
+						if (error != 0)
+						{
+							throw *error;
+						}
 					}
 
 					if (offsetFill)
