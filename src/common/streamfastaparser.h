@@ -1,12 +1,13 @@
 #ifndef _STREAM_FASTA_PARSER_H_
 #define _STREAM_FASTA_PARSER_H_
 
+#include <mutex>
+#include <memory>
 #include <vector>
 #include <fstream>
 #include <stdexcept>
 #include <algorithm>
 #include <iostream>
-#include <memory>
 
 #include "dnachar.h"
 

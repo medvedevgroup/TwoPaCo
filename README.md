@@ -1,6 +1,6 @@
-TwoPaCo 1.0.0
+TwoPaCo 1.1.0
 
-Release date: 29th September 2022
+Release date: 1st February 2025
 =============================
 
 Authors
@@ -31,8 +31,6 @@ To compile the code, you need the following (Linux only):
 
 * CMake 
 * A GCC compiler supporting C++11
-* Intel TBB library properly installed on your system. In other words, G++
-  should be able to find TBB libs 
 
 Once you've got all the things above, do the following:
 
@@ -42,7 +40,10 @@ Once you've got all the things above, do the following:
 * Run make
 
 This will make two targets: twopaco and graphdump.
-Compilation under other platforms is possible, portable makefiles are in progress.
+Compilation under other platforms should also be possible.
+
+Note that since 1.1.0 TwoPaCo does not use the TBB library. If you specifically
+need the TBB-dependent version for some reason, please use version 1.0.0.
 
 TwoPaCo usage
 =============

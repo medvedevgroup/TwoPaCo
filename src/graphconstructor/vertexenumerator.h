@@ -53,6 +53,7 @@ namespace TwoPaCo
 		std::vector<size_t> bufferOffset_;
 		VertexRollingHashSeed hashFunctionSeed_;
 		static const size_t BUF_SIZE = 1 << 24;
+		static const size_t HASH_ARRAY_POW = 10;
 		BifurcationStorage<CAPACITY> bifStorage_;
 		typedef CompressedString<CAPACITY> DnaString;
 		typedef CandidateOccurence<CAPACITY> Occurence;
@@ -332,9 +333,9 @@ namespace TwoPaCo
 				}
 
 				mark = time(0);
-				std::mutex mutex;
 				logStream << "2\t";
-				OccurenceSet occurenceSet(1 << 20);
+				std::mutex mutex[1 << HASH_ARRAY_POW];
+				OccurenceSet occurenceSet[1 << HASH_ARRAY_POW];
 				{
 					std::mutex maskStorageMutex;
 					inMaskStorage[round] = new std::ifstream(CandidateMaskFileName(tmpDirName, round).c_str(), ios::binary);
@@ -376,12 +377,13 @@ namespace TwoPaCo
 				}
 
 				mark = time(0);
+				size_t hashTableSize = 0;
 				size_t falsePositives = 0;
-				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, abundance, falsePositives);
+				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, abundance, falsePositives, hashTableSize);
 				logStream << time(0) - mark << std::endl;
 				logStream << "True junctions count = " << truePositives << std::endl;
 				logStream << "False junctions count = " << falsePositives << std::endl;
-				logStream << "Hash table size = " << occurenceSet.size() << std::endl;
+				logStream << "Hash table size = " << hashTableSize << std::endl;
 				logStream << "Candidate marks count = " << marks << std::endl;
 				logStream << std::string(80, '-') << std::endl;
 				totalFpCount += falsePositives;
@@ -394,7 +396,7 @@ namespace TwoPaCo
 				delete[] binCounter;
 			}
 
-			mark = time(0);			
+			mark = time(0);
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
 			bifurcationTempWrite.close();
 			{
@@ -709,8 +711,8 @@ namespace TwoPaCo
 			CandidateFinalFilteringWorker(const VertexRollingHashSeed & hashFunction,
 				size_t vertexLength,
 				TaskQueue & taskQueue,
-				OccurenceSet & occurenceSet,
-				std::mutex & mutex,
+				OccurenceSet * occurenceSet,
+				std::mutex * mutex,
 				const std::string & tmpDirectory,
 				size_t round,
 				std::ifstream & maskStorage,
@@ -724,6 +726,7 @@ namespace TwoPaCo
 
 			void operator()()
 			{
+				auto mask = (1 << HASH_ARRAY_POW) - 1;
 				ConcurrentBitVector candidateMask(Task::TASK_SIZE);
 				while (true)
 				{
@@ -774,9 +777,12 @@ namespace TwoPaCo
 										isBifurcation);
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
+									auto hash = now.Hash() & mask;
+									auto & nowMutex = mutex[hash];
+									auto & nowSet = occurenceSet[hash];
 
-									mutex.lock();
-									auto ret = occurenceSet.insert(now);
+									nowMutex.lock();
+									auto ret = nowSet.insert(now);
 									typename OccurenceSet::iterator it = ret.first;
 									it->Inc();
 									if (!ret.second && !it->IsBifurcation())
@@ -788,7 +794,8 @@ namespace TwoPaCo
 											it->MakeBifurcation();
 										}
 									}
-									mutex.unlock();
+									
+									nowMutex.unlock();
 								}
 
 								if (pos + edgeLength < task.str.size())
@@ -811,8 +818,8 @@ namespace TwoPaCo
 			const VertexRollingHashSeed & hashFunction;
 			size_t vertexLength;
 			TaskQueue & taskQueue;
-			OccurenceSet & occurenceSet;
-			std::mutex & mutex;
+			OccurenceSet * occurenceSet;
+			std::mutex * mutex;
 			const std::string & tmpDirectory;
 			size_t round;
 			std::ifstream & maskStorage;
@@ -1218,24 +1225,30 @@ namespace TwoPaCo
 			}
 		}
 
-		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t abundance, size_t & falsePositives) const
+		uint64_t TrueBifurcations(const OccurenceSet * occurenceSetArray, std::ofstream & out, size_t vertexSize, size_t abundance, size_t & falsePositives, size_t & hashTableSize) const
 		{
-			uint64_t truePositives = falsePositives = 0;
-			for (auto it = occurenceSet.begin(); it != occurenceSet.end();++it)
+			uint64_t truePositives = falsePositives = hashTableSize = 0;
+			auto hashSize = 1 << HASH_ARRAY_POW;
+			for (size_t i = 0; i < hashSize; ++i)
 			{
-				bool bifurcation = it->IsBifurcation();
-				if (bifurcation && it->Count() <= abundance)
+				auto & occurenceSet = occurenceSetArray[i];
+				hashTableSize += occurenceSet.size();
+				for (auto it = occurenceSet.begin(); it != occurenceSet.end();++it)
 				{
-					++truePositives;
-					it->GetBase().WriteToFile(out);
-					if (!out)
+					bool bifurcation = it->IsBifurcation();
+					if (bifurcation && it->Count() <= abundance)
 					{
-						throw StreamFastaParser::Exception("Can't write to a temporary file");
+						++truePositives;
+						it->GetBase().WriteToFile(out);
+						if (!out)
+						{
+							throw StreamFastaParser::Exception("Can't write to a temporary file");
+						}
 					}
-				}
-				else
-				{
-					falsePositives++;
+					else
+					{
+						falsePositives++;
+					}
 				}
 			}
 
