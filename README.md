@@ -19,7 +19,7 @@ This distribution contains two programs:
 
 * twopaco -- a tool for direct construction of the compressed graph from 
 multiple complete genomes
-* graphdump -- a utility that turns output of twopaco into a text format
+* graphdump -- a utility that turns the output of twopaco into a text format
 
 Test data
 =========
@@ -51,14 +51,14 @@ To construct the graph (assuming you are in dir with "twopaco"), type:
 
 	./twopaco -f <filter_size> -k <value_of_k> <input_files>
 
-This will constuct the compressed graph for the vertex size of \<value_of_k\> using
+This will construct the compressed graph for the vertex size of \<value_of_k\> using
 2^\<filter_size\> bits in the Bloom filter. The output file is a binary that can be
 either converted to a text file or read directly using an API (will be available soon).
 
 The filter size -f is a very important parameter that affects both
 the memory usage and the speed. TwoPaCo will use at least 2^\<filter_size\> / 8 bytes of
 memory, but setting it too low can massively increase the size of
-the memory used and slow down the program. We recommend the user to set -f to to the value
+the memory used and slow down the program. We recommend the user to set -f to the value
 so that 2^\<filter_size\> / 8 is the maximum memory in bytes they wish to allocate to
 the algorithm. If the memory usage then exceeds the value above, then the number of rounds
 should be increased until the memory usage falls below the desired value
@@ -68,7 +68,7 @@ If the memory usage is not a concern, then as a rule of thumb for the fastest sp
 set the parameter -f as large as possible. Here are the recommended settings given
 the memory size of a machine:
 
-| Machine RAM | Recommended -f value | Corresponding Bloom fitler size |
+| Machine RAM | Recommended -f value | Corresponding Bloom filter size |
 | ----------- | -------------------- | ------------ |
 | 4 GB   | 34 | 2.1 GB   |
 | 8 GB   | 35 | 4.3 GB   |
@@ -80,14 +80,14 @@ the memory size of a machine:
 
 For a memory size in between, go up a value, i.e. for 12GB RAM use 36, not 35.
 For more details on how the Bloom filter size affects performance, please see the paper.
-Below is description of the other parameters.
+Below is a description of the other parameters.
 
 Alternatively, you can specify the memory used by the filter using the "filtermemory"
 option:
 
 	--filtermemory <memory amount in GB>
 
-Note that the filter will be of size 2^n bits with n being as large as possible such
+Note that the filter will be of size 2^n bits, with n being as large as possible such
 that the filter fits the memory size specified. So if you use 20 as the filtermemory, 
 TwoPaCo will allocate 17.2 GBs for the Bloom filter.
 
@@ -112,7 +112,7 @@ Note that:
 the edge 
 2) **k** must be odd
 
-The maximum value of K supported by TwoPaCo is determined at the compile time.
+The maximum value of K supported by TwoPaCo is determined at compile time.
 To increase the max value of K, increase the value "MAX_CAPACITY" defined in the
 header "vertexenumerator.h" and recompile. The value of "MAX_CAPACITY" should be
 at least (K + 4) / 32 + 1. Note that increasing the parameter will slow down 
@@ -125,7 +125,7 @@ change, use:
 
 	-q <number> or --hashfnumber <number>
 
-More hash functions increases the running time. At the same time, more hash functions
+More hash functions increase the running time. At the same time, more hash functions
 may decrease the number of false positives and the memory usage.
 
 
@@ -157,12 +157,12 @@ processing the input file:
 
 The graphdump usage
 ===================
-This utility turns the binary file a text one. There are several output formats
-available. The folder "example" contains an example described in details.
+This utility turns the binary file into a text one. There are several output formats
+available. The folder "example" contains an example described in detail.
 
 GFF
 ---
-In the next release I will add an option to output coordinates of all occurrences
+In the next release I will add an option to output the coordinates of all occurrences
 of the junctions in GFF format.
 
 DOT
@@ -177,13 +177,13 @@ To get the DOT file, use:
 	graphdump <twopaco_output_file> -f dot -k <value_of_k>
 
 Note that the graph is a union of graphs built from both strands, with blue edges
-coming from the main strand and red ones from reverse one. The labels of the edges
-will indicate its position on a chromosome.
+coming from the main strand and red ones from the reverse one. The labels of the edges
+will indicate their position on a chromosome.
 
 GFA
 ---
 GFA is the most handy option. It **explicitly** represents the graph as a list of
-edges (non-branching paths in the non-compacted de Bruijn graph) graph and adjacencies
+edges (non-branching paths in the non-compacted de Bruijn graph) and adjacencies
 between them. The file also contains all occurrences of the strings spelled by the paths
 in the input genomes.
 
@@ -199,12 +199,12 @@ To get GFA output, run:
 
 In the resulting file compacted non-branching paths are "segments" with "links"
 (GFA1) or "edges" (GFA2) containing them. "Containment" (GFA1) or "Fragment"
-(GFA2) records desrcibe the mapping between the non-branching paths in the
+(GFA2) records describe the mapping between the non-branching paths in the
 graph and the input genomes. For GFA1, each input chromosome is also a "segment"
 described in the very beginning of the GFA file. 
 
 GFA1 only: each segment representing an input chromosome has the name of the
-corresponding header of the sequence in input FASTA file. In case if there are
+corresponding header of the sequence in the input FASTA file. In case there are
 duplicate headers, one can add a prefix to segment names:
 
 	"s<number>_" + header of the sequence in input FASTA file
@@ -213,12 +213,12 @@ To do so, use the switch:
 
 	--prefix
 
-For an example of GFA output and more detailed explanation, see the "example"
+For an example of GFA output and a more detailed explanation, see the "example"
 folder.
 
 Junctions List Format
 ---------------------
-In this format the output file only contains positions of junctions in the input
+In this format, the output file only contains positions of junctions in the input
 genomes. As described in the paper, you can trivially restore information about
 edges from this junctions list. Note that junctions are mapped to genomes, i.e.
 one can reconstruct a **colored graph** from it. To get the junctions list, run:
@@ -226,7 +226,7 @@ one can reconstruct a **colored graph** from it. To get the junctions list, run:
 	graphdump -f seq -k <value_of_k>
 
 This command will output a text file to the standard output. Each line will contain a 
-triple indicating an occurence of junction:
+triple indicating an occurrence of junction:
 
 	<seq_id_i> <pos_i> <junction_id_i> 
 
@@ -235,11 +235,11 @@ position, and the third one is the junction id. The index number of the sequence
 is the order of the sequence in the input file(s). All positions/orders count
 from 0. Positions appear in the file in the same order they appear in the input
 genomes. The \<junction_id\> is a signed integer, the id of the junction that
-appears on the positive strand strand. A positive number indicates "direct" version
-of the junction, while a negative one shows the reverse complimentary version of the
-same junction. For example +1 and -1 are different versions of the same junction.
+appears on the positive strand. A positive number indicates "direct" version
+of the junction, while a negative one shows the reverse complementary version of the
+same junction. For example, +1 and -1 are different versions of the same junction.
 This way, one can obtain all multi-edges of the graph with a linear scan, as described
-in the paper. For example, a sequence of of junctions ids:
+in the paper. For example, a sequence of junction ids:
 
 	a_1
 	a_2
@@ -247,17 +247,17 @@ in the paper. For example, a sequence of of junctions ids:
 
 Generates edges a_1 -> a_2, a_2 -> a_3 in the graph corresponding to the positive
 strand. To obtain the edges from the positive strand, one has to traverse them 
-in the backwards order and negate signs, e.g. for the example above the sequence
-will be -a_3 -> -a_2 -> -a_1. One can also output junctions grouped by ids, it is
+in the reverse order and negate signs, e.g. for the example above, the sequence
+will be -a_3 -> -a_2 -> -a_1. One can also output junctions grouped by ids, which is
 useful for comparison between different graphs:
 
 	graphdump -f group -k <value_of_k>
 
-In this format the i-th line line corresponds to the i-th junction and is of format:
+In this format, the i-th line corresponds to the i-th junction and is of format:
 
 	<seq_id_0> <pos_0>; <seq_id_1> <pos_1>; ....
 
-Where each pair "seq_id_i pos_j" corresponds to an occurence of the junction in
+Where each pair "seq_id_i pos_j" corresponds to an occurrence of the junction in
 sequence "seq_id_i" at position "pos_j". Sequence ids are just the numbers of sequences
 in the order they appear in the input. All positions count from 0.
 
@@ -266,7 +266,7 @@ Read The Binary File Directly
 This is the most parsimonious option in terms of involved resources.
 One can read junctions and/or edges from the output file using a very simple
 C++ API. I will add the description in the future release. For now, one can
-use the sources of graphdump as a reference, it is relatively straightforward.
+use the sources of graphdump as a reference; it is relatively straightforward.
 
 License
 =======
@@ -274,9 +274,9 @@ See LICENSE.txt
 
 Contacts
 ========
-Please e-mail your feedback at ivminkin@gmail.com.
+Please e-mail your feedback to ivminkin@gmail.com.
 
-You also can report bugs or suggest features using issue tracker at GitHub
+You can also report bugs or suggest features using the issue tracker at GitHub
 https://github.com/medvedevgroup/TwoPaCo
 
 Citation
